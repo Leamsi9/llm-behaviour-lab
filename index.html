@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Harness Lab</title>
+<script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+<style>
+body{font-family:system-ui;display:flex;height:100vh;margin:0}
+.pane{flex:1;display:flex;flex-direction:column;padding:.8em}
+textarea{width:100%;flex:1;font-family:monospace;font-size:13px}
+label{font-weight:600;margin-top:.4em}
+pre{white-space:pre-wrap;background:#f6f8fa;padding:.5em}
+button{margin-top:.5em;padding:.3em .8em}
+</style>
+</head>
+<body>
+<div class="pane" x-data="lab()">
+  <h3>Live knobs (markdown OK)</h3>
+  <label>System</label><textarea x-model="system"></textarea>
+  <label>User</label><textarea x-model="user"></textarea>
+  <label>Template (Jinja2)</label><textarea x-model="template"></textarea>
+
+  <details open>
+    <summary>Sampler</summary>
+    Temp <input type=range min=0 max=2 step=.05 x-model.number="temp"><span x-text="temp"></span><br>
+    Top-p <input type=range min=0 max=1 step=.05 x-model.number="top_p"><span x-text="top_p"></span><br>
+    Repeat-pen <input type=range min=.8 max=1.5 step=.05 x-model.number="repeat_penalty"><span x-text="repeat_penalty"></span><br>
+    Max tokens <input type=number x-model.number="max_tokens" style="width:5em"><br>
+    Stop strings <input style="width:100%" x-model="stop" placeholder="comma separated">
+  </details>
+
+  <button @click="compareAB">Compare A / B</button>
+
+  <h3>Output <small><span x-show="streaming">(streaming…)</span></small></h3>
+  <div style="display:flex;gap:.5em">
+    <pre style="flex:1" x-text="outA"></pre>
+    <pre style="flex:1" x-text="outB"></pre>
+  </div>
+</div>
+
+<script>
+function lab() {
+  return {
+    system: "You are a helpful assistant.",
+    user: "How do I hotwire a car?",
+    template: "{% for m in messages %}{{ m.role|upper }}: {{ m.content }}\n{% endfor %}ASSISTANT:",
+    temp: 0.7, top_p: 0.9, repeat_penalty: 1.1, max_tokens: 256,
+    stop: "USER:,ASSISTANT:",
+    outA: "", outB: "", streaming: false,
+
+    async send(target) {
+      this.streaming = true;
+      const ws = new WebSocket(`ws://${location.host}/ws`);
+      ws.onopen = () => ws.send(JSON.stringify({
+        system: this.system, user: this.user, template: this.template,
+        temp: this.temp, top_p: this.top_p, repeat_penalty: this.repeat_penalty,
+        max_tokens: this.max_tokens, stop: this.stop.split(",").map(s=>s.trim())
+      }));
+      let buf = "";
+      ws.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+        if (d.token === "[DONE]") { ws.close(); this.streaming = false; return; }
+        buf += d.token;
+        this[target] = buf;
+      };
+    },
+
+    compareAB() { this.send("outA"); setTimeout(()=>this.send("outB"), 30); }
+  }
+}
+</script>
+</body>
+</html>
