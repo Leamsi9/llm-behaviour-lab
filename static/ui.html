@@ -73,7 +73,13 @@
 </head>
 <body class="bg-gray-50 p-4">
     <div class="max-w-7xl mx-auto">
-        <h1 class="text-2xl font-bold text-gray-800 mb-6">LLM Harness Lab - Compare Base vs RLHF Models</h1>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">LLM Harness Lab - Compare Base vs RLHF Models</h1>
+            <div id="connectionStatus" class="text-sm px-3 py-1 rounded-full bg-gray-200 text-gray-600">
+                <span class="inline-block w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
+                Connecting...
+            </div>
+        </div>
         
         <div class="bg-white rounded-lg shadow p-6 mb-6">
             <div class="mb-4">
@@ -81,14 +87,24 @@
                 <textarea id="systemPrompt" class="w-full p-2 border rounded-md h-20" placeholder="Enter system prompt...">You are a helpful AI assistant. Think step by step and be concise in your responses.</textarea>
             </div>
             
-            <div class="mb-4 p-4 bg-blue-50 rounded-md">
-                <h3 class="font-medium text-blue-800 mb-2">Using Llama 3 Models</h3>
-                <p class="text-sm text-blue-700">
-                    Base model: <code>llama-3-8b-base-q4_k_m.gguf</code><br>
-                    Instruct model: <code>llama-3-8b-instruct-q4_k_m.gguf</code>
-                </p>
-                <p class="text-sm text-blue-700 mt-2">
-                    Place these files in the <code>models/</code> directory to get started.
+            <div id="modelInfo" class="mb-4 p-4 bg-blue-50 rounded-md">
+                <h3 class="font-medium text-blue-800 mb-3">Select Models to Compare</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-blue-800 mb-1">Left Side (Base/Model 1)</label>
+                        <select id="baseModelSelect" class="w-full p-2 border border-blue-200 rounded-md text-sm bg-white">
+                            <option value="">Loading models...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-blue-800 mb-1">Right Side (Instruct/Model 2)</label>
+                        <select id="instructModelSelect" class="w-full p-2 border border-blue-200 rounded-md text-sm bg-white">
+                            <option value="">Loading models...</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="text-xs text-blue-600 mt-2">
+                    💡 Tip: Compare base vs instruct, or any two models side-by-side
                 </p>
             </div>
             
@@ -107,9 +123,12 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
                     <input type="number" id="maxTokens" min="1" max="4096" value="1024" class="w-full p-2 border rounded-md">
                 </div>
-                <div class="flex items-end">
-                    <button id="generateBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full">
+                <div class="flex items-end gap-2">
+                    <button id="generateBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex-1">
                         Generate
+                    </button>
+                    <button id="stopBtn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex-1 hidden" disabled>
+                        Stop
                     </button>
                 </div>
             </div>
@@ -129,7 +148,10 @@
             <!-- Base Model Pane -->
             <div id="basePane" class="pane">
                 <div class="model-header">
-                    <h3 class="font-bold">Base Model</h3>
+                    <div>
+                        <h3 class="font-bold">Base Model</h3>
+                        <p class="text-xs text-gray-500 mt-1" id="baseModelDisplay">Loading...</p>
+                    </div>
                     <div class="flex items-center">
                         <span id="baseTokenCount" class="token-counter">0 tokens</span>
                         <span id="baseLatency" class="latency">-</span>
@@ -141,7 +163,10 @@
             <!-- RLHF Model Pane -->
             <div id="rlhfPane" class="pane">
                 <div class="model-header">
-                    <h3 class="font-bold">RLHF Model</h3>
+                    <div>
+                        <h3 class="font-bold">RLHF Model</h3>
+                        <p class="text-xs text-gray-500 mt-1" id="rlhfModelDisplay">Loading...</p>
+                    </div>
                     <div class="flex items-center">
                         <span id="rlhfTokenCount" class="token-counter">0 tokens</span>
                         <span id="rlhfLatency" class="latency">-</span>
@@ -152,8 +177,8 @@
         </div>
         
         <div class="mt-6 text-sm text-gray-500">
-            <p>Note: Ensure you have both base and RLHF models downloaded in the <code>models/</code> directory.</p>
-            <p>Example models: <code>mistral-7b-v0.1.Q4_K_M.gguf</code> (base) and <code>mistral-7b-instruct-v0.2.Q4_K_M.gguf</code> (RLHF)</p>
+            <p>Note: Make sure Ollama is running and models are pulled.</p>
+            <p>Pull models: <code>ollama pull qwen2.5:7b</code> and <code>ollama pull qwen2.5:7b-base</code></p>
         </div>
     </div>
 
@@ -166,7 +191,13 @@
         const maxTokens = document.getElementById('maxTokens');
         const compareMode = document.getElementById('compareMode');
         const generateBtn = document.getElementById('generateBtn');
+        const stopBtn = document.getElementById('stopBtn');
         const modelStatus = document.getElementById('modelStatus');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const baseModelSelect = document.getElementById('baseModelSelect');
+        const instructModelSelect = document.getElementById('instructModelSelect');
+        const baseModelDisplay = document.getElementById('baseModelDisplay');
+        const rlhfModelDisplay = document.getElementById('rlhfModelDisplay');
         
         // Output panes
         const basePane = document.getElementById('basePane');
@@ -177,6 +208,18 @@
         const rlhfTokenCount = document.getElementById('rlhfTokenCount');
         const baseLatency = document.getElementById('baseLatency');
         const rlhfLatency = document.getElementById('rlhfLatency');
+        
+        // Store model names
+        let currentBaseModel = '';
+        let currentInstructModel = '';
+        let availableModels = [];
+        let isGenerating = false;
+        let baseActive = false;
+        let rlhfActive = false;
+        let basePromptTokens = 0;
+        let baseCompletionTokens = 0;
+        let rlhfPromptTokens = 0;
+        let rlhfCompletionTokens = 0;
         
         // Update temperature value display
         temperature.addEventListener('input', () => {
@@ -220,18 +263,113 @@
             rlhfWs.onclose = () => updateModelStatus();
         }
         
-        function updateModelStatus() {
+        async function loadAvailableModels() {
+            try {
+                const response = await fetch('/api/models');
+                const data = await response.json();
+                
+                availableModels = data.models || [];
+                
+                // Populate dropdowns
+                baseModelSelect.innerHTML = '';
+                instructModelSelect.innerHTML = '';
+                
+                if (availableModels.length === 0) {
+                    baseModelSelect.innerHTML = '<option value="">No models found - Run: ollama pull MODEL</option>';
+                    instructModelSelect.innerHTML = '<option value="">No models found - Run: ollama pull MODEL</option>';
+                    return;
+                }
+                
+                availableModels.forEach(model => {
+                    const option1 = document.createElement('option');
+                    option1.value = model;
+                    option1.textContent = model;
+                    baseModelSelect.appendChild(option1);
+                    
+                    const option2 = document.createElement('option');
+                    option2.value = model;
+                    option2.textContent = model;
+                    instructModelSelect.appendChild(option2);
+                });
+                
+                // Set default selections
+                if (data.current) {
+                    baseModelSelect.value = data.current.base || availableModels[0];
+                    instructModelSelect.value = data.current.instruct || availableModels[Math.min(1, availableModels.length - 1)];
+                }
+                
+                // Update current models
+                updateSelectedModels();
+                
+            } catch (error) {
+                console.error('Failed to load models:', error);
+                baseModelSelect.innerHTML = '<option value="">Error loading models</option>';
+                instructModelSelect.innerHTML = '<option value="">Error loading models</option>';
+            }
+        }
+        
+        function updateSelectedModels() {
+            currentBaseModel = baseModelSelect.value;
+            currentInstructModel = instructModelSelect.value;
+            
+            baseModelDisplay.textContent = `Using: ${currentBaseModel || 'None'}`;
+            rlhfModelDisplay.textContent = `Using: ${currentInstructModel || 'None'}`;
+        }
+        
+        // Listen for model selection changes
+        baseModelSelect.addEventListener('change', updateSelectedModels);
+        instructModelSelect.addEventListener('change', updateSelectedModels);
+        
+        async function fetchModelInfo() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (data.ollama) {
+                    connectionStatus.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>Connected to Ollama';
+                    connectionStatus.className = 'text-sm px-3 py-1 rounded-full bg-green-100 text-green-700';
+                } else {
+                    connectionStatus.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-2"></span>Ollama not connected';
+                    connectionStatus.className = 'text-sm px-3 py-1 rounded-full bg-red-100 text-red-700';
+                    
+                    baseModelDisplay.textContent = 'Ollama not connected - Run: ollama serve';
+                    rlhfModelDisplay.textContent = 'Ollama not connected - Run: ollama serve';
+                }
+            } catch (error) {
+                connectionStatus.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-2"></span>Connection error';
+                connectionStatus.className = 'text-sm px-3 py-1 rounded-full bg-red-100 text-red-700';
+                
+                baseModelDisplay.textContent = 'Cannot reach server';
+                rlhfModelDisplay.textContent = 'Cannot reach server';
+            }
+        }
+        
+        async function updateModelStatus() {
             const baseReady = baseWs && baseWs.readyState === WebSocket.OPEN;
             const rlhfReady = rlhfWs && rlhfWs.readyState === WebSocket.OPEN;
             
-            if (baseReady && rlhfReady) {
+            // Check Ollama connection first
+            let ollamaConnected = false;
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                ollamaConnected = data.ollama;
+            } catch (error) {
+                ollamaConnected = false;
+            }
+            
+            if (!ollamaConnected) {
+                modelStatus.textContent = 'Models: Ollama not connected';
+                modelStatus.style.color = 'red';
+                generateBtn.disabled = true;
+            } else if (baseReady && rlhfReady) {
                 modelStatus.textContent = 'Models: Both loaded and ready';
                 modelStatus.style.color = 'green';
                 generateBtn.disabled = false;
             } else if (baseReady) {
                 modelStatus.textContent = 'Models: Only base model loaded';
                 modelStatus.style.color = 'orange';
-                generateBtn.disabled = !compareMode.checked;
+                generateBtn.disabled = false;
             } else if (rlhfReady) {
                 modelStatus.textContent = 'Models: Only RLHF model loaded';
                 modelStatus.style.color = 'orange';
@@ -243,8 +381,82 @@
                 modelStatus.style.color = 'red';
                 generateBtn.disabled = true;
             }
+            
+            // Also fetch model info
+            await fetchModelInfo();
         }
         
+        function setGeneratingState(active) {
+            isGenerating = active;
+            if (active) {
+                stopBtn.classList.remove('hidden');
+                stopBtn.disabled = false;
+                generateBtn.textContent = 'Generate';
+            } else {
+                stopBtn.classList.add('hidden');
+                stopBtn.disabled = true;
+            }
+        }
+
+        function updateTokenDisplay(modelType, promptTokens, completionTokens, cancelled = false) {
+            const tokenElement = modelType === 'base' ? baseTokenCount : rlhfTokenCount;
+            if (cancelled) {
+                tokenElement.textContent = 'Cancelled';
+                return;
+            }
+            const total = promptTokens + completionTokens;
+            tokenElement.textContent = `prompt ${promptTokens} • output ${completionTokens} (total ${total})`;
+        }
+
+        function handleModelFinished(modelType, metrics, cancelled = false) {
+            const latencyElement = modelType === 'base' ? baseLatency : rlhfLatency;
+
+            if (cancelled) {
+                latencyElement.textContent = 'cancelled';
+                updateTokenDisplay(modelType, 0, 0, true);
+            } else if (metrics) {
+                const promptTokens = metrics.prompt_tokens || 0;
+                const completionTokens = metrics.completion_tokens || 0;
+                const latency = metrics.latency || 0;
+                const tps = metrics.tokens_per_second ? metrics.tokens_per_second.toFixed(1) : '0.0';
+
+                if (modelType === 'base') {
+                    basePromptTokens = promptTokens;
+                    baseCompletionTokens = completionTokens;
+                } else {
+                    rlhfPromptTokens = promptTokens;
+                    rlhfCompletionTokens = completionTokens;
+                }
+
+                updateTokenDisplay(modelType, promptTokens, completionTokens);
+                latencyElement.textContent = `${latency.toFixed(2)}s (${tps} t/s)`;
+            }
+
+            if (modelType === 'base') baseActive = false;
+            if (modelType === 'rlhf') rlhfActive = false;
+
+            if (!baseActive && !rlhfActive) {
+                setGeneratingState(false);
+            }
+        }
+
+        async function cancelGeneration(target = 'both') {
+            const sendCancel = (ws, modelKey) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ command: 'cancel', model_key: modelKey }));
+                }
+            };
+
+            if (target === 'base' || target === 'both') {
+                sendCancel(baseWs, 'base');
+            }
+            if (target === 'rlhf' || target === 'both') {
+                sendCancel(rlhfWs, 'instruct');
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 20));
+        }
+
         function handleMessage(event, modelType) {
             const data = JSON.parse(event.data);
             const outputElement = modelType === 'base' ? baseOutput : rlhfOutput;
@@ -253,27 +465,12 @@
             
             if (data.error) {
                 outputElement.textContent += `\nError: ${data.error}\n`;
+                handleModelFinished(modelType, null, true);
                 return;
             }
             
-            if (data.token === '[DONE]') {
-                const endTime = Date.now();
-                const latency = endTime - (modelType === 'base' ? baseStartTime : rlhfStartTime);
-                latencyElement.textContent = `${(latency / 1000).toFixed(2)}s`;
-                
-                if (data.metrics) {
-                    tokenElement.textContent = `${data.metrics.total_tokens} tokens`;
-                    
-                    // Update tokens per second
-                    const tps = data.metrics.tokens_per_second.toFixed(1);
-                    latencyElement.textContent = `${(data.metrics.latency).toFixed(2)}s (${tps} t/s)`;
-                    
-                    // Update model-specific token counts
-                    if (modelType === 'base') baseTokens = data.metrics.total_tokens;
-                    else rlhfTokens = data.metrics.total_tokens;
-                }
-                
-                generateBtn.disabled = false;
+            if (data.token === '[DONE]' || data.token === '[CANCELLED]') {
+                handleModelFinished(modelType, data.metrics, data.cancelled || data.token === '[CANCELLED]');
                 return;
             }
             
@@ -281,19 +478,26 @@
             outputElement.textContent += data.token;
             outputElement.scrollTop = outputElement.scrollHeight;
         }
-        
+
         // Generate button click handler
-        generateBtn.addEventListener('click', () => {
+        generateBtn.addEventListener('click', async () => {
             if (!userInput.value.trim()) {
                 alert('Please enter a message');
                 return;
             }
             
+            if (!currentBaseModel && !currentInstructModel) {
+                alert('Please select at least one model to generate with.');
+                return;
+            }
+
+            await cancelGeneration();
+            
             // Clear previous outputs
             baseOutput.textContent = '';
             rlhfOutput.textContent = '';
-            baseTokenCount.textContent = '0 tokens';
-            rlhfTokenCount.textContent = '0 tokens';
+            updateTokenDisplay('base', 0, 0);
+            updateTokenDisplay('rlhf', 0, 0);
             baseLatency.textContent = '-';
             rlhfLatency.textContent = '-';
             
@@ -307,24 +511,49 @@
                 stop: ['USER:', 'ASSISTANT:', '</s>']
             };
             
-            // Disable button during generation
-            generateBtn.disabled = true;
-            
+            baseActive = false;
+            rlhfActive = false;
+
             // Send to base model
-            if (baseWs.readyState === WebSocket.OPEN) {
+            if (baseWs && baseWs.readyState === WebSocket.OPEN && currentBaseModel) {
                 baseStartTime = Date.now();
-                baseWs.send(JSON.stringify({ ...payload, use_base_model: true }));
+                baseWs.send(JSON.stringify({ 
+                    ...payload, 
+                    use_base_model: true,
+                    model_name: currentBaseModel 
+                }));
+                baseActive = true;
             }
             
             // Send to RLHF model if in compare mode
-            if (compareMode.checked && rlhfWs.readyState === WebSocket.OPEN) {
+            if (compareMode.checked && rlhfWs && rlhfWs.readyState === WebSocket.OPEN && currentInstructModel) {
                 rlhfStartTime = Date.now();
-                rlhfWs.send(JSON.stringify({ ...payload, use_base_model: false }));
+                rlhfWs.send(JSON.stringify({ 
+                    ...payload, 
+                    use_base_model: false,
+                    model_name: currentInstructModel 
+                }));
+                rlhfActive = true;
             }
+
+            if (!baseActive && !rlhfActive) {
+                alert('No models are ready to generate. Check your connections.');
+                return;
+            }
+
+            setGeneratingState(true);
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            await cancelGeneration();
         });
         
         // Initialize WebSocket connections when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load available models first
+            await loadAvailableModels();
+            
+            // Then connect WebSockets
             connectWebSockets();
             
             // Handle page visibility changes to reconnect if needed
