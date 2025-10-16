@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Behaviour Lab - Multi Model</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .model-output { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .loader {
+      border: 3px solid #f3f4f6;
+      border-top: 3px solid #3b82f6;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .generating-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      background: #dbeafe;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+      color: #1e40af;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="bg-gray-50 p-4">
+  <div class="max-w-7xl mx-auto space-y-4">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold">LLM Behaviour Lab – Multi-model Compare</h1>
+      <div id="connectionStatus" class="text-sm px-3 py-1 rounded-full bg-gray-200 text-gray-700">Connecting…</div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-4 space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">System Prompt</label>
+        <textarea id="systemPrompt" class="w-full p-2 border rounded h-20">You are a helpful assistant. Be concise.</textarea>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">User Input</label>
+          <textarea id="userInput" class="w-full p-2 border rounded h-24">Explain instruction-tuning vs base in simple terms.</textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
+            <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.7" class="w-full" />
+            <div class="text-xs text-gray-600">Value: <span id="tempValue">0.7</span></div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
+            <input type="number" id="maxTokens" min="1" max="4096" value="1024" class="w-full p-2 border rounded" />
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-blue-800 mb-1">Available Models (multi-select)</label>
+          <select id="modelMulti" multiple size="8" class="w-full p-2 border border-blue-200 rounded bg-white text-sm">
+            <option>Loading models…</option>
+          </select>
+          <p class="text-xs text-blue-700 mt-2">Hold Ctrl/Cmd to select multiple. Click "Add Selected" to add panes.</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <button id="addModelsBtn" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">Add Selected</button>
+          <button id="generateAllBtn" class="bg-indigo-600 text-white px-3 py-2 rounded hover:bg-indigo-700">Generate All</button>
+          <button id="stopAllBtn" class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700">Stop All</button>
+          <div id="modelStatus" class="text-sm text-gray-600 mt-2">Models: Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="outputs" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+  </div>
+
+  <script>
+    // Elements
+    const systemPrompt = document.getElementById('systemPrompt');
+    const userInput = document.getElementById('userInput');
+    const temperature = document.getElementById('temperature');
+    const tempValue = document.getElementById('tempValue');
+    const maxTokens = document.getElementById('maxTokens');
+
+    const modelMulti = document.getElementById('modelMulti');
+    const addModelsBtn = document.getElementById('addModelsBtn');
+    const generateAllBtn = document.getElementById('generateAllBtn');
+    const stopAllBtn = document.getElementById('stopAllBtn');
+    const modelStatus = document.getElementById('modelStatus');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const outputs = document.getElementById('outputs');
+
+    tempValue.textContent = temperature.value;
+    temperature.addEventListener('input', () => tempValue.textContent = temperature.value);
+
+    // State
+    let paneSeq = 0;
+    const panes = new Map(); // id -> { id, modelName, alias, ws, active, outEl, tokensEl, latencyEl }
+
+    // Helpers
+    function wsUrl() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${location.host}/ws`;
+    }
+    function paneTitle(p) { return p.alias ? `${p.modelName} [${p.alias}]` : p.modelName; }
+
+    async function fetchHealth() {
+      try {
+        const r = await fetch('/api/health');
+        const d = await r.json();
+        if (d.ollama) {
+          connectionStatus.textContent = 'Connected to Ollama';
+          connectionStatus.className = 'text-sm px-3 py-1 rounded-full bg-green-100 text-green-700';
+        } else {
+          connectionStatus.textContent = 'Ollama not connected';
+          connectionStatus.className = 'text-sm px-3 py-1 rounded-full bg-red-100 text-red-700';
+        }
+      } catch {
+        connectionStatus.textContent = 'Connection error';
+        connectionStatus.className = 'text-sm px-3 py-1 rounded-full bg-red-100 text-red-700';
+      }
+    }
+
+    async function loadModels() {
+      try {
+        const r = await fetch('/api/models');
+        const d = await r.json();
+        const models = d.models || [];
+        modelMulti.innerHTML = '';
+        if (models.length === 0) {
+          modelMulti.innerHTML = '<option>No models found. Pull with: ollama pull <model></option>';
+          modelStatus.textContent = 'Models: none';
+          return;
+        }
+        for (const m of models) {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          modelMulti.appendChild(opt);
+        }
+        modelStatus.textContent = `Models: ${models.length} available`;
+      } catch (e) {
+        console.error('loadModels error', e);
+        modelMulti.innerHTML = '<option>Error loading models</option>';
+        modelStatus.textContent = 'Models: error';
+      }
+    }
+
+    function updateSocketsIndicator() {
+      let open = 0; panes.forEach(p => { if (p.ws && p.ws.readyState === WebSocket.OPEN) open++; });
+      modelStatus.textContent = `Sockets open: ${open}/${panes.size}`;
+    }
+
+    function openWS(pane) {
+      const ws = new WebSocket(wsUrl());
+      pane.ws = ws;
+      ws.onopen = updateSocketsIndicator;
+      ws.onclose = updateSocketsIndicator;
+      ws.onmessage = (ev) => handleWsMessage(pane, ev);
+    }
+
+    function addPane(modelName) {
+      const id = `pane_${++paneSeq}`;
+      const pane = { id, modelName, alias: '', ws: null, active: false };
+      panes.set(id, pane);
+
+      const card = document.createElement('div');
+      card.className = 'bg-white rounded-lg shadow p-3';
+      card.id = id;
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <h3 id="${id}_title" class="font-semibold text-gray-800"></h3>
+            <div class="flex items-center gap-2 text-xs text-gray-500 mt-1">
+              <label>Alias:</label>
+              <input id="${id}_alias" class="border rounded px-1 py-0.5 text-xs" placeholder="optional tag" />
+            </div>
+          </div>
+          <div class="text-right">
+            <div id="${id}_tokens" class="text-xs text-gray-500">0 tokens</div>
+            <div id="${id}_latency" class="text-xs text-gray-500">-</div>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button id="${id}_gen" class="bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700">Generate</button>
+          <button id="${id}_stop" class="bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700" disabled>Stop</button>
+          <button id="${id}_clear" class="bg-gray-200 text-gray-800 px-2 py-1 rounded text-sm hover:bg-gray-300">Clear</button>
+          <button id="${id}_remove" class="ml-auto bg-gray-200 text-gray-800 px-2 py-1 rounded text-sm hover:bg-gray-300">Remove</button>
+        </div>
+        <div id="${id}_loader" class="generating-indicator hidden">
+          <div class="loader"></div>
+          <span>Generating response...</span>
+        </div>
+        <div id="${id}_out" class="model-output mt-2 p-2 border rounded bg-gray-50 min-h-[160px]"></div>
+      `;
+      outputs.appendChild(card);
+
+      // Bind
+      pane.titleEl = document.getElementById(`${id}_title`);
+      pane.aliasEl = document.getElementById(`${id}_alias`);
+      pane.tokensEl = document.getElementById(`${id}_tokens`);
+      pane.latencyEl = document.getElementById(`${id}_latency`);
+      pane.outEl = document.getElementById(`${id}_out`);
+      pane.loaderEl = document.getElementById(`${id}_loader`);
+      const genBtn = document.getElementById(`${id}_gen`);
+      const stopBtn = document.getElementById(`${id}_stop`);
+      const clearBtn = document.getElementById(`${id}_clear`);
+      const removeBtn = document.getElementById(`${id}_remove`);
+
+      pane.titleEl.textContent = paneTitle(pane);
+      pane.aliasEl.addEventListener('input', () => { pane.alias = pane.aliasEl.value.trim(); pane.titleEl.textContent = paneTitle(pane); });
+
+      genBtn.addEventListener('click', () => generateOne(pane));
+      stopBtn.addEventListener('click', () => stopOne(pane));
+      clearBtn.addEventListener('click', () => { pane.outEl.textContent = ''; pane.tokensEl.textContent = '0 tokens'; pane.latencyEl.textContent = '-'; });
+      removeBtn.addEventListener('click', () => removePane(pane));
+
+      openWS(pane);
+      updateSocketsIndicator();
+    }
+
+    function removePane(pane) {
+      try { if (pane.ws) pane.ws.close(); } catch {}
+      panes.delete(pane.id);
+      const el = document.getElementById(pane.id);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      updateSocketsIndicator();
+    }
+
+    function handleWsMessage(pane, event) {
+      const data = JSON.parse(event.data);
+      if (data.error) {
+        pane.outEl.textContent += `\nError: ${data.error}\n`;
+        pane.latencyEl.textContent = 'error';
+        pane.loaderEl.classList.add('hidden');
+        pane.active = false; return;
+      }
+      if (data.token === '[DONE]' || data.token === '[CANCELLED]') {
+        const m = data.metrics || {};
+        const pt = m.prompt_tokens || 0, ct = m.completion_tokens || 0;
+        const latency = m.latency || 0, tps = m.tokens_per_second ? m.tokens_per_second.toFixed(1) : '0.0';
+        if (data.token === '[CANCELLED]') {
+          pane.tokensEl.textContent = 'Cancelled';
+          pane.latencyEl.textContent = 'cancelled';
+        } else {
+          pane.tokensEl.textContent = `prompt ${pt} • output ${ct} (total ${pt + ct})`;
+          pane.latencyEl.textContent = `${latency.toFixed(2)}s (${tps} t/s)`;
+        }
+        pane.loaderEl.classList.add('hidden');
+        pane.active = false; return;
+      }
+      pane.outEl.textContent += data.token;
+      pane.outEl.scrollTop = pane.outEl.scrollHeight;
+    }
+
+    function payloadBase() {
+      return {
+        system: systemPrompt.value,
+        user: userInput.value,
+        template: '{% for m in messages %}{{m.role|upper}}: {{m.content}}\n{% endfor %}ASSISTANT:',
+        temp: parseFloat(temperature.value),
+        max_tokens: parseInt(maxTokens.value) || 1024,
+        stop: ['USER:', 'ASSISTANT:', '</s>']
+      };
+    }
+
+    function generateOne(pane) {
+      if (!pane.ws || pane.ws.readyState !== WebSocket.OPEN) {
+        alert('WebSocket not open for this pane yet.'); return;
+      }
+      if (!userInput.value.trim()) { alert('Please enter a message'); return; }
+      const payload = { ...payloadBase(), model_name: pane.modelName };
+      pane.outEl.textContent = '';
+      pane.tokensEl.textContent = '…';
+      pane.latencyEl.textContent = '…';
+      pane.loaderEl.classList.remove('hidden');
+      pane.loaderEl.querySelector('span').textContent = 'Generating response...';
+      pane.active = true;
+      pane.ws.send(JSON.stringify(payload));
+    }
+
+    function stopOne(pane) {
+      if (pane.ws && pane.ws.readyState === WebSocket.OPEN) {
+        pane.ws.send(JSON.stringify({ command: 'cancel' }));
+        // Immediate visual feedback
+        if (pane.loaderEl) {
+          pane.loaderEl.querySelector('span').textContent = 'Stopping...';
+        }
+      }
+    }
+
+    // Global actions
+    addModelsBtn.addEventListener('click', () => {
+      const selected = [...modelMulti.selectedOptions].map(o => o.value).filter(Boolean);
+      for (const m of selected) addPane(m);
+    });
+
+    generateAllBtn.addEventListener('click', () => {
+      panes.forEach(p => generateOne(p));
+    });
+
+    stopAllBtn.addEventListener('click', () => {
+      panes.forEach(p => stopOne(p));
+    });
+
+    // Init
+    (async function init(){
+      await fetchHealth();
+      await loadModels();
+    })();
+  </script>
+</body>
+</html>

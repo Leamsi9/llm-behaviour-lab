@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LLM Harness Lab - Compare pre-RLHF and post-RLHF models using Ollama
+LLM Behaviour Lab - Compare pre-RLHF and post-RLHF models using Ollama
 """
 import os
 import json
@@ -8,6 +8,7 @@ import asyncio
 import uvicorn
 import httpx
 import contextlib
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
@@ -15,10 +16,27 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
+# Load .env file if it exists
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"✓ Loaded configuration from {env_path}")
+except ImportError:
+    print("⚠️  python-dotenv not installed. Install with: pip install python-dotenv")
+    print("   Falling back to environment variables or defaults.")
+
 # ---------- Configuration ----------
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 DEFAULT_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "")
 DEFAULT_BASE_MODEL = os.getenv("OLLAMA_DEFAULT_BASE_MODEL", "")
+
+# Stability limits to prevent system freezes
+MAX_INPUT_LENGTH = int(os.getenv("MAX_INPUT_LENGTH", "8000"))  # characters
+MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", "4096"))  # Ollama context window
+MAX_OUTPUT_TOKENS = int(os.getenv("MAX_OUTPUT_TOKENS", "2048"))  # Maximum generation length
+REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "180.0"))  # seconds
 
 # Alternative models you can use:
 # - mistral:7b / mistral:7b-base
@@ -52,6 +70,20 @@ async def run_generation(
     model_name = payload.model_name or ""
     model_key = "base" if payload.use_base_model else "instruct"
 
+    # Stability check: validate input length to prevent system freezes
+    total_input_length = len(payload.system) + len(payload.user)
+    if total_input_length > MAX_INPUT_LENGTH:
+        await websocket.send_json({
+            "error": f"Input too long ({total_input_length} chars). Maximum allowed: {MAX_INPUT_LENGTH}. Please shorten your prompt.",
+            "done": True,
+        })
+        return
+
+    # Cap max_tokens to prevent excessive generation
+    safe_max_tokens = min(payload.max_tokens, MAX_OUTPUT_TOKENS)
+    if safe_max_tokens != payload.max_tokens:
+        print(f"Warning: Capping max_tokens from {payload.max_tokens} to {safe_max_tokens}")
+
     messages = []
     if payload.system.strip():
         messages.append({"role": "system", "content": payload.system})
@@ -63,7 +95,7 @@ async def run_generation(
     start_time = asyncio.get_event_loop().time()
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             async with client.stream(
                 "POST",
                 f"{OLLAMA_BASE_URL}/api/chat",
@@ -75,7 +107,9 @@ async def run_generation(
                         "temperature": payload.temp,
                         "top_p": payload.top_p,
                         "repeat_penalty": payload.repeat_penalty,
-                        "num_predict": payload.max_tokens,
+                        "num_predict": safe_max_tokens,
+                        "num_ctx": MAX_CONTEXT_TOKENS,  # Limit context window
+                        "num_thread": 4,  # Limit CPU threads to prevent overload
                     },
                 },
             ) as response:
@@ -117,8 +151,8 @@ async def run_generation(
                         completion_tokens = chunk.get("eval_count", 0)
                         break
 
-                if not cancel_event.is_set():
-                    await response.aclose()
+                # Always close the response stream properly
+                await response.aclose()
 
                 if cancel_event.is_set():
                     cancelled = True
@@ -214,7 +248,7 @@ async def lifespan(_: FastAPI):
     print("Shutting down...")
 
 app = FastAPI(
-    title="LLM Harness Lab (Ollama)",
+    title="LLM Behaviour Lab (Ollama)",
     description="Compare Base vs RLHF Models using Ollama",
     version="0.2.0",
     lifespan=lifespan
@@ -227,7 +261,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def index():
     """Serve the main UI"""
     try:
-        return HTMLResponse(open("static/ui.html").read())
+        return HTMLResponse(open("static/ui_multi.html").read())
     except FileNotFoundError:
         return HTMLResponse("<h1>UI not found. Please build the frontend.</h1>")
 
@@ -356,7 +390,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("LLM Harness Lab - Ollama Edition")
+    print("LLM Behaviour Lab - Ollama Edition")
     print("=" * 50)
     print()
     print("Make sure Ollama is running:")
