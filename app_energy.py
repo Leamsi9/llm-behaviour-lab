@@ -28,6 +28,7 @@ from ollama_client import (
     print_startup_info,
     OLLAMA_BASE_URL,
     DEFAULT_MODEL,
+    DEFAULT_BASE_MODEL,
     REQUEST_TIMEOUT
 )
 
@@ -277,6 +278,20 @@ async def energy_ui():
 async def get_available_models():
     """List available Ollama models with defaults"""
     return await get_models_with_defaults()
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    ollama_ok = await check_ollama_connection()
+    return {
+        "status": "ok" if ollama_ok else "degraded",
+        "ollama": ollama_ok,
+        "websocket": True,
+        "models": {
+            "base": DEFAULT_BASE_MODEL,
+            "instruct": DEFAULT_MODEL
+        }
+    }
 
 @app.get("/api/energy-benchmarks")
 async def get_energy_benchmarks():
