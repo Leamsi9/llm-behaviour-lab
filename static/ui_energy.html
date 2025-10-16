@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Energy Testing Lab - LLM Behavior Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .model-output { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .energy-bar { transition: width 0.5s ease; }
+    .energy-high { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .energy-medium { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .energy-low { background: linear-gradient(90deg, #10b981, #059669); }
+  </style>
+</head>
+<body class="bg-gray-50 p-4">
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">Energy Testing Lab</h1>
+          <p class="text-gray-600 mt-2">Measure how prompt injections and tool integrations affect energy consumption</p>
+        </div>
+        <div id="connectionStatus" class="px-4 py-2 rounded-full bg-gray-200 text-gray-700">Connecting…</div>
+      </div>
+
+      <!-- Session Energy Summary -->
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <div class="text-sm text-blue-600 font-medium">Total Energy</div>
+          <div id="sessionEnergy" class="text-2xl font-bold text-blue-900">0.00 Wh</div>
+        </div>
+        <div class="bg-green-50 p-4 rounded-lg">
+          <div class="text-sm text-green-600 font-medium">Carbon Footprint</div>
+          <div id="sessionCarbon" class="text-2xl font-bold text-green-900">0.00 gCO2</div>
+        </div>
+        <div class="bg-purple-50 p-4 rounded-lg">
+          <div class="text-sm text-purple-600 font-medium">Avg Efficiency</div>
+          <div id="sessionEfficiency" class="text-2xl font-bold text-purple-900">0.00 Wh/1K</div>
+        </div>
+        <div class="bg-orange-50 p-4 rounded-lg">
+          <div class="text-sm text-orange-600 font-medium">Total Tokens</div>
+          <div id="sessionTokens" class="text-2xl font-bold text-orange-900">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Configuration -->
+    <div class="bg-white rounded-lg shadow p-6 space-y-6">
+
+      <!-- Model and Benchmark Selection -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Model Selection</label>
+          <select id="modelSelect" class="w-full p-2 border rounded">
+            <option>Loading models…</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Energy Benchmark</label>
+          <select id="energyBenchmark" class="w-full p-2 border rounded">
+            <option value="conservative_estimate">Conservative Estimate (1.0 Wh/1000 tokens)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Prompt Configuration -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">System Prompt</label>
+          <textarea id="systemPrompt" class="w-full p-2 border rounded h-20" placeholder="You are a helpful assistant."></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">User Prompt</label>
+          <textarea id="userPrompt" class="w-full p-2 border rounded h-24" placeholder="Explain quantum computing in simple terms."></textarea>
+        </div>
+      </div>
+
+      <!-- Model Parameters -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Temperature</label>
+          <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.7" class="w-full" />
+          <div class="text-xs text-gray-600 mt-1">Value: <span id="tempValue">0.7</span></div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Max Tokens</label>
+          <input type="number" id="maxTokens" min="1" max="4096" value="512" class="w-full p-2 border rounded" />
+        </div>
+      </div>
+
+      <!-- Independent Variables (Prompt Injection & Tools) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Prompt Injection -->
+        <div class="space-y-3">
+          <h3 class="text-lg font-semibold text-gray-900">Prompt Injection</h3>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Injection Type</label>
+            <select id="injectionType" class="w-full p-2 border rounded">
+              <option value="none">None</option>
+              <option value="system_modification">System Modification</option>
+              <option value="user_augmentation">User Augmentation</option>
+              <option value="context_injection">Context Injection</option>
+              <option value="cot_instruction">CoT Instructions</option>
+            </select>
+          </div>
+          <div id="injectionParams" class="hidden space-y-2">
+            <div>
+              <label class="block text-sm text-gray-600">Modification Type</label>
+              <select id="modificationType" class="w-full p-2 border rounded text-sm">
+                <option value="concise">Concise</option>
+                <option value="detailed">Detailed</option>
+                <option value="creative">Creative</option>
+                <option value="factual">Factual</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tool Integration -->
+        <div class="space-y-3">
+          <h3 class="text-lg font-semibold text-gray-900">Tool Integration</h3>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Integration Method</label>
+            <select id="toolMethod" class="w-full p-2 border rounded">
+              <option value="none">None</option>
+              <option value="direct_insertion">Direct Insertion</option>
+              <option value="summarized_insertion">Summarized Insertion</option>
+              <option value="filtered_insertion">Filtered Insertion</option>
+              <option value="staged_insertion">Staged Insertion</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test Controls -->
+      <div class="flex gap-4 pt-4 border-t">
+        <button id="runTest" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium">
+          Run Energy Test
+        </button>
+        <button id="stopTest" class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-medium" disabled>
+          Stop Test
+        </button>
+        <button id="clearResults" class="bg-gray-200 text-gray-800 px-6 py-2 rounded hover:bg-gray-300">
+          Clear Results
+        </button>
+        <button id="exportData" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+          Export Data
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Display -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Energy Metrics -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Energy Consumption</h3>
+
+        <div class="space-y-4">
+          <!-- Current Test Energy -->
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span>Test Energy</span>
+              <span id="testEnergy">0.00 Wh</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-4">
+              <div id="testEnergyBar" class="energy-bar energy-low h-4 rounded-full" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Efficiency Comparison -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="text-center p-3 bg-gray-50 rounded">
+              <div class="text-2xl font-bold text-blue-600" id="efficiencyScore">0.00</div>
+              <div class="text-sm text-gray-600">Wh/1000 tokens</div>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded">
+              <div class="text-2xl font-bold text-green-600" id="carbonImpact">0.00</div>
+              <div class="text-sm text-gray-600">gCO2</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Energy Chart -->
+        <div class="mt-6">
+          <canvas id="energyChart" width="400" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Benchmark Controls -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Energy Benchmark Controls</h3>
+
+        <div class="space-y-4">
+          <!-- Current Benchmark Info -->
+          <div class="p-4 bg-blue-50 rounded">
+            <div class="flex justify-between items-center">
+              <div>
+                <h4 class="font-medium text-blue-900">Current Benchmark</h4>
+                <p class="text-sm text-blue-700" id="currentBenchmarkInfo">Loading...</p>
+              </div>
+              <button id="benchmarkInfoBtn" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                ℹ️ Info
+              </button>
+            </div>
+          </div>
+
+          <!-- Benchmark Switching -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Switch Benchmark</label>
+            <select id="benchmarkSwitcher" class="w-full p-2 border rounded">
+              <option>Loading benchmarks...</option>
+            </select>
+            <button id="switchBenchmarkBtn" class="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50" disabled>
+              Recalculate with Selected Benchmark
+            </button>
+          </div>
+
+          <!-- Add Custom Benchmark -->
+          <div class="border-t pt-4">
+            <h4 class="font-medium text-gray-900 mb-2">Add Custom Benchmark</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">Name</label>
+                <input type="text" id="customBenchmarkName" placeholder="e.g., RTX 3080" class="w-full p-2 border rounded">
+              </div>
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">Wh/1000 tokens</label>
+                <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="0.50" class="w-full p-2 border rounded">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">Description</label>
+                <input type="text" id="customBenchmarkDesc" placeholder="NVIDIA RTX 3080 GPU" class="w-full p-2 border rounded">
+              </div>
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">Hardware Specs</label>
+                <input type="text" id="customBenchmarkSpecs" placeholder="12GB GDDR6X" class="w-full p-2 border rounded">
+              </div>
+            </div>
+            <button id="addCustomBenchmarkBtn" class="mt-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+              Add Custom Benchmark
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Results -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-xl font-semibold text-gray-900 mb-4">Test Results</h3>
+
+      <!-- Token Breakdown -->
+      <div class="mb-6">
+        <h4 class="font-medium text-gray-900 mb-3">Token Analysis</h4>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div class="text-center p-3 bg-green-50 rounded">
+            <div class="font-medium text-green-900" id="inputTokens">-</div>
+            <div class="text-green-700">Input Tokens</div>
+          </div>
+          <div class="text-center p-3 bg-blue-50 rounded">
+            <div class="font-medium text-blue-900" id="outputTokens">-</div>
+            <div class="text-blue-700">Output Tokens</div>
+          </div>
+          <div class="text-center p-3 bg-yellow-50 rounded">
+            <div class="font-medium text-yellow-900" id="injectionTokens">-</div>
+            <div class="text-yellow-700">Injection Overhead</div>
+          </div>
+          <div class="text-center p-3 bg-purple-50 rounded">
+            <div class="font-medium text-purple-900" id="toolTokens">-</div>
+            <div class="text-purple-700">Tool Overhead</div>
+          </div>
+        </div>
+        <div class="mt-3 text-xs text-gray-600">
+          <span id="tokenAnalysisNotes">Run a test to see detailed token breakdown.</span>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex justify-between">
+          <span class="text-gray-600">Strategy:</span>
+          <span id="resultStrategy" class="font-medium">-</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">Total Tokens:</span>
+          <span id="resultTokens" class="font-medium">-</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">Latency:</span>
+          <span id="resultLatency" class="font-medium">-</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">Tokens/Second:</span>
+          <span id="resultTokensPerSec" class="font-medium">-</span>
+        </div>
+      </div>
+
+      <!-- Modification Impact -->
+      <div class="mt-6 p-4 bg-blue-50 rounded">
+        <h4 class="font-medium text-blue-900 mb-2">Modification Impact</h4>
+        <div class="text-sm text-blue-800">
+          <div id="modificationImpact">Run a test to see energy impact analysis.</div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-xl font-semibold text-gray-900 mb-4">Response Output</h3>
+      <div id="responseOutput" class="model-output bg-gray-50 p-4 rounded min-h-32 border">
+        Run a test to see the model response here.
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Elements
+    const systemPrompt = document.getElementById('systemPrompt');
+    const userPrompt = document.getElementById('userPrompt');
+    const modelSelect = document.getElementById('modelSelect');
+    const energyBenchmark = document.getElementById('energyBenchmark');
+    const injectionType = document.getElementById('injectionType');
+    const modificationType = document.getElementById('modificationType');
+    const toolMethod = document.getElementById('toolMethod');
+    const injectionParams = document.getElementById('injectionParams');
+    const temperature = document.getElementById('temperature');
+    const tempValue = document.getElementById('tempValue');
+    const maxTokens = document.getElementById('maxTokens');
+
+    const runTest = document.getElementById('runTest');
+    const stopTest = document.getElementById('stopTest');
+    const clearResults = document.getElementById('clearResults');
+    const exportData = document.getElementById('exportData');
+
+    // Benchmark controls
+    const currentBenchmarkInfo = document.getElementById('currentBenchmarkInfo');
+    const benchmarkInfoBtn = document.getElementById('benchmarkInfoBtn');
+    const benchmarkSwitcher = document.getElementById('benchmarkSwitcher');
+    const switchBenchmarkBtn = document.getElementById('switchBenchmarkBtn');
+    const customBenchmarkName = document.getElementById('customBenchmarkName');
+    const customBenchmarkWattHours = document.getElementById('customBenchmarkWattHours');
+    const customBenchmarkDesc = document.getElementById('customBenchmarkDesc');
+    const customBenchmarkSpecs = document.getElementById('customBenchmarkSpecs');
+    const addCustomBenchmarkBtn = document.getElementById('addCustomBenchmarkBtn');
+
+    // Token analysis elements
+    const inputTokens = document.getElementById('inputTokens');
+    const outputTokens = document.getElementById('outputTokens');
+    const injectionTokens = document.getElementById('injectionTokens');
+    const toolTokens = document.getElementById('toolTokens');
+    const tokenAnalysisNotes = document.getElementById('tokenAnalysisNotes');
+
+    // Results elements
+    const sessionEnergy = document.getElementById('sessionEnergy');
+    const sessionCarbon = document.getElementById('sessionCarbon');
+    const sessionEfficiency = document.getElementById('sessionEfficiency');
+    const sessionTokens = document.getElementById('sessionTokens');
+
+    const testEnergy = document.getElementById('testEnergy');
+    const testEnergyBar = document.getElementById('testEnergyBar');
+    const efficiencyScore = document.getElementById('efficiencyScore');
+    const carbonImpact = document.getElementById('carbonImpact');
+
+    const resultStrategy = document.getElementById('resultStrategy');
+    const resultTokens = document.getElementById('resultTokens');
+    const resultLatency = document.getElementById('resultLatency');
+    const resultTokensPerSec = document.getElementById('resultTokensPerSec');
+
+    const modificationImpact = document.getElementById('modificationImpact');
+    const responseOutput = document.getElementById('responseOutput');
+    const connectionStatus = document.getElementById('connectionStatus');
+
+    // State
+    let ws = null;
+    let energyHistory = [];
+    let currentTestResults = null;
+
+    // Chart
+    let energyChart = null;
+
+    // Initialize
+    init();
+
+    async function init() {
+      await loadModels();
+      await loadBenchmarks();
+      await loadBenchmarkSwitcher();
+      await updateCurrentBenchmarkInfo();
+      await updateSessionSummary();
+      setupWebSocket();
+      setupEventListeners();
+      initChart();
+    }
+
+    async function loadModels() {
+      try {
+        const r = await fetch('/api/models');
+        const d = await r.json();
+        modelSelect.innerHTML = '';
+        if (d.models && d.models.length > 0) {
+          d.models.forEach(model => {
+            const opt = document.createElement('option');
+            opt.value = model;
+            opt.textContent = model;
+            modelSelect.appendChild(opt);
+          });
+        } else {
+          modelSelect.innerHTML = '<option>No models available</option>';
+        }
+      } catch (e) {
+        console.error('Failed to load models:', e);
+        modelSelect.innerHTML = '<option>Error loading models</option>';
+      }
+    }
+
+    async function loadBenchmarks() {
+      try {
+        const r = await fetch('/api/energy-benchmarks');
+        const d = await r.json();
+        energyBenchmark.innerHTML = '';
+        if (d.benchmarks) {
+          d.benchmarks.forEach(benchmark => {
+            const opt = document.createElement('option');
+            opt.value = benchmark.name;
+            opt.textContent = `${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh/1000 tokens)`;
+            energyBenchmark.appendChild(opt);
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load benchmarks:', e);
+      }
+    }
+
+    async function loadBenchmarkSwitcher() {
+      try {
+        const r = await fetch('/api/energy-benchmarks');
+        const d = await r.json();
+        benchmarkSwitcher.innerHTML = '';
+        if (d.benchmarks) {
+          d.benchmarks.forEach(benchmark => {
+            const opt = document.createElement('option');
+            opt.value = benchmark.name;
+            opt.textContent = `${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh/1000 tokens)`;
+            benchmarkSwitcher.appendChild(opt);
+          });
+        }
+        switchBenchmarkBtn.disabled = false;
+      } catch (e) {
+        console.error('Failed to load benchmark switcher:', e);
+        benchmarkSwitcher.innerHTML = '<option>Error loading benchmarks</option>';
+      }
+    }
+
+    async function updateCurrentBenchmarkInfo() {
+      try {
+        const r = await fetch('/api/session-summary');
+        const summary = await r.json();
+        if (!summary.error && summary.benchmark_used) {
+          const benchmarkName = summary.benchmark_used;
+          currentBenchmarkInfo.textContent = `${benchmarkName} - Click info button for details`;
+        } else {
+          currentBenchmarkInfo.textContent = 'No benchmark selected';
+        }
+      } catch (e) {
+        console.error('Failed to update current benchmark info:', e);
+        currentBenchmarkInfo.textContent = 'Error loading benchmark info';
+      }
+    }
+
+    function setupWebSocket() {
+      ws = new WebSocket(`ws://${location.host}/ws`);
+
+      ws.onopen = () => {
+        connectionStatus.textContent = 'Connected';
+        connectionStatus.className = 'px-4 py-2 rounded-full bg-green-100 text-green-700';
+      };
+
+      ws.onclose = () => {
+        connectionStatus.textContent = 'Disconnected';
+        connectionStatus.className = 'px-4 py-2 rounded-full bg-red-100 text-red-700';
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.token && !data.done) {
+          // Streaming token
+          responseOutput.textContent += data.token;
+        } else if (data.done) {
+          // Test completed
+          handleTestCompletion(data);
+        } else if (data.error) {
+          alert(`Error: ${data.error}`);
+        }
+      };
+    }
+
+    function setupEventListeners() {
+      injectionType.addEventListener('change', () => {
+        injectionParams.classList.toggle('hidden', injectionType.value === 'none');
+      });
+
+      temperature.addEventListener('input', () => tempValue.textContent = temperature.value);
+
+      // Benchmark controls
+      benchmarkInfoBtn.addEventListener('click', showBenchmarkInfo);
+      switchBenchmarkBtn.addEventListener('click', switchBenchmark);
+      addCustomBenchmarkBtn.addEventListener('click', addCustomBenchmark);
+
+      runTest.addEventListener('click', runEnergyTest);
+      stopTest.addEventListener('click', stopEnergyTest);
+      clearResults.addEventListener('click', clearAllResults);
+      exportData.addEventListener('click', exportSessionData);
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('energyChart').getContext('2d');
+      energyChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Energy Consumption (Wh)',
+            data: [],
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Watt-hours'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Test Run'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    async function showBenchmarkInfo() {
+      try {
+        const r = await fetch('/api/benchmark-info');
+        const data = await r.json();
+
+        let info = 'Benchmark Information:\n\n';
+
+        if (data.benchmarks) {
+          info += 'Available Benchmarks:\n';
+          data.benchmarks.forEach(b => {
+            info += `• ${b.name}: ${b.watt_hours_per_1000_tokens} Wh/1000 tokens\n`;
+            info += `  ${b.description}\n`;
+            if (b.source !== 'Custom') info += `  Source: ${b.source}\n`;
+            if (b.hardware_specs) info += `  Hardware: ${b.hardware_specs}\n`;
+            info += '\n';
+          });
+        }
+
+        if (data.co2_info) {
+          info += `CO2 Conversion: ${data.co2_info.global_average_gco2_per_kwh} gCO2/kWh\n`;
+          info += `Source: ${data.co2_info.source}\n`;
+          info += `Calculation: ${data.co2_info.calculation}\n\n`;
+        }
+
+        if (data.benchmark_sources) {
+          info += 'Detailed Benchmark Sources:\n';
+          Object.entries(data.benchmark_sources).forEach(([name, details]) => {
+            info += `${name}:\n`;
+            Object.entries(details).forEach(([key, value]) => {
+              info += `  ${key}: ${value}\n`;
+            });
+            info += '\n';
+          });
+        }
+
+        alert(info);
+      } catch (e) {
+        console.error('Failed to load benchmark info:', e);
+        alert('Error loading benchmark information');
+      }
+    }
+
+    async function switchBenchmark() {
+      const selectedBenchmark = benchmarkSwitcher.value;
+      if (!selectedBenchmark) {
+        alert('Please select a benchmark');
+        return;
+      }
+
+      try {
+        switchBenchmarkBtn.disabled = true;
+        switchBenchmarkBtn.textContent = 'Recalculating...';
+
+        const r = await fetch('/api/switch-benchmark', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(selectedBenchmark)
+        });
+
+        if (r.ok) {
+          const result = await r.json();
+          // Update the UI with recalculated values
+          updateSessionWithRecalculatedData(result);
+          await updateCurrentBenchmarkInfo();
+          alert(`Successfully switched to ${result.benchmark_used} benchmark`);
+        } else {
+          const error = await r.json();
+          alert(`Error switching benchmark: ${error.detail || 'Unknown error'}`);
+        }
+      } catch (e) {
+        console.error('Failed to switch benchmark:', e);
+        alert('Error switching benchmark');
+      } finally {
+        switchBenchmarkBtn.disabled = false;
+        switchBenchmarkBtn.textContent = 'Recalculate with Selected Benchmark';
+      }
+    }
+
+    async function addCustomBenchmark() {
+      const name = customBenchmarkName.value.trim();
+      const wattHours = parseFloat(customBenchmarkWattHours.value);
+      const desc = customBenchmarkDesc.value.trim();
+      const specs = customBenchmarkSpecs.value.trim();
+
+      if (!name || !desc || isNaN(wattHours) || wattHours <= 0) {
+        alert('Please fill in all required fields with valid values');
+        return;
+      }
+
+      try {
+        addCustomBenchmarkBtn.disabled = true;
+        addCustomBenchmarkBtn.textContent = 'Adding...';
+
+        const r = await fetch('/api/add-custom-benchmark', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name,
+            description: desc,
+            watt_hours_per_1000_tokens: wattHours,
+            hardware_specs: specs || undefined
+          })
+        });
+
+        if (r.ok) {
+          const result = await r.json();
+          alert(result.message);
+
+          // Clear form and reload benchmark options
+          customBenchmarkName.value = '';
+          customBenchmarkWattHours.value = '';
+          customBenchmarkDesc.value = '';
+          customBenchmarkSpecs.value = '';
+
+          await loadBenchmarks();
+          await loadBenchmarkSwitcher();
+        } else {
+          const error = await r.json();
+          alert(`Error adding benchmark: ${error.detail || 'Unknown error'}`);
+        }
+      } catch (e) {
+        console.error('Failed to add custom benchmark:', e);
+        alert('Error adding custom benchmark');
+      } finally {
+        addCustomBenchmarkBtn.disabled = false;
+        addCustomBenchmarkBtn.textContent = 'Add Custom Benchmark';
+      }
+    }
+
+    function updateSessionWithRecalculatedData(recalculatedData) {
+      // Update session summary display
+      sessionEnergy.textContent = `${recalculatedData.total_energy_wh.toFixed(4)} Wh`;
+      sessionCarbon.textContent = `${recalculatedData.total_carbon_gco2.toFixed(2)} gCO2`;
+      sessionEfficiency.textContent = `${recalculatedData.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
+      sessionTokens.textContent = recalculatedData.total_tokens;
+
+      // If we have current test results, update the energy display for the current test
+      if (currentTestResults) {
+        // Find the current test in the recalculated readings (last one)
+        const currentTest = recalculatedData.readings[recalculatedData.readings.length - 1];
+        if (currentTest) {
+          testEnergy.textContent = `${currentTest.watt_hours_consumed.toFixed(4)} Wh`;
+          carbonImpact.textContent = `${currentTest.carbon_grams_co2.toFixed(2)} gCO2`;
+
+          // Update energy bar
+          const energy = currentTest.watt_hours_consumed;
+          let energyLevel = 'low';
+          let barWidth = Math.min(energy * 10, 100);
+
+          if (energy > 0.5) energyLevel = 'medium';
+          if (energy > 1.0) energyLevel = 'high';
+
+          testEnergyBar.style.width = `${barWidth}%`;
+          testEnergyBar.className = `energy-bar energy-${energyLevel} h-4 rounded-full`;
+
+          efficiencyScore.textContent = (currentTest.watt_hours_consumed / Math.max(currentTest.total_tokens / 1000, 0.001)).toFixed(4);
+        }
+      }
+    }
+
+    async function runEnergyTest() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('WebSocket not connected. Please refresh the page.');
+        return;
+      }
+
+      // Clear previous results
+      responseOutput.textContent = '';
+      currentTestResults = null;
+
+      // Prepare payload
+      const payload = {
+        system: systemPrompt.value,
+        user: userPrompt.value,
+        model_name: modelSelect.value,
+        test_type: 'energy',
+        strategy_name: `${injectionType.value}_${toolMethod.value}`,
+        energy_benchmark: energyBenchmark.value,
+        injection_type: injectionType.value,
+        injection_params: injectionType.value !== 'none' ? {
+          modification_type: modificationType.value
+        } : {},
+        tool_integration_method: toolMethod.value,
+        tool_config: {},
+        temp: parseFloat(temperature.value),
+        max_tokens: parseInt(maxTokens.value)
+      };
+
+      ws.send(JSON.stringify(payload));
+      runTest.disabled = true;
+      runTest.textContent = 'Running...';
+      stopTest.disabled = false;
+    }
+
+    function stopEnergyTest() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ command: 'cancel' }));
+        stopTest.disabled = true;
+        stopTest.textContent = 'Stopping...';
+      }
+    }
+
+    function handleTestCompletion(data) {
+      runTest.disabled = false;
+      runTest.textContent = 'Run Energy Test';
+      stopTest.disabled = true;
+      stopTest.textContent = 'Stop Test';
+
+      if (data.error) {
+        alert(`Test failed: ${data.error}`);
+        return;
+      }
+
+      currentTestResults = data;
+
+      // Update energy display
+      updateEnergyDisplay(data.energy_metrics);
+
+      // Update results display
+      updateResultsDisplay(data);
+
+      // Update chart
+      updateEnergyChart(data.energy_metrics.watt_hours_consumed);
+
+      // Update session summary
+      updateSessionSummary();
+
+      // Analyze modification impact
+      analyzeModificationImpact(data);
+    }
+
+    function updateEnergyDisplay(energyMetrics) {
+      const energy = energyMetrics.watt_hours_consumed;
+      const carbon = energyMetrics.carbon_grams_co2;
+
+      testEnergy.textContent = `${energy.toFixed(4)} Wh`;
+      carbonImpact.textContent = `${carbon.toFixed(2)} gCO2`;
+
+      // Update energy bar
+      let energyLevel = 'low';
+      let barWidth = Math.min(energy * 10, 100); // Scale for visualization
+
+      if (energy > 0.5) energyLevel = 'medium';
+      if (energy > 1.0) energyLevel = 'high';
+
+      testEnergyBar.style.width = `${barWidth}%`;
+      testEnergyBar.className = `energy-bar energy-${energyLevel} h-4 rounded-full`;
+    }
+
+    function updateResultsDisplay(data) {
+      resultStrategy.textContent = data.strategy;
+      resultTokens.textContent = data.basic_metrics.total_tokens;
+      resultLatency.textContent = `${data.basic_metrics.latency.toFixed(2)}s`;
+      resultTokensPerSec.textContent = data.basic_metrics.tokens_per_second.toFixed(1);
+
+      // Update token breakdown display
+      if (data.token_metrics) {
+        const breakdown = data.token_metrics.breakdown;
+        inputTokens.textContent = breakdown.original.total_original_tokens;
+        outputTokens.textContent = breakdown.generation.direct_output_tokens;
+        injectionTokens.textContent = breakdown.injected.total_injection_tokens;
+        toolTokens.textContent = breakdown.tool_integration.tool_integration_overhead;
+
+        // Show token analysis notes
+        tokenAnalysisNotes.textContent = breakdown.analysis_notes.join('. ') + '.';
+      }
+
+      efficiencyScore.textContent = data.energy_metrics.energy_efficiency_score.toFixed(4);
+    }
+
+    function updateEnergyChart(energyConsumption) {
+      energyHistory.push(energyConsumption);
+      if (energyHistory.length > 20) energyHistory.shift();
+
+      energyChart.data.labels = energyHistory.map((_, i) => `Test ${i + 1}`);
+      energyChart.data.datasets[0].data = energyHistory;
+      energyChart.update();
+    }
+
+    function analyzeModificationImpact(data) {
+      const modInfo = data.modification_info;
+      const energyMetrics = data.energy_metrics;
+
+      let impactText = '';
+
+      if (modInfo.injection_overhead > 0) {
+        const energyOverhead = energyMetrics.watt_hours_consumed * (modInfo.injection_overhead / modInfo.final_prompt_length);
+        impactText += `Prompt injection added ${modInfo.injection_overhead} tokens, increasing energy by ~${energyOverhead.toFixed(4)} Wh. `;
+      }
+
+      if (modInfo.tool_integration_applied && modInfo.tool_integration_applied.total_tokens_added > 0) {
+        impactText += `Tool integration added ${modInfo.tool_integration_applied.total_tokens_added} tokens from tool outputs. `;
+      }
+
+      if (!impactText) {
+        impactText = 'No significant modifications detected.';
+      }
+
+      modificationImpact.textContent = impactText;
+    }
+
+    async function updateSessionSummary() {
+      try {
+        const r = await fetch('/api/session-summary');
+        const summary = await r.json();
+
+        if (summary.error) return;
+
+        sessionEnergy.textContent = `${summary.total_energy_wh.toFixed(4)} Wh`;
+        sessionCarbon.textContent = `${summary.total_carbon_gco2.toFixed(2)} gCO2`;
+        sessionEfficiency.textContent = `${summary.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
+        sessionTokens.textContent = summary.total_tokens;
+      } catch (e) {
+        console.error('Failed to update session summary:', e);
+      }
+    }
+
+    function clearAllResults() {
+      responseOutput.textContent = 'Run a test to see the model response here.';
+      testEnergy.textContent = '0.00 Wh';
+      testEnergyBar.style.width = '0%';
+      efficiencyScore.textContent = '0.00';
+      carbonImpact.textContent = '0.00';
+
+      resultStrategy.textContent = '-';
+      resultTokens.textContent = '-';
+      resultLatency.textContent = '-';
+      resultTokensPerSec.textContent = '-';
+
+      // Clear token breakdown
+      inputTokens.textContent = '-';
+      outputTokens.textContent = '-';
+      injectionTokens.textContent = '-';
+      toolTokens.textContent = '-';
+      tokenAnalysisNotes.textContent = 'Run a test to see detailed token breakdown.';
+
+      modificationImpact.textContent = 'Run a test to see energy impact analysis.';
+
+      // Clear chart
+      energyHistory = [];
+      energyChart.data.labels = [];
+      energyChart.data.datasets[0].data = [];
+      energyChart.update();
+    }
+
+    async function exportSessionData() {
+      try {
+        const r = await fetch('/api/export-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filepath: 'energy_test_session.json' })
+        });
+
+        if (r.ok) {
+          alert('Session data exported to energy_test_session.json');
+        } else {
+          alert('Export failed');
+        }
+      } catch (e) {
+        alert('Export error: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>

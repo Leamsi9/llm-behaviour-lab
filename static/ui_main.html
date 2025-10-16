@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Behavior Lab - Choose Your Testing Environment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'energy-green': '#10b981',
+                        'alignment-blue': '#3b82f6',
+                        'comparison-purple': '#8b5cf6',
+                        'basic-gray': '#6b7280'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">LLM Behavior Lab</h1>
+            <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                Comprehensive testing environment for analyzing Large Language Model behavior across multiple dimensions:
+                energy consumption, response alignment, and comparative performance.
+            </p>
+        </div>
+
+        <!-- Lab Options -->
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+
+            <!-- Energy Testing -->
+            <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                <div class="text-center mb-4">
+                    <div class="w-16 h-16 bg-energy-green rounded-full flex items-center justify-center mx-auto mb-3">
+                        <span class="text-2xl">⚡</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Energy Testing</h3>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">
+                    Analyze energy consumption and carbon footprint of LLM modifications. Track Wh/token usage across different benchmarks.
+                </p>
+                <div class="space-y-2 text-xs text-gray-500 mb-4">
+                    <div>• Real-time energy tracking</div>
+                    <div>• Custom benchmark creation</div>
+                    <div>• CO2 emissions calculation</div>
+                    <div>• Modification impact analysis</div>
+                </div>
+                <a href="/energy" class="w-full bg-energy-green text-white py-2 px-4 rounded hover:bg-green-700 transition-colors inline-block text-center">
+                    Launch Energy Lab
+                </a>
+            </div>
+
+            <!-- Alignment Testing -->
+            <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                <div class="text-center mb-4">
+                    <div class="w-16 h-16 bg-alignment-blue rounded-full flex items-center justify-center mx-auto mb-3">
+                        <span class="text-2xl">🎯</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Alignment Testing</h3>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">
+                    Evaluate response quality and alignment with goals. Assess risks like hallucination and injection bleed.
+                </p>
+                <div class="space-y-2 text-xs text-gray-500 mb-4">
+                    <div>• Goal adherence analysis</div>
+                    <div>• Risk assessment</div>
+                    <div>• Quality metrics</div>
+                    <div>• Factual accuracy checks</div>
+                </div>
+                <a href="/alignment" class="w-full bg-alignment-blue text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors inline-block text-center">
+                    Launch Alignment Lab
+                </a>
+            </div>
+
+            <!-- Model Comparison -->
+            <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                <div class="text-center mb-4">
+                    <div class="w-16 h-16 bg-comparison-purple rounded-full flex items-center justify-center mx-auto mb-3">
+                        <span class="text-2xl">📊</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Model Comparison</h3>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">
+                    Simple model testing and comparison. Compare base vs instruction-tuned models with basic metrics.
+                </p>
+                <div class="space-y-2 text-xs text-gray-500 mb-4">
+                    <div>• Base vs RLHF comparison</div>
+                    <div>• Basic performance metrics</div>
+                    <div>• Simple model testing</div>
+                    <div>• Token counting</div>
+                </div>
+                <a href="/comparison" class="w-full bg-comparison-purple text-white py-2 px-4 rounded hover:bg-purple-700 transition-colors inline-block text-center">
+                    Launch Model Comparison
+                </a>
+            </div>
+        </div>
+
+        <!-- Standalone Apps Notice -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-blue-900 mb-2">Standalone Applications</h3>
+            <p class="text-blue-800 mb-3">
+                For specialized use cases, standalone versions of each lab are available:
+            </p>
+            <div class="grid md:grid-cols-3 gap-4 text-sm">
+                <div class="bg-white p-3 rounded border">
+                    <code class="text-blue-600">python3 app_energy.py</code>
+                    <span class="text-gray-600 block">Port 8002 - Energy only</span>
+                </div>
+                <div class="bg-white p-3 rounded border">
+                    <code class="text-blue-600">python3 app_alignment.py</code>
+                    <span class="text-gray-600 block">Port 8003 - Alignment only</span>
+                </div>
+                <div class="bg-white p-3 rounded border">
+                    <code class="text-blue-600">python3 app_comparison.py</code>
+                    <span class="text-gray-600 block">Port 8004 - Comparison only</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Start -->
+        <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-green-900 mb-2">Quick Start</h3>
+            <div class="space-y-2 text-green-800">
+                <div>1. Make sure Ollama is running: <code class="bg-green-100 px-1 rounded">ollama serve</code></div>
+                <div>2. Pull test models: <code class="bg-green-100 px-1 rounded">ollama pull llama3.1:8b</code></div>
+                <div>3. Choose your testing environment above and start analyzing!</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

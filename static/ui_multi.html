@@ -112,7 +112,7 @@
     // Helpers
     function wsUrl() {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${proto}//${location.host}/ws`;
+      return `${proto}//${location.host}/ws/comparison`;
     }
     function paneTitle(p) { return p.alias ? `${p.modelName} [${p.alias}]` : p.modelName; }
 
