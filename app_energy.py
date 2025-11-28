@@ -29,8 +29,20 @@ from ollama_client import (
     OLLAMA_BASE_URL,
     DEFAULT_MODEL,
     DEFAULT_BASE_MODEL,
-    REQUEST_TIMEOUT
+    REQUEST_TIMEOUT,
+    MAX_OUTPUT_TOKENS
 )
+
+# Import token tracking (Phase 1 - CRITICAL FIX)
+from token_utils import track_middleware_tokens, create_token_breakdown
+
+# Import real-time power monitoring
+try:
+    from power_monitor import power_monitor
+    POWER_MONITORING_AVAILABLE = power_monitor.available
+except ImportError:
+    POWER_MONITORING_AVAILABLE = False
+    power_monitor = None
 
 @dataclass
 class EnergyPayload:
@@ -40,47 +52,53 @@ class EnergyPayload:
     model_name: str = DEFAULT_MODEL
     strategy_name: str = "baseline"
     energy_benchmark: str = "conservative_estimate"
+    test_type: str = "energy"  # Added to match UI payload
     injection_type: str = "none"
     injection_params: Dict[str, Any] = field(default_factory=dict)
     tool_integration_method: str = "none"
     tool_config: Dict[str, Any] = field(default_factory=dict)
     temp: float = 0.7
     max_tokens: int = 100
+    enable_live_power_monitoring: bool = False  # Enable real-time RAPL measurement
 
 # ---------- Ollama Client ----------
 # (Now imported from ollama_client.py)
 
 async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_event: asyncio.Event):
     """Run energy consumption test"""
+    print("🔋 [ENERGY APP] Running energy test - STANDALONE APP")
+    await websocket.send_json({"log": "🔋 [ENERGY APP] Running energy test - STANDALONE APP"})
     try:
-        # Prepare messages
-        messages = []
+        # ===== PHASE 1: PREPARE ORIGINAL MESSAGES =====
+        original_messages = []
         if payload.system:
-            messages.append({"role": "system", "content": payload.system})
-        messages.append({"role": "user", "content": payload.user})
+            original_messages.append({"role": "system", "content": payload.system})
+        original_messages.append({"role": "user", "content": payload.user})
+        
+        # Copy for middleware tracking
+        messages = original_messages.copy()
 
-        # Apply prompt injection if specified
+        # ===== PHASE 2: TRACK INJECTION METADATA (NO RE-INJECTION) =====
+        # Injections are already applied in the system field by the frontend
+        # We just track the metadata for token breakdown
         injection_result = {"injection_metadata": {}}
-        if payload.injection_type != "none":
-            try:
-                injection_config = InjectionConfig(
-                    injection_type=InjectionType(payload.injection_type),
-                    **payload.injection_params
-                )
-                injection_result = injection_manager.apply_injection(
-                    messages=messages,
-                    config=injection_config
-                )
-                messages = injection_result["messages"]
-            except Exception as e:
-                try:
-                    await websocket.send_json({"error": f"Injection error: {str(e)}", "done": True})
-                except Exception:
-                    pass
-                return
+        messages_after_injection = messages.copy()
+        
+        if payload.injection_type != "none" and payload.injection_params:
+            # Store injection metadata for tracking
+            injection_result = {
+                "injection_metadata": {
+                    "injection_type": payload.injection_type,
+                    "injections": payload.injection_params.get("injections", []),
+                    "metadata": payload.injection_params.get("metadata", {})
+                }
+            }
+            print(f"📊 Injection metadata tracked: {injection_result['injection_metadata']}")
+        messages_after_injection = messages.copy()
 
-        # Apply tool integration if specified
+        # ===== PHASE 3: APPLY TOOL INTEGRATION (TRACK TOKENS) =====
         tool_integration_result = {"integration_metadata": {}}
+        messages_after_tools = messages.copy()
         if payload.tool_integration_method != "none":
             try:
                 tool_config = ToolIntegrationConfig(
@@ -92,6 +110,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     config=tool_config
                 )
                 messages = tool_integration_result["messages"]
+                messages_after_tools = messages.copy()
             except Exception as e:
                 try:
                     await websocket.send_json({"error": f"Tool integration error: {str(e)}", "done": True})
@@ -99,7 +118,57 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     pass
                 return
 
-        # Record start time
+        # ===== PHASE 4: TRACK MIDDLEWARE TOKEN OVERHEAD =====
+        middleware_tokens = track_middleware_tokens(
+            original_messages=original_messages,
+            messages_after_injection=messages_after_injection,
+            messages_after_tools=messages_after_tools
+        )
+        
+        # Log token overhead for visibility
+        print(f"📊 Token tracking: Original={middleware_tokens['original_tokens']}, "
+              f"Injection+{middleware_tokens['injection_added']}, "
+              f"Tools+{middleware_tokens['tools_added']}, "
+              f"Total={middleware_tokens['final_total']}")
+
+        # ===== PHASE 5: VALIDATE MAX_TOKENS (FIX FROM CODE REVIEW) =====
+        safe_max_tokens = min(payload.max_tokens, MAX_OUTPUT_TOKENS)
+        if safe_max_tokens != payload.max_tokens:
+            print(f"⚠️ Capping max_tokens from {payload.max_tokens} to {safe_max_tokens}")
+        
+        # ===== PHASE 5.5: MEASURE BASELINE POWER (IF ENABLED) =====
+        power_baseline = None
+        power_before = None
+        power_after = None
+        live_power_enabled = payload.enable_live_power_monitoring and POWER_MONITORING_AVAILABLE
+        print(f"🔌 Live Power Monitoring: Requested={payload.enable_live_power_monitoring}, Available={POWER_MONITORING_AVAILABLE}, Enabled={live_power_enabled}")
+        
+        if live_power_enabled:
+            try:
+                # Measure baseline power (idle) - Run in thread to avoid blocking event loop
+                loop = asyncio.get_running_loop()
+                power_baseline = await loop.run_in_executor(None, power_monitor.read_power, 0.5)
+                
+                if power_baseline:
+                    await websocket.send_json({
+                        "log": f"📊 Baseline power: {power_baseline.total_watts:.2f} W",
+                        "power_baseline": power_baseline.total_watts
+                    })
+                
+                # Measure power just before inference
+                power_before = await loop.run_in_executor(None, power_monitor.read_power, 0.3)
+                if power_before:
+                    await websocket.send_json({
+                        "log": f"🔋 Power before inference: {power_before.total_watts:.2f} W",
+                        "power_before": power_before.total_watts
+                    })
+            except Exception as e:
+                await websocket.send_json({
+                    "log": f"⚠️ Power monitoring error: {str(e)}"
+                })
+                live_power_enabled = False
+        
+        # ===== PHASE 6: RUN GENERATION =====
         start_time = asyncio.get_event_loop().time()
         
         full_response = ""
@@ -117,7 +186,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     "stream": True,
                     "options": {
                         "temperature": payload.temp,
-                        "num_predict": payload.max_tokens
+                        "num_predict": safe_max_tokens  # Use validated max_tokens
                     }
                 }
             ) as response:
@@ -174,7 +243,83 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         end_time = asyncio.get_event_loop().time()
         latency = end_time - start_time
 
-        # Record energy consumption
+        # ===== PHASE 6.5: MEASURE POWER AFTER INFERENCE (IF ENABLED) =====
+        measured_wh_per_1000_tokens = None
+        if live_power_enabled:
+            try:
+                # Measure power after inference - Run in thread
+                loop = asyncio.get_running_loop()
+                power_after = await loop.run_in_executor(None, power_monitor.read_power, 0.5)
+                
+                if power_after and power_before and power_baseline:
+                    avg_power = (power_before.total_watts + power_after.total_watts) / 2
+                    idle_power = power_baseline.total_watts
+                    active_power = max(avg_power - idle_power, 0.1)  # Minimum 0.1W
+                    
+                    # Calculate actual Wh consumed
+                    wh_consumed = (active_power * latency) / 3600
+                    total_tokens = prompt_tokens + completion_tokens
+                    if total_tokens > 0:
+                        measured_wh_per_1000_tokens = (wh_consumed / total_tokens) * 1000
+                    
+                    await websocket.send_json({
+                        "log": f"🔋 Power after inference: {power_after.total_watts:.2f} W",
+                        "log": f"⚡ Active power: {active_power:.2f} W",
+                        "log": f"🎯 Measured: {measured_wh_per_1000_tokens:.4f} Wh/1K tokens",
+                        "power_after": power_after.total_watts,
+                        "power_active": active_power,
+                        "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens
+                    })
+
+                    # DYNAMIC BENCHMARK UPDATE
+                    # If we have a valid measurement, create/update a dynamic benchmark and use it
+                    if measured_wh_per_1000_tokens is not None and measured_wh_per_1000_tokens > 0:
+                        dynamic_benchmark_name = "rapl_live_dynamic"
+                        print(f"🔄 Creating dynamic benchmark '{dynamic_benchmark_name}' with {measured_wh_per_1000_tokens:.4f} Wh/1K")
+                        
+                        # Add/Update the benchmark
+                        energy_tracker.add_custom_benchmark(
+                            name=dynamic_benchmark_name,
+                            description="Live RAPL Measurement (Dynamic)",
+                            watt_hours_per_1000_tokens=measured_wh_per_1000_tokens,
+                            source="Real-time RAPL Measurement",
+                            hardware_specs="Current System (Dynamic)",
+                            force_update=True
+                        )
+                        
+                        # Force use of this benchmark
+                        payload.energy_benchmark = dynamic_benchmark_name
+                        await websocket.send_json({
+                            "log": f"✅ Auto-switched to dynamic benchmark: {measured_wh_per_1000_tokens:.4f} Wh/1K"
+                        })
+
+            except Exception as e:
+                await websocket.send_json({
+                    "log": f"⚠️ Power measurement error: {str(e)}"
+                })
+
+        # ===== PHASE 7: CREATE COMPREHENSIVE TOKEN BREAKDOWN (CRITICAL FIX) =====
+        token_breakdown = create_token_breakdown(
+            original_messages=original_messages,
+            middleware_tracking=middleware_tokens,
+            ollama_prompt_tokens=prompt_tokens,
+            ollama_completion_tokens=completion_tokens
+        )
+        
+        # Log breakdown for debugging
+        print(f"✅ Token breakdown created: {token_breakdown['totals']['grand_total']} total tokens")
+        print(f"   Accuracy: {token_breakdown['verification']['accuracy_percent']}%")
+
+        # ===== PHASE 8: RECORD ENERGY CONSUMPTION =====
+        # CRITICAL FIX: Set the benchmark before recording
+        print(f"🔄 Setting benchmark to: '{payload.energy_benchmark}'")
+        try:
+            energy_tracker.set_benchmark(payload.energy_benchmark)
+            print(f"✅ Benchmark set to: {energy_tracker.benchmark.name} ({energy_tracker.benchmark.watt_hours_per_1000_tokens} Wh/1K)")
+        except ValueError as e:
+            print(f"⚠️ Invalid benchmark '{payload.energy_benchmark}', using conservative_estimate. Error: {e}")
+            energy_tracker.set_benchmark("conservative_estimate")
+        
         energy_reading = energy_tracker.record_usage(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
@@ -183,7 +328,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             strategy_name=payload.strategy_name
         )
 
-        # Send comprehensive results
+        # ===== PHASE 9: SEND COMPREHENSIVE RESULTS (WITH FIXED TOKEN_METRICS) =====
         await websocket.send_json({
             "token": "[DONE]",
             "model": payload.model_name,
@@ -199,6 +344,11 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "tokens_per_second": completion_tokens / latency if latency > 0 else 0,
             },
 
+            # 🔥 CRITICAL FIX: Add proper token_metrics with breakdown
+            "token_metrics": {
+                "breakdown": token_breakdown
+            },
+
             # Energy metrics
             "energy_metrics": {
                 "benchmark_used": energy_reading.benchmark_used,
@@ -207,13 +357,27 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "energy_efficiency_score": energy_reading.watt_hours_consumed / max(energy_reading.total_tokens / 1000, 0.001),
             },
 
-            # Modification tracking
+            # Live power monitoring data (if enabled)
+            "live_power_metrics": {
+                "enabled": live_power_enabled,
+                "baseline_watts": power_baseline.total_watts if power_baseline else None,
+                "before_watts": power_before.total_watts if power_before else None,
+                "after_watts": power_after.total_watts if power_after else None,
+                "active_watts": ((power_before.total_watts + power_after.total_watts) / 2 - power_baseline.total_watts) if (power_before and power_after and power_baseline) else None,
+                "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens,
+                "benchmark_wh_per_1000_tokens": energy_reading.watt_hours_consumed / max(energy_reading.total_tokens / 1000, 0.001),
+                "accuracy_percent": ((measured_wh_per_1000_tokens / (energy_reading.watt_hours_consumed / max(energy_reading.total_tokens / 1000, 0.001))) * 100) if measured_wh_per_1000_tokens else None
+            },
+
+            # Modification tracking (IMPROVED with actual token counts)
             "modification_info": {
                 "injection_applied": injection_result.get("injection_metadata", {}),
                 "tool_integration_applied": tool_integration_result.get("integration_metadata", {}),
-                "original_prompt_length": len(payload.system) + len(payload.user),
-                "final_prompt_length": len(payload.system) + len(payload.user),  # Simplified for standalone
-                "modification_overhead": 0,  # Simplified for standalone
+                "original_prompt_length": len(payload.system) + len(payload.user),  # Characters
+                "final_prompt_length": sum(len(m.get("content", "")) for m in messages),  # Characters after middleware
+                "injection_overhead": middleware_tokens["injection_added"],  # 🔥 FIX: Real token count
+                "tool_overhead": middleware_tokens["tools_added"],  # 🔥 FIX: Real token count
+                "modification_overhead": middleware_tokens["total_middleware"],  # 🔥 FIX: Not hardcoded to 0!
             },
 
             # Session summary

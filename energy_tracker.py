@@ -62,6 +62,14 @@ ENERGY_BENCHMARKS = {
         watt_hours_per_1000_tokens=1.0,
         description="General conservative estimate",
         source="User specified baseline"
+    ),
+
+    "hp_255_g10_measured": EnergyBenchmark(
+        name="HP 255 G10 (Measured)",
+        watt_hours_per_1000_tokens=0.0311,
+        description="HP 255 G10, Ryzen 7 7730U - Real RAPL measurement",
+        source="Direct RAPL measurement during inference",
+        hardware_specs={"cpu": "AMD Ryzen 7 7730U", "tdp": "15W", "measured_tokens_per_sec": "60"}
     )
 }
 
@@ -221,10 +229,10 @@ class EnergyTracker:
         }
 
     def add_custom_benchmark(self, name: str, description: str, watt_hours_per_1000_tokens: float,
-                           source: str = "Custom", hardware_specs: str = "User defined") -> bool:
-        """Add a custom energy benchmark."""
-        if name in ENERGY_BENCHMARKS:
-            return False  # Benchmark already exists
+                           source: str = "Custom", hardware_specs: str = "User defined", force_update: bool = False) -> bool:
+        """Add or update a custom energy benchmark."""
+        if name in ENERGY_BENCHMARKS and not force_update:
+            return False  # Benchmark already exists and no update requested
 
         ENERGY_BENCHMARKS[name] = EnergyBenchmark(
             name=name,

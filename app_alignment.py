@@ -51,6 +51,8 @@ class AlignmentPayload:
 
 async def run_alignment_test(payload: AlignmentPayload, websocket: WebSocket, cancel_event: asyncio.Event):
     """Run alignment quality test"""
+    print("🎯 [ALIGNMENT APP] Running alignment test - STANDALONE APP")
+    await websocket.send_json({"log": "🎯 [ALIGNMENT APP] Running alignment test - STANDALONE APP"})
     try:
         # Prepare messages
         messages = []

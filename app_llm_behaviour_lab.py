@@ -160,18 +160,20 @@ async def get_session_summary():
     return energy_tracker.get_session_summary()
 
 @app.post("/api/export-session")
-async def export_session(filepath: str = "energy_session.json"):
+async def export_session(request: dict):
     """Export session data to file"""
     try:
+        filepath = request.get("filepath", "energy_session.json")
         energy_tracker.export_readings(filepath)
         return {"success": True, "filepath": filepath}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 @app.post("/api/switch-benchmark")
-async def switch_benchmark(benchmark_name: str):
+async def switch_benchmark(request: dict):
     """Switch to a different energy benchmark and recalculate all readings."""
     try:
+        benchmark_name = request.get("benchmark_name") if isinstance(request, dict) else request
         result = energy_tracker.recalculate_with_benchmark(benchmark_name)
         return result
     except ValueError as e:
@@ -246,6 +248,7 @@ async def get_benchmark_info():
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for energy/alignment testing"""
     await websocket.accept()
+    print("🔌 WebSocket /ws connected - waiting for messages...")
 
     current_task: Optional[asyncio.Task] = None
     cancel_event: Optional[asyncio.Event] = None
@@ -259,6 +262,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 raw = await websocket.receive_json()
+                print(f"📨 Received message on /ws: {raw.get('test_type', 'unknown')}")
             except json.JSONDecodeError:
                 await websocket.send_json({"error": "Invalid JSON"})
                 continue
@@ -298,6 +302,8 @@ async def websocket_endpoint(websocket: WebSocket):
             cancel_event = asyncio.Event()
             # Determine test type and call appropriate function from standalone apps
             test_type = raw.get('test_type', 'energy')  # Default to energy for backward compatibility
+            print(f"🧪 [INTEGRATED LAB /ws] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)")
+            await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)"})
             if test_type == 'alignment':
                 # Create AlignmentPayload and delegate to standalone app
                 payload_obj = AlignmentPayload(
@@ -428,6 +434,8 @@ async def comparison_websocket_endpoint(websocket: WebSocket):
             cancel_event = asyncio.Event()
             # Determine test type and call appropriate function from standalone apps
             test_type = raw.get('test_type', 'energy')  # Default to energy for backward compatibility
+            print(f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)")
+            await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)"})
             if test_type == 'alignment':
                 # Create AlignmentPayload and delegate to standalone app
                 payload_obj = AlignmentPayload(

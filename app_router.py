@@ -137,6 +137,8 @@ async def route_websocket_message(
         cancel_event: Cancellation event
     """
     test_type = determine_test_type(payload_dict)
+    print(f"🔀 [ROUTER] Routing request to: {test_type.upper()} app")
+    await websocket.send_json({"log": f"🔀 [ROUTER] Routing request to: {test_type.upper()} app"})
     
     if test_type == 'energy':
         payload = EnergyPayload(**payload_dict)

@@ -89,7 +89,7 @@ MAX_OUTPUT_TOKENS=2048
 ### 5. Run the Application
 ```bash
 source venv/bin/activate
-uvicorn app_ollama:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 6. Open UI
