@@ -97,6 +97,8 @@ class EnergyTracker:
     carbon_intensity_gco2_per_kwh: float = 400  # Global average
     readings: List[EnergyReading] = field(default_factory=list)
     session_start: Optional[datetime] = None
+    rapl_measured_wh: float = 0.0
+    rapl_measured_tokens: int = 0
 
     def __post_init__(self):
         if self.session_start is None:
@@ -155,6 +157,10 @@ class EnergyTracker:
                 reading_dict['timestamp'] = reading_dict['timestamp'].isoformat()
             readings_dict.append(reading_dict)
 
+        rapl_avg_wh_per_1k = 0.0
+        if self.rapl_measured_tokens > 0:
+            rapl_avg_wh_per_1k = (self.rapl_measured_wh / (self.rapl_measured_tokens / 1000))
+
         return {
             "session_duration_seconds": (datetime.now() - self.session_start).total_seconds(),
             "total_readings": len(self.readings),
@@ -164,8 +170,20 @@ class EnergyTracker:
             "average_energy_per_1000_tokens": round(avg_energy_per_1000_tokens, 4),
             "average_latency_per_token": round(avg_latency_per_token, 6),
             "benchmark_used": self.benchmark.name,
-            "readings": readings_dict
+            "readings": readings_dict,
+            "rapl_session": {
+                "measured_wh": round(self.rapl_measured_wh, 6),
+                "measured_tokens": self.rapl_measured_tokens,
+                "measured_wh_per_1000_tokens": round(rapl_avg_wh_per_1k, 6) if rapl_avg_wh_per_1k else 0.0,
+            },
         }
+
+    def record_rapl_measurement(self, watt_hours: float, total_tokens: int) -> None:
+        """Record a RAPL-measured energy value for the session."""
+        if watt_hours <= 0 or total_tokens <= 0:
+            return
+        self.rapl_measured_wh += watt_hours
+        self.rapl_measured_tokens += total_tokens
 
     def export_readings(self, filepath: str):
         """Export all readings to a JSON file."""

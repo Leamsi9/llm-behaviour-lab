@@ -140,6 +140,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         power_baseline = None
         power_before = None
         power_after = None
+        rapl_measured_wh = 0.0
         live_power_enabled = payload.enable_live_power_monitoring and POWER_MONITORING_AVAILABLE
         print(f"🔌 Live Power Monitoring: Requested={payload.enable_live_power_monitoring}, Available={POWER_MONITORING_AVAILABLE}, Enabled={live_power_enabled}")
         if payload.enable_live_power_monitoring and not POWER_MONITORING_AVAILABLE:
@@ -164,7 +165,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                         "power_baseline": power_baseline.total_watts
                     })
                 
-                # Measure power just before inference
+                # Measure power just before inference (for display only)
                 power_before = await loop.run_in_executor(None, power_monitor.read_power, 0.3)
                 if power_before:
                     await websocket.send_json({
@@ -183,10 +184,30 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         full_response = ""
         prompt_tokens = 0
         completion_tokens = 0
+        generation_done = False
+
+        # Continuous RAPL sampling task (integrated Wh)
+        async def rapl_sampler():
+            nonlocal rapl_measured_wh
+            if not live_power_enabled or not power_monitor:
+                return
+            sample_seconds = 0.5
+            try:
+                loop = asyncio.get_running_loop()
+                await websocket.send_json({"log": f"📡 Starting RAPL sampling every {sample_seconds:.1f}s"})
+                while not generation_done and not cancel_event.is_set():
+                    sample = await loop.run_in_executor(None, power_monitor.read_power, sample_seconds)
+                    if sample and power_baseline:
+                        active_watts = max(sample.total_watts - power_baseline.total_watts, 0.0)
+                        rapl_measured_wh += (active_watts * sample_seconds) / 3600.0
+                await websocket.send_json({"log": f"📏 Integrated RAPL energy: {rapl_measured_wh:.6f} Wh"})
+            except Exception as e:
+                await websocket.send_json({"log": f"⚠️ RAPL sampler error: {str(e)}"})
 
         # Make request to Ollama
         if live_power_enabled:
             await websocket.send_json({"log": "Running LLM inference with power monitoring..."})
+            sampler_task = asyncio.create_task(rapl_sampler())
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             async with client.stream(
                 "POST",
@@ -240,6 +261,12 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 # Always close the response stream properly
                 await response.aclose()
 
+        generation_done = True
+        if live_power_enabled:
+            # Ensure sampler has finished
+            with contextlib.suppress(Exception):
+                await sampler_task
+
         if cancel_event.is_set():
             await websocket.send_json({
                 "token": "[CANCELLED]",
@@ -257,56 +284,56 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             await websocket.send_json({"log": f"✅ Generated {prompt_tokens + completion_tokens} tokens"})
             await websocket.send_json({"log": f"⏱ Duration: {latency:.2f}s"})
 
-        # ===== PHASE 6.5: MEASURE POWER AFTER INFERENCE (IF ENABLED) =====
+        # ===== PHASE 6.5: FINALIZE RAPL MEASUREMENT (IF ENABLED) =====
         measured_wh_per_1000_tokens = None
-        if live_power_enabled:
+        if live_power_enabled and rapl_measured_wh > 0:
             try:
-                # Measure power after inference - Run in thread
+                # Optional final power_after sample for display
                 loop = asyncio.get_running_loop()
                 power_after = await loop.run_in_executor(None, power_monitor.read_power, 0.5)
-                
-                if power_after and power_before and power_baseline:
-                    avg_power = (power_before.total_watts + power_after.total_watts) / 2
-                    idle_power = power_baseline.total_watts
-                    active_power = max(avg_power - idle_power, 0.1)  # Minimum 0.1W
-                    
-                    # Calculate actual Wh consumed
-                    wh_consumed = (active_power * latency) / 3600
-                    total_tokens = prompt_tokens + completion_tokens
-                    if total_tokens > 0:
-                        measured_wh_per_1000_tokens = (wh_consumed / total_tokens) * 1000
-                    
+                if power_after:
                     await websocket.send_json({
                         "log": f"🔋 Power after inference: {power_after.total_watts:.2f} W",
-                        "log": f"⚡ Active power: {active_power:.2f} W",
-                        "log": f"🎯 Measured: {measured_wh_per_1000_tokens:.4f} Wh/1K tokens",
-                        "power_after": power_after.total_watts,
-                        "power_active": active_power,
-                        "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens
+                        "power_after": power_after.total_watts
                     })
 
-                    # DYNAMIC BENCHMARK UPDATE
-                    # If we have a valid measurement, create/update a dynamic benchmark and use it
-                    if measured_wh_per_1000_tokens is not None and measured_wh_per_1000_tokens > 0:
-                        dynamic_benchmark_name = "rapl_live_dynamic"
-                        print(f"🔄 Creating dynamic benchmark '{dynamic_benchmark_name}' with {measured_wh_per_1000_tokens:.4f} Wh/1K")
-                        
-                        # Add/Update the benchmark
-                        energy_tracker.add_custom_benchmark(
-                            name=dynamic_benchmark_name,
-                            description="Live RAPL Measurement (Dynamic)",
-                            watt_hours_per_1000_tokens=measured_wh_per_1000_tokens,
-                            source="Real-time RAPL Measurement",
-                            hardware_specs="Current System (Dynamic)",
-                            force_update=True
-                        )
-                        
-                        # Force use of this benchmark
-                        payload.energy_benchmark = dynamic_benchmark_name
-                        await websocket.send_json({
-                            "log": f"✅ Auto-switched to dynamic benchmark: {measured_wh_per_1000_tokens:.4f} Wh/1K"
-                        })
-                        await websocket.send_json({"log": "✅ Measurement Complete!"})
+                total_tokens = prompt_tokens + completion_tokens
+                if total_tokens > 0:
+                    measured_wh_per_1000_tokens = (rapl_measured_wh / total_tokens) * 1000
+
+                await websocket.send_json({
+                    "log": f"🎯 Integrated RAPL: {rapl_measured_wh:.6f} Wh total",
+                    "log": f"🎯 Measured: {measured_wh_per_1000_tokens:.4f} Wh/1K tokens" if measured_wh_per_1000_tokens else "🎯 Measured: (insufficient tokens)",
+                    "measured_wh": rapl_measured_wh,
+                    "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens
+                })
+
+                # Record into session-level RAPL tracker
+                if total_tokens > 0:
+                    energy_tracker.record_rapl_measurement(rapl_measured_wh, total_tokens)
+
+                # DYNAMIC BENCHMARK UPDATE
+                # If we have a valid measurement, create/update a dynamic benchmark and use it
+                if measured_wh_per_1000_tokens is not None and measured_wh_per_1000_tokens > 0:
+                    dynamic_benchmark_name = "rapl_live_dynamic"
+                    print(f"🔄 Creating dynamic benchmark '{dynamic_benchmark_name}' with {measured_wh_per_1000_tokens:.4f} Wh/1K")
+                    
+                    # Add/Update the benchmark
+                    energy_tracker.add_custom_benchmark(
+                        name=dynamic_benchmark_name,
+                        description="Live RAPL Measurement (Dynamic)",
+                        watt_hours_per_1000_tokens=measured_wh_per_1000_tokens,
+                        source="Real-time RAPL Measurement",
+                        hardware_specs="Current System (Dynamic)",
+                        force_update=True
+                    )
+                    
+                    # Force use of this benchmark
+                    payload.energy_benchmark = dynamic_benchmark_name
+                    await websocket.send_json({
+                        "log": f"✅ Auto-switched to dynamic benchmark: {measured_wh_per_1000_tokens:.4f} Wh/1K"
+                    })
+                    await websocket.send_json({"log": "✅ Measurement Complete!"})
 
             except Exception as e:
                 await websocket.send_json({

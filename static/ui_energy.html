@@ -45,7 +45,7 @@
       </div>
 
       <!-- Session Energy Summary -->
-      <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4">
         <div class="bg-blue-50 p-4 rounded-lg">
           <div class="text-sm text-blue-600 font-medium">Total Energy</div>
           <div id="sessionEnergy" class="text-2xl font-bold text-blue-900">0.00 Wh</div>
@@ -61,6 +61,10 @@
         <div class="bg-orange-50 p-4 rounded-lg">
           <div class="text-sm text-orange-600 font-medium">Total Tokens</div>
           <div id="sessionTokens" class="text-2xl font-bold text-orange-900">0</div>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="text-sm text-gray-600 font-medium">RAPL Measured Energy</div>
+          <div id="sessionRaplEnergy" class="text-2xl font-bold text-gray-900">0.000000 Wh</div>
         </div>
       </div>
     </div>
@@ -187,6 +191,14 @@
             <div class="text-center p-3 bg-gray-50 rounded">
               <div class="text-2xl font-bold text-green-600" id="carbonImpact">0.00</div>
               <div class="text-sm text-gray-600">gCO2</div>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded">
+              <div class="text-2xl font-bold text-gray-600" id="raplEnergy">0.000000 Wh</div>
+              <div class="text-sm text-gray-600">RAPL Measured Energy</div>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded">
+              <div class="text-2xl font-bold text-gray-600" id="raplEfficiency">0.00</div>
+              <div class="text-sm text-gray-600">RAPL Measured Wh/1K</div>
             </div>
           </div>
 
@@ -401,11 +413,14 @@
     const sessionCarbon = document.getElementById('sessionCarbon');
     const sessionEfficiency = document.getElementById('sessionEfficiency');
     const sessionTokens = document.getElementById('sessionTokens');
+    const sessionRaplEnergy = document.getElementById('sessionRaplEnergy');
 
     const testEnergy = document.getElementById('testEnergy');
     const testEnergyBar = document.getElementById('testEnergyBar');
     const efficiencyScore = document.getElementById('efficiencyScore');
     const carbonImpact = document.getElementById('carbonImpact');
+    const raplEnergy = document.getElementById('raplEnergy');
+    const raplEfficiency = document.getElementById('raplEfficiency');
 
     const resultStrategy = document.getElementById('resultStrategy');
     const resultTokens = document.getElementById('resultTokens');
@@ -746,6 +761,7 @@
       sessionCarbon.textContent = `${recalculatedData.total_carbon_gco2.toFixed(2)} gCO2`;
       sessionEfficiency.textContent = `${recalculatedData.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
       sessionTokens.textContent = recalculatedData.total_tokens;
+      sessionRaplEnergy.textContent = `${recalculatedData.session_summary.rapl_session.toFixed(6)} Wh`;
 
       // If we have current test results, update the energy display for the current test
       if (currentTestResults) {
@@ -758,15 +774,13 @@
           // Update energy bar
           const energy = currentTest.watt_hours_consumed;
           let energyLevel = 'low';
-          let barWidth = Math.min(energy * 10, 100);
+          let barWidth = Math.min(energy * 10, 100); // Scale for visualization
 
           if (energy > 0.5) energyLevel = 'medium';
           if (energy > 1.0) energyLevel = 'high';
 
           testEnergyBar.style.width = `${barWidth}%`;
           testEnergyBar.className = `energy-bar energy-${energyLevel} h-4 rounded-full`;
-
-          efficiencyScore.textContent = (currentTest.watt_hours_consumed / Math.max(currentTest.total_tokens / 1000, 0.001)).toFixed(4);
         }
       }
     }
@@ -952,6 +966,16 @@
 
       testEnergy.textContent = `${energy.toFixed(4)} Wh`;
       carbonImpact.textContent = `${carbon.toFixed(2)} gCO2`;
+      // Per-run RAPL metrics (if available on this response)
+      if (currentTestResults && currentTestResults.live_power_metrics && currentTestResults.live_power_metrics.measured_wh) {
+        raplEnergy.textContent = `${currentTestResults.live_power_metrics.measured_wh.toFixed(6)} Wh`;
+        if (currentTestResults.live_power_metrics.measured_wh_per_1000_tokens) {
+          raplEfficiency.textContent = `${currentTestResults.live_power_metrics.measured_wh_per_1000_tokens.toFixed(4)} Wh/1K`;
+        }
+      } else {
+        raplEnergy.textContent = '0.000000 Wh';
+        raplEfficiency.textContent = '0.00';
+      }
 
       // Update energy bar
       let energyLevel = 'low';
@@ -983,36 +1007,6 @@
       }
 
       efficiencyScore.textContent = data.energy_metrics.energy_efficiency_score.toFixed(4);
-
-      // Update Live Power Metrics
-      const livePowerSection = document.getElementById('livePowerSection');
-      const livePowerEnabled = document.getElementById('enableLivePower').checked;
-
-      if (livePowerEnabled && (!data.live_power_metrics || !data.live_power_metrics.enabled)) {
-        console.warn('⚠️ Live power requested but not returned/enabled by backend');
-        // Optional: Alert user or show warning icon
-        const powerBaseline = document.getElementById('powerBaseline');
-        if (powerBaseline) powerBaseline.textContent = 'Error';
-      }
-
-      if (data.live_power_metrics && data.live_power_metrics.enabled) {
-        livePowerSection.classList.remove('hidden');
-
-        const metrics = data.live_power_metrics;
-        document.getElementById('powerBaseline').textContent = metrics.baseline_watts ? `${metrics.baseline_watts.toFixed(2)} W` : '-';
-        document.getElementById('powerActive').textContent = metrics.active_watts ? `${metrics.active_watts.toFixed(2)} W` : '-';
-        document.getElementById('powerMeasured').textContent = metrics.measured_wh_per_1000_tokens ? `${metrics.measured_wh_per_1000_tokens.toFixed(4)}` : '-';
-
-        if (metrics.accuracy_percent) {
-          const accuracy = metrics.accuracy_percent.toFixed(1);
-          const diff = (metrics.measured_wh_per_1000_tokens - metrics.benchmark_wh_per_1000_tokens).toFixed(4);
-          document.getElementById('powerAccuracy').textContent = `Accuracy: ${accuracy}% of benchmark (Diff: ${diff} Wh/1K)`;
-        } else {
-          document.getElementById('powerAccuracy').textContent = '';
-        }
-      } else {
-        livePowerSection.classList.add('hidden');
-      }
     }
 
     function updateEnergyChart(energyConsumption) {
@@ -1031,8 +1025,18 @@
       let impactText = '';
 
       if (modInfo.injection_overhead > 0) {
-        const energyOverhead = energyMetrics.watt_hours_consumed * (modInfo.injection_overhead / modInfo.final_prompt_length);
-        impactText += `Prompt injection added ${modInfo.injection_overhead} tokens, increasing energy by ~${energyOverhead.toFixed(4)} Wh. `;
+        const totalTokens = data.basic_metrics ? data.basic_metrics.total_tokens : null;
+        const measuredWh = data.live_power_metrics && data.live_power_metrics.measured_wh ? data.live_power_metrics.measured_wh : null;
+        const baseWh = measuredWh !== null ? measuredWh : energyMetrics.watt_hours_consumed;
+        let energyOverhead = null;
+        if (totalTokens && totalTokens > 0) {
+          energyOverhead = baseWh * (modInfo.injection_overhead / totalTokens);
+        }
+        if (energyOverhead !== null) {
+          impactText += `Prompt injection added ${modInfo.injection_overhead} tokens, which we estimate account for ~${energyOverhead.toFixed(6)} Wh of this run's energy. `;
+        } else {
+          impactText += `Prompt injection added ${modInfo.injection_overhead} tokens (energy impact estimate unavailable). `;
+        }
       }
 
       if (modInfo.tool_integration_applied && modInfo.tool_integration_applied.total_tokens_added > 0) {
