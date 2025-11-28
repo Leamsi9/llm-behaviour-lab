@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LLM Behaviour Lab - Multi Model</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/static/tailwind.min.js"></script>
   <style>
-    .model-output { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .model-output {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
     .loader {
       border: 3px solid #f3f4f6;
       border-top: 3px solid #3b82f6;
@@ -17,10 +22,17 @@
       display: inline-block;
       vertical-align: middle;
     }
+
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
+
     .generating-indicator {
       display: flex;
       align-items: center;
@@ -32,9 +44,13 @@
       font-size: 0.875rem;
       color: #1e40af;
     }
-    .hidden { display: none !important; }
+
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
+
 <body class="bg-gray-50 p-4">
   <div class="max-w-7xl mx-auto space-y-4">
     <div class="flex items-center justify-between">
@@ -45,13 +61,15 @@
     <div class="bg-white rounded-lg shadow p-4 space-y-3">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">System Prompt</label>
-        <textarea id="systemPrompt" class="w-full p-2 border rounded h-20">You are a helpful assistant. Be concise.</textarea>
+        <textarea id="systemPrompt"
+          class="w-full p-2 border rounded h-20">You are a helpful assistant. Be concise.</textarea>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">User Input</label>
-          <textarea id="userInput" class="w-full p-2 border rounded h-24">Explain instruction-tuning vs base in simple terms.</textarea>
+          <textarea id="userInput"
+            class="w-full p-2 border rounded h-24">Explain instruction-tuning vs base in simple terms.</textarea>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -75,8 +93,10 @@
           <p class="text-xs text-blue-700 mt-2">Hold Ctrl/Cmd to select multiple. Click "Add Selected" to add panes.</p>
         </div>
         <div class="flex flex-col gap-2">
-          <button id="addModelsBtn" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">Add Selected</button>
-          <button id="generateAllBtn" class="bg-indigo-600 text-white px-3 py-2 rounded hover:bg-indigo-700">Generate All</button>
+          <button id="addModelsBtn" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">Add
+            Selected</button>
+          <button id="generateAllBtn" class="bg-indigo-600 text-white px-3 py-2 rounded hover:bg-indigo-700">Generate
+            All</button>
           <button id="stopAllBtn" class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700">Stop All</button>
           <div id="modelStatus" class="text-sm text-gray-600 mt-2">Models: Loading…</div>
         </div>
@@ -232,7 +252,7 @@
     }
 
     function removePane(pane) {
-      try { if (pane.ws) pane.ws.close(); } catch {}
+      try { if (pane.ws) pane.ws.close(); } catch { }
       panes.delete(pane.id);
       const el = document.getElementById(pane.id);
       if (el && el.parentNode) el.parentNode.removeChild(el);
@@ -241,6 +261,11 @@
 
     function handleWsMessage(pane, event) {
       const data = JSON.parse(event.data);
+      if (data.log) {
+        // Routing/debug log - display in browser console
+        console.log(data.log);
+        return;
+      }
       if (data.error) {
         pane.outEl.textContent += `\nError: ${data.error}\n`;
         pane.latencyEl.textContent = 'error';
@@ -316,10 +341,11 @@
     });
 
     // Init
-    (async function init(){
+    (async function init() {
       await fetchHealth();
       await loadModels();
     })();
   </script>
 </body>
+
 </html>

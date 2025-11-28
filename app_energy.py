@@ -142,11 +142,20 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         power_after = None
         live_power_enabled = payload.enable_live_power_monitoring and POWER_MONITORING_AVAILABLE
         print(f"🔌 Live Power Monitoring: Requested={payload.enable_live_power_monitoring}, Available={POWER_MONITORING_AVAILABLE}, Enabled={live_power_enabled}")
+        if payload.enable_live_power_monitoring and not POWER_MONITORING_AVAILABLE:
+            await websocket.send_json({"log": "❌ RAPL not available on this system"})
         
         if live_power_enabled:
             try:
-                # Measure baseline power (idle) - Run in thread to avoid blocking event loop
+                info = power_monitor.get_info() if power_monitor else None
+                await websocket.send_json({"log": "🔍 Checking RAPL availability..."})
+                if info and info.get("available"):
+                    await websocket.send_json({"log": "✅ RAPL Available"})
+                    await websocket.send_json({"log": f"📊 Power zones: {', '.join(info.get('zones', []))}"})
+                else:
+                    await websocket.send_json({"log": "❌ RAPL not available!"})
                 loop = asyncio.get_running_loop()
+                await websocket.send_json({"log": "Measuring idle power..."})
                 power_baseline = await loop.run_in_executor(None, power_monitor.read_power, 0.5)
                 
                 if power_baseline:
@@ -176,6 +185,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         completion_tokens = 0
 
         # Make request to Ollama
+        if live_power_enabled:
+            await websocket.send_json({"log": "Running LLM inference with power monitoring..."})
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             async with client.stream(
                 "POST",
@@ -242,6 +253,9 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         # Calculate timing
         end_time = asyncio.get_event_loop().time()
         latency = end_time - start_time
+        if live_power_enabled:
+            await websocket.send_json({"log": f"✅ Generated {prompt_tokens + completion_tokens} tokens"})
+            await websocket.send_json({"log": f"⏱ Duration: {latency:.2f}s"})
 
         # ===== PHASE 6.5: MEASURE POWER AFTER INFERENCE (IF ENABLED) =====
         measured_wh_per_1000_tokens = None
@@ -292,6 +306,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                         await websocket.send_json({
                             "log": f"✅ Auto-switched to dynamic benchmark: {measured_wh_per_1000_tokens:.4f} Wh/1K"
                         })
+                        await websocket.send_json({"log": "✅ Measurement Complete!"})
 
             except Exception as e:
                 await websocket.send_json({

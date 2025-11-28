@@ -1,19 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Energy Testing Lab - LLM Behavior Lab</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/tailwind.min.js"></script>
+  <script src="/static/chart.min.js"></script>
   <style>
-    .model-output { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .energy-bar { transition: width 0.5s ease; }
-    .energy-high { background: linear-gradient(90deg, #ef4444, #dc2626); }
-    .energy-medium { background: linear-gradient(90deg, #f59e0b, #d97706); }
-    .energy-low { background: linear-gradient(90deg, #10b981, #059669); }
+    .model-output {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .energy-bar {
+      transition: width 0.5s ease;
+    }
+
+    .energy-high {
+      background: linear-gradient(90deg, #ef4444, #dc2626);
+    }
+
+    .energy-medium {
+      background: linear-gradient(90deg, #f59e0b, #d97706);
+    }
+
+    .energy-low {
+      background: linear-gradient(90deg, #10b981, #059669);
+    }
   </style>
 </head>
+
 <body class="bg-gray-50 p-4">
   <div class="max-w-7xl mx-auto space-y-6">
 
@@ -22,7 +39,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-3xl font-bold text-gray-900">Energy Testing Lab</h1>
-          <p class="text-gray-600 mt-2">Measure how prompt injections and tool integrations affect energy consumption</p>
+          </p>
         </div>
         <div id="connectionStatus" class="px-4 py-2 rounded-full bg-gray-200 text-gray-700">Connecting…</div>
       </div>
@@ -70,12 +87,10 @@
       <!-- Prompt Configuration -->
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">System Prompt</label>
-          <textarea id="systemPrompt" class="w-full p-2 border rounded h-20" placeholder="You are a helpful assistant."></textarea>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">User Prompt</label>
-          <textarea id="userPrompt" class="w-full p-2 border rounded h-24" placeholder="Explain quantum computing in simple terms."></textarea>
+          <label class="block text-sm font-medium text-gray-700 mb-2">User Query</label>
+          <textarea id="userPrompt" class="w-full p-2 border rounded h-24"
+            placeholder="Explain quantum computing in simple terms."></textarea>
+          <div class="text-xs text-gray-500 mt-1">This is your actual query - the only "original" tokens</div>
         </div>
       </div>
 
@@ -92,54 +107,41 @@
         </div>
       </div>
 
-      <!-- Independent Variables (Prompt Injection & Tools) -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        <!-- Prompt Injection -->
-        <div class="space-y-3">
-          <h3 class="text-lg font-semibold text-gray-900">Prompt Injection</h3>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Injection Type</label>
-            <select id="injectionType" class="w-full p-2 border rounded">
-              <option value="none">None</option>
-              <option value="system_modification">System Modification</option>
-              <option value="user_augmentation">User Augmentation</option>
-              <option value="context_injection">Context Injection</option>
-              <option value="cot_instruction">CoT Instructions</option>
-            </select>
-          </div>
-          <div id="injectionParams" class="hidden space-y-2">
-            <div>
-              <label class="block text-sm text-gray-600">Modification Type</label>
-              <select id="modificationType" class="w-full p-2 border rounded text-sm">
-                <option value="concise">Concise</option>
-                <option value="detailed">Detailed</option>
-                <option value="creative">Creative</option>
-                <option value="factual">Factual</option>
-              </select>
-            </div>
-          </div>
+      <!-- Middleware Injections -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Middleware Injections (Exposes Hidden LLM Overhead)</h3>
+        <div class="text-sm text-gray-600 mb-3">
+          Add any prompt injections below. Each one adds middleware overhead to your query. Common examples:
+          • System prompts (5,000-7,000 tokens in commercial LLMs)
+          • Tool results (web searches, database queries)
+          • Memory/personalization context
+          • Chain-of-thought instructions
         </div>
 
-        <!-- Tool Integration -->
-        <div class="space-y-3">
-          <h3 class="text-lg font-semibold text-gray-900">Tool Integration</h3>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Integration Method</label>
-            <select id="toolMethod" class="w-full p-2 border rounded">
-              <option value="none">None</option>
-              <option value="direct_insertion">Direct Insertion</option>
-              <option value="summarized_insertion">Summarized Insertion</option>
-              <option value="filtered_insertion">Filtered Insertion</option>
-              <option value="staged_insertion">Staged Insertion</option>
-            </select>
-          </div>
+        <!-- Container for injections -->
+        <div id="injectionsContainer" class="space-y-3">
+          <!-- Injections will be added here -->
         </div>
+
+        <!-- Add injection button -->
+        <button id="addInjectionBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
+          + Add Prompt Injection
+        </button>
       </div>
 
       <!-- Test Controls -->
       <div class="flex gap-4 pt-4 border-t">
-        <button id="runTest" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium">
+        <!-- Live Power Monitoring Toggle -->
+        <div class="mb-4">
+          <label class="flex items-center space-x-2 cursor-pointer">
+            <input type="checkbox" id="enableLivePower" class="form-checkbox h-5 w-5 text-blue-600">
+            <span class="text-gray-700 font-medium">Enable Live Power Monitoring (RAPL)</span>
+          </label>
+          <p class="text-xs text-gray-500 mt-1 ml-7">Measures actual hardware power consumption during inference.</p>
+        </div>
+
+        <button id="runTest"
+          class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition font-bold">
           Run Energy Test
         </button>
         <button id="stopTest" class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-medium" disabled>
@@ -150,6 +152,9 @@
         </button>
         <button id="exportData" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
           Export Data
+        </button>
+        <button id="showLogs" class="bg-gray-700 text-white px-6 py-2 rounded hover:bg-gray-800">
+          View Live Logs
         </button>
       </div>
     </div>
@@ -177,12 +182,32 @@
           <div class="grid grid-cols-2 gap-4">
             <div class="text-center p-3 bg-gray-50 rounded">
               <div class="text-2xl font-bold text-blue-600" id="efficiencyScore">0.00</div>
-              <div class="text-sm text-gray-600">Wh/1000 tokens</div>
+              <div class="text-sm text-gray-600">Wh/1000 tokens (actual)</div>
             </div>
             <div class="text-center p-3 bg-gray-50 rounded">
               <div class="text-2xl font-bold text-green-600" id="carbonImpact">0.00</div>
               <div class="text-sm text-gray-600">gCO2</div>
             </div>
+          </div>
+
+          <!-- Live Power Metrics (Hidden by default) -->
+          <div id="livePowerSection" class="mt-4 hidden">
+            <h4 class="font-bold text-gray-700 mb-2">Live Power Measurements (RAPL)</h4>
+            <div class="grid grid-cols-3 gap-2 text-center text-sm">
+              <div class="bg-gray-50 p-2 rounded">
+                <div class="text-gray-500">Baseline</div>
+                <div class="font-bold" id="powerBaseline">-</div>
+              </div>
+              <div class="bg-gray-50 p-2 rounded">
+                <div class="text-gray-500">Active</div>
+                <div class="font-bold text-blue-600" id="powerActive">-</div>
+              </div>
+              <div class="bg-gray-50 p-2 rounded">
+                <div class="text-gray-500">Measured Wh/1K</div>
+                <div class="font-bold text-green-600" id="powerMeasured">-</div>
+              </div>
+            </div>
+            <div class="mt-2 text-xs text-gray-500 text-center" id="powerAccuracy"></div>
           </div>
         </div>
 
@@ -216,7 +241,8 @@
             <select id="benchmarkSwitcher" class="w-full p-2 border rounded">
               <option>Loading benchmarks...</option>
             </select>
-            <button id="switchBenchmarkBtn" class="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50" disabled>
+            <button id="switchBenchmarkBtn"
+              class="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50" disabled>
               Recalculate with Selected Benchmark
             </button>
           </div>
@@ -227,24 +253,29 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm text-gray-600 mb-1">Name</label>
-                <input type="text" id="customBenchmarkName" placeholder="e.g., RTX 3080" class="w-full p-2 border rounded">
+                <input type="text" id="customBenchmarkName" placeholder="e.g., RTX 3080"
+                  class="w-full p-2 border rounded">
               </div>
               <div>
                 <label class="block text-sm text-gray-600 mb-1">Wh/1000 tokens</label>
-                <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="0.50" class="w-full p-2 border rounded">
+                <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="0.50"
+                  class="w-full p-2 border rounded">
               </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
               <div>
                 <label class="block text-sm text-gray-600 mb-1">Description</label>
-                <input type="text" id="customBenchmarkDesc" placeholder="NVIDIA RTX 3080 GPU" class="w-full p-2 border rounded">
+                <input type="text" id="customBenchmarkDesc" placeholder="NVIDIA RTX 3080 GPU"
+                  class="w-full p-2 border rounded">
               </div>
               <div>
                 <label class="block text-sm text-gray-600 mb-1">Hardware Specs</label>
-                <input type="text" id="customBenchmarkSpecs" placeholder="12GB GDDR6X" class="w-full p-2 border rounded">
+                <input type="text" id="customBenchmarkSpecs" placeholder="12GB GDDR6X"
+                  class="w-full p-2 border rounded">
               </div>
             </div>
-            <button id="addCustomBenchmarkBtn" class="mt-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+            <button id="addCustomBenchmarkBtn"
+              class="mt-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
               Add Custom Benchmark
             </button>
           </div>
@@ -318,24 +349,34 @@
 
   </div>
 
+  <div id="cliModal" class="fixed inset-0 hidden z-50">
+    <div class="w-full h-full flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-2xl p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-lg font-semibold">Live Measurement Logs</h3>
+          <button id="closeCliModalBtn" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300">Close</button>
+        </div>
+        <div id="cliLog" class="bg-gray-900 text-green-200 p-3 rounded h-80 overflow-auto text-sm font-mono"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Elements
-    const systemPrompt = document.getElementById('systemPrompt');
-    const userPrompt = document.getElementById('userPrompt');
+    // DOM references
     const modelSelect = document.getElementById('modelSelect');
     const energyBenchmark = document.getElementById('energyBenchmark');
-    const injectionType = document.getElementById('injectionType');
-    const modificationType = document.getElementById('modificationType');
-    const toolMethod = document.getElementById('toolMethod');
-    const injectionParams = document.getElementById('injectionParams');
+    const userPrompt = document.getElementById('userPrompt');
     const temperature = document.getElementById('temperature');
-    const tempValue = document.getElementById('tempValue');
     const maxTokens = document.getElementById('maxTokens');
-
+    const tempValue = document.getElementById('tempValue');
     const runTest = document.getElementById('runTest');
     const stopTest = document.getElementById('stopTest');
     const clearResults = document.getElementById('clearResults');
     const exportData = document.getElementById('exportData');
+    const showLogs = document.getElementById('showLogs');
+    const cliModal = document.getElementById('cliModal');
+    const cliLog = document.getElementById('cliLog');
+    const closeCliModalBtn = document.getElementById('closeCliModalBtn');
 
     // Benchmark controls
     const currentBenchmarkInfo = document.getElementById('currentBenchmarkInfo');
@@ -436,19 +477,35 @@
       }
     }
 
-    async function loadBenchmarkSwitcher() {
+    async function loadBenchmarkSwitcher(valueToSelect = null) {
       try {
+        const currentValue = benchmarkSwitcher.value;
         const r = await fetch('/api/energy-benchmarks');
         const d = await r.json();
         benchmarkSwitcher.innerHTML = '';
+
+        let found = false;
         if (d.benchmarks) {
           d.benchmarks.forEach(benchmark => {
             const opt = document.createElement('option');
             opt.value = benchmark.name;
             opt.textContent = `${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh/1000 tokens)`;
             benchmarkSwitcher.appendChild(opt);
+
+            if (valueToSelect && benchmark.name === valueToSelect) {
+              found = true;
+            } else if (!valueToSelect && benchmark.name === currentValue) {
+              found = true;
+            }
           });
         }
+
+        if (valueToSelect && found) {
+          benchmarkSwitcher.value = valueToSelect;
+        } else if (currentValue && found) {
+          benchmarkSwitcher.value = currentValue;
+        }
+
         switchBenchmarkBtn.disabled = false;
       } catch (e) {
         console.error('Failed to load benchmark switcher:', e);
@@ -485,15 +542,18 @@
         connectionStatus.className = 'px-4 py-2 rounded-full bg-red-100 text-red-700';
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         const data = JSON.parse(event.data);
+        console.log('📩 WebSocket message received:', data);
 
-        if (data.token && !data.done) {
+        if (data.log) {
+          console.log('🎯 ROUTING LOG:', data.log);
+          appendCliLog(data.log);
+        } else if (data.token && !data.done) {
           // Streaming token
           responseOutput.textContent += data.token;
         } else if (data.done) {
-          // Test completed
-          handleTestCompletion(data);
+          await handleTestCompletion(data);
         } else if (data.error) {
           alert(`Error: ${data.error}`);
         }
@@ -501,10 +561,6 @@
     }
 
     function setupEventListeners() {
-      injectionType.addEventListener('change', () => {
-        injectionParams.classList.toggle('hidden', injectionType.value === 'none');
-      });
-
       temperature.addEventListener('input', () => tempValue.textContent = temperature.value);
 
       // Benchmark controls
@@ -516,6 +572,8 @@
       stopTest.addEventListener('click', stopEnergyTest);
       clearResults.addEventListener('click', clearAllResults);
       exportData.addEventListener('click', exportSessionData);
+      showLogs.addEventListener('click', openCliModal);
+      closeCliModalBtn.addEventListener('click', closeCliModal);
     }
 
     function initChart() {
@@ -609,7 +667,7 @@
         const r = await fetch('/api/switch-benchmark', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(selectedBenchmark)
+          body: JSON.stringify({ benchmark_name: selectedBenchmark })
         });
 
         if (r.ok) {
@@ -668,7 +726,7 @@
           customBenchmarkSpecs.value = '';
 
           await loadBenchmarks();
-          await loadBenchmarkSwitcher();
+          await loadBenchmarkSwitcher(name); // Select the new benchmark
         } else {
           const error = await r.json();
           alert(`Error adding benchmark: ${error.detail || 'Unknown error'}`);
@@ -713,33 +771,127 @@
       }
     }
 
+    // ===== INJECTION MANAGEMENT =====
+    let injectionCounter = 0;
+    const injections = [];
+
+    function addInjection(description = '', content = '') {
+      const id = `injection_${injectionCounter++}`;
+      const injection = { id, description, content };
+      injections.push(injection);
+
+      const injectionHTML = `
+        <div class="border rounded p-3 bg-gray-50" id="${id}">
+          <div class="flex justify-between items-start mb-2">
+            <input type="text" class="flex-1 p-1 border rounded text-sm injection-desc" 
+                   placeholder="Injection Type (e.g., system_prompt, tool_results, memory, cot)" 
+                   value="${description}">
+            <button class="ml-2 text-red-600 hover:text-red-800 text-sm remove-injection" data-id="${id}">✕</button>
+          </div>
+          <textarea class="w-full p-2 border rounded text-sm injection-content" 
+                    placeholder="Enter injection content...">${content}</textarea>
+        </div>
+      `;
+
+      document.getElementById('injectionsContainer').insertAdjacentHTML('beforeend', injectionHTML);
+
+      // Add event listeners
+      document.querySelector(`#${id} .remove-injection`).addEventListener('click', function () {
+        removeInjection(id);
+      });
+    }
+
+    function removeInjection(id) {
+      const index = injections.findIndex(inj => inj.id === id);
+      if (index > -1) injections.splice(index, 1);
+      document.getElementById(id).remove();
+    }
+
+    function getInjections() {
+      const result = [];
+      document.querySelectorAll('#injectionsContainer > div').forEach(div => {
+        const desc = div.querySelector('.injection-desc').value;
+        const content = div.querySelector('.injection-content').value;
+        if (content.trim()) {
+          result.push({ description: desc || 'Unnamed', content: content.trim() });
+        }
+      });
+      return result;
+    }
+
+    // Add event listener for add button
+    document.getElementById('addInjectionBtn').addEventListener('click', () => addInjection());
+
+    // Add default system prompt injection
+    addInjection('system_prompt', 'You are a helpful assistant.');
+
+    // ===== RUN TEST (UPDATED FOR NEW INJECTION SYSTEM) =====
     async function runEnergyTest() {
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         alert('WebSocket not connected. Please refresh the page.');
         return;
       }
 
-      // Clear previous results
+      const userQuery = userPrompt.value.trim();
+      if (!userQuery) {
+        alert('Please enter a user query');
+        return;
+      }
+
       responseOutput.textContent = '';
       currentTestResults = null;
+      if (cliLog) cliLog.innerHTML = '';
+      const liveChecked = document.getElementById('enableLivePower').checked;
+      if (liveChecked) openCliModal();
 
-      // Prepare payload
+      // Get all injections
+      const userInjections = getInjections();
+
+      // Build system prompt from injections
+      let systemPrompt = '';
+      let injectionDetails = [];
+      let injectionMetadata = {};
+
+      for (const inj of userInjections) {
+        if (systemPrompt) systemPrompt += '\n\n---\n\n';
+        systemPrompt += `[${inj.description}]\n${inj.content}`;
+
+        const tokens = Math.ceil(inj.content.length / 4);  // Approximate
+        injectionDetails.push({
+          type: inj.description,
+          tokens: tokens
+        });
+
+        // Track tokens per injection type
+        if (!injectionMetadata[inj.description]) {
+          injectionMetadata[inj.description] = { count: 0, tokens: 0 };
+        }
+        injectionMetadata[inj.description].count++;
+        injectionMetadata[inj.description].tokens += tokens;
+      }
+
+      console.log('📋 Built system prompt from injections:', systemPrompt);
+      console.log('📊 Injection details:', injectionDetails);
+      console.log('📈 Injection metadata:', injectionMetadata);
+
+      // Prepare payload - send injection metadata for proper tracking
       const payload = {
-        system: systemPrompt.value,
-        user: userPrompt.value,
+        system: systemPrompt,
+        user: userQuery,
         model_name: modelSelect.value,
-        test_type: 'energy',
-        strategy_name: `${injectionType.value}_${toolMethod.value}`,
-        energy_benchmark: energyBenchmark.value,
-        injection_type: injectionType.value,
-        injection_params: injectionType.value !== 'none' ? {
-          modification_type: modificationType.value
-        } : {},
-        tool_integration_method: toolMethod.value,
-        tool_config: {},
+        strategy_name: 'custom_injection',
+        energy_benchmark: benchmarkSwitcher.value,
+        injection_type: userInjections.length > 0 ? 'user_defined' : 'none',
+        injection_params: {
+          injections: injectionDetails,
+          metadata: injectionMetadata
+        },
         temp: parseFloat(temperature.value),
-        max_tokens: parseInt(maxTokens.value)
+        max_tokens: parseInt(maxTokens.value),
+        enable_live_power_monitoring: document.getElementById('enableLivePower').checked
       };
+
+      console.log('📤 Sending payload:', payload);
 
       ws.send(JSON.stringify(payload));
       runTest.disabled = true;
@@ -755,7 +907,7 @@
       }
     }
 
-    function handleTestCompletion(data) {
+    async function handleTestCompletion(data) {
       runTest.disabled = false;
       runTest.textContent = 'Run Energy Test';
       stopTest.disabled = true;
@@ -778,7 +930,17 @@
       updateEnergyChart(data.energy_metrics.watt_hours_consumed);
 
       // Update session summary
-      updateSessionSummary();
+      await updateSessionSummary();
+
+      const usedBenchmark = data.energy_metrics.benchmark_used;
+      if (usedBenchmark && usedBenchmark !== benchmarkSwitcher.value) {
+        await loadBenchmarkSwitcher(usedBenchmark);
+        await loadBenchmarks();
+        const opt = Array.from(energyBenchmark.options).find(o => o.value === usedBenchmark);
+        if (opt) energyBenchmark.value = usedBenchmark;
+        const infoEl = document.getElementById('currentBenchmarkInfo');
+        if (infoEl) infoEl.textContent = `${usedBenchmark} - Click info button for details`;
+      }
 
       // Analyze modification impact
       analyzeModificationImpact(data);
@@ -821,6 +983,36 @@
       }
 
       efficiencyScore.textContent = data.energy_metrics.energy_efficiency_score.toFixed(4);
+
+      // Update Live Power Metrics
+      const livePowerSection = document.getElementById('livePowerSection');
+      const livePowerEnabled = document.getElementById('enableLivePower').checked;
+
+      if (livePowerEnabled && (!data.live_power_metrics || !data.live_power_metrics.enabled)) {
+        console.warn('⚠️ Live power requested but not returned/enabled by backend');
+        // Optional: Alert user or show warning icon
+        const powerBaseline = document.getElementById('powerBaseline');
+        if (powerBaseline) powerBaseline.textContent = 'Error';
+      }
+
+      if (data.live_power_metrics && data.live_power_metrics.enabled) {
+        livePowerSection.classList.remove('hidden');
+
+        const metrics = data.live_power_metrics;
+        document.getElementById('powerBaseline').textContent = metrics.baseline_watts ? `${metrics.baseline_watts.toFixed(2)} W` : '-';
+        document.getElementById('powerActive').textContent = metrics.active_watts ? `${metrics.active_watts.toFixed(2)} W` : '-';
+        document.getElementById('powerMeasured').textContent = metrics.measured_wh_per_1000_tokens ? `${metrics.measured_wh_per_1000_tokens.toFixed(4)}` : '-';
+
+        if (metrics.accuracy_percent) {
+          const accuracy = metrics.accuracy_percent.toFixed(1);
+          const diff = (metrics.measured_wh_per_1000_tokens - metrics.benchmark_wh_per_1000_tokens).toFixed(4);
+          document.getElementById('powerAccuracy').textContent = `Accuracy: ${accuracy}% of benchmark (Diff: ${diff} Wh/1K)`;
+        } else {
+          document.getElementById('powerAccuracy').textContent = '';
+        }
+      } else {
+        livePowerSection.classList.add('hidden');
+      }
     }
 
     function updateEnergyChart(energyConsumption) {
@@ -915,6 +1107,22 @@
         alert('Export error: ' + e.message);
       }
     }
+    function openCliModal() {
+      if (cliModal) cliModal.classList.remove('hidden');
+    }
+
+    function closeCliModal() {
+      if (cliModal) cliModal.classList.add('hidden');
+    }
+
+    function appendCliLog(line) {
+      if (!cliLog) return;
+      const div = document.createElement('div');
+      div.textContent = line;
+      cliLog.appendChild(div);
+      cliLog.scrollTop = cliLog.scrollHeight;
+    }
   </script>
 </body>
+
 </html>

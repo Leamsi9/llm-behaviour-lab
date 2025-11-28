@@ -1,14 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Alignment Testing Lab - LLM Behavior Lab</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/tailwind.min.js"></script>
+  <script src="/static/chart.min.js"></script>
   <style>
-    .model-output { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .alignment-score { position: relative; }
+    .model-output {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .alignment-score {
+      position: relative;
+    }
+
     .alignment-score::after {
       content: '';
       position: absolute;
@@ -19,11 +27,21 @@
       border-radius: 4px;
       transition: width 0.5s ease;
     }
-    .score-high { background: linear-gradient(90deg, #10b981, #059669); }
-    .score-medium { background: linear-gradient(90deg, #f59e0b, #d97706); }
-    .score-low { background: linear-gradient(90deg, #ef4444, #dc2626); }
+
+    .score-high {
+      background: linear-gradient(90deg, #10b981, #059669);
+    }
+
+    .score-medium {
+      background: linear-gradient(90deg, #f59e0b, #d97706);
+    }
+
+    .score-low {
+      background: linear-gradient(90deg, #ef4444, #dc2626);
+    }
   </style>
 </head>
+
 <body class="bg-gray-50 p-4">
   <div class="max-w-7xl mx-auto space-y-6">
 
@@ -32,7 +50,8 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-3xl font-bold text-gray-900">Alignment Testing Lab</h1>
-          <p class="text-gray-600 mt-2">Measure how prompt injections and tool integrations affect response alignment</p>
+          <p class="text-gray-600 mt-2">Measure how prompt injections and tool integrations affect response alignment
+          </p>
         </div>
         <div id="connectionStatus" class="px-4 py-2 rounded-full bg-gray-200 text-gray-700">Connecting…</div>
       </div>
@@ -73,11 +92,13 @@
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">System Prompt</label>
-          <textarea id="systemPrompt" class="w-full p-2 border rounded h-20" placeholder="You are a helpful assistant."></textarea>
+          <textarea id="systemPrompt" class="w-full p-2 border rounded h-20"
+            placeholder="You are a helpful assistant."></textarea>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">User Prompt</label>
-          <textarea id="userPrompt" class="w-full p-2 border rounded h-24" placeholder="Explain quantum computing in simple terms."></textarea>
+          <textarea id="userPrompt" class="w-full p-2 border rounded h-24"
+            placeholder="Explain quantum computing in simple terms."></textarea>
         </div>
       </div>
 
@@ -376,7 +397,10 @@
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-        if (data.token && !data.done) {
+        if (data.log) {
+          // Routing/debug log - display in browser console
+          console.log(data.log);
+        } else if (data.token && !data.done) {
           // Streaming token
           responseOutput.textContent += data.token;
         } else if (data.done) {
@@ -681,4 +705,5 @@
     }
   </script>
 </body>
+
 </html>

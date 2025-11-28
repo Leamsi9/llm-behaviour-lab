@@ -332,7 +332,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     tool_integration_method=raw.get('tool_integration_method', 'none'),
                     tool_config=raw.get('tool_config', {}),
                     temp=raw.get('temp', 0.7),
-                    max_tokens=raw.get('max_tokens', 512)
+                    max_tokens=raw.get('max_tokens', 512),
+                    enable_live_power_monitoring=raw.get('enable_live_power_monitoring', False)
                 )
                 current_task = asyncio.create_task(run_energy_test(payload_obj, websocket, cancel_event))
             current_task.add_done_callback(reset_task)
