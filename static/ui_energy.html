@@ -281,11 +281,17 @@
 
           <!-- Calibration -->
           <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-3">Calibration</h4>
+            <h4 class="text-sm font-medium text-gray-700 mb-1">Calibration</h4>
+            <p class="text-xs text-gray-500 mb-2" id="raplCalibrationStatus">Not run yet.</p>
             <div class="flex items-center gap-3">
               <div class="flex-1">
                 <label class="block text-xs text-gray-500 mb-1">Calibration Runs</label>
                 <input type="number" id="raplCalibrationRuns" value="5" min="3" max="20"
+                  class="w-full p-2 border rounded text-sm">
+              </div>
+              <div class="flex-1">
+                <label class="block text-xs text-gray-500 mb-1">Target Words</label>
+                <input type="number" id="raplCalibrationWords" value="120" min="10" max="1000"
                   class="w-full p-2 border rounded text-sm">
               </div>
               <button id="runRaplCalibration"
@@ -293,7 +299,6 @@
                 Calibrate
               </button>
             </div>
-            <div id="raplCalibrationStatus" class="mt-2 text-xs text-gray-500"></div>
           </div>
         </div>
 
@@ -465,6 +470,44 @@
     <div class="bg-white rounded-lg shadow p-6">
       <h3 class="text-xl font-semibold text-gray-900 mb-4">Test Results</h3>
 
+      <!-- Token Breakdown Chart -->
+      <div class="mb-6">
+        <h4 class="font-medium text-gray-900 mb-3">Token Analysis</h4>
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+          <canvas id="tokenBreakdownChart" width="400" height="120"></canvas>
+        </div>
+        <div class="mt-3 text-xs text-gray-600 flex justify-between">
+          <span id="tokenAnalysisNotes">Run a test to see detailed token breakdown.</span>
+          <div class="space-x-4">
+            <span class="font-bold text-green-700">Input: <span id="inputTokensVal">-</span></span>
+            <span class="font-bold text-yellow-700">Overhead: <span id="overheadTokensVal">-</span></span>
+            <span class="font-bold text-purple-700">Thinking: <span id="thinkingTokensVal">-</span></span>
+            <span class="font-bold text-blue-700">Output: <span id="outputTokensVal">-</span></span>
+            <span class="font-bold text-gray-700">Prefill: <span id="prefillPer1kIn">-</span></span>
+            <span class="font-bold text-gray-700">Decode: <span id="decodePer1kOut">-</span></span>
+            <span class="font-bold text-gray-700">E-Weighted: <span id="ewOutPer1k">-</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex justify-between">
+          <span class="text-gray-600">Strategy:</span>
+          <span id="resultStrategy" class="font-medium">-</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">Total Tokens:</span>
+          <span id="resultTokens" class="font-medium">-</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">Latency:</span>
+          <span id="resultLatency" class="font-medium">-</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">Tokens/Second:</span>
+          <span id="resultTokensPerSec" class="font-medium">-</span>
+        </div>
+      </div>
       <!-- RAPL Batch Results full-width (moved here) -->
       <div class="mb-6">
         <h4 class="font-medium text-gray-900 mb-2">RAPL Batch Results (UI Prompt + Injections)</h4>
@@ -485,6 +528,8 @@
                 <th class="px-2 py-1 border">CV</th>
                 <th class="px-2 py-1 border">Query/Input Tokens (μ/med)</th>
                 <th class="px-2 py-1 border">Output Tokens (μ/med)</th>
+                <th class="px-2 py-1 border">Mean Total Wh</th>
+                <th class="px-2 py-1 border">Median Total Wh</th>
                 <th class="px-2 py-1 border">Actions</th>
               </tr>
             </thead>
@@ -560,48 +605,12 @@
         <div class="mt-2">
           <canvas id="energyChart" width="400" height="200"></canvas>
         </div>
-      </div>
-
-      <!-- Token Breakdown Chart -->
-      <div class="mb-6">
-        <h4 class="font-medium text-gray-900 mb-3">Token Analysis</h4>
-        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-          <canvas id="tokenBreakdownChart" width="400" height="120"></canvas>
-        </div>
-        <div class="mt-3 text-xs text-gray-600 flex justify-between">
-          <span id="tokenAnalysisNotes">Run a test to see detailed token breakdown.</span>
-          <div class="space-x-4">
-            <span class="font-bold text-green-700">Input: <span id="inputTokensVal">-</span></span>
-            <span class="font-bold text-yellow-700">Overhead: <span id="overheadTokensVal">-</span></span>
-            <span class="font-bold text-purple-700">Thinking: <span id="thinkingTokensVal">-</span></span>
-            <span class="font-bold text-blue-700">Output: <span id="outputTokensVal">-</span></span>
-            <span class="font-bold text-gray-700">Prefill: <span id="prefillPer1kIn">-</span></span>
-            <span class="font-bold text-gray-700">Decode: <span id="decodePer1kOut">-</span></span>
-            <span class="font-bold text-gray-700">E-Weighted: <span id="ewOutPer1k">-</span></span>
-          </div>
+        <!-- Prefill vs Decode Chart (Wh per run) -->
+        <div class="mt-4">
+          <h5 class="text-sm font-medium text-gray-900 mb-2">Prefill vs Decode (Wh per run)</h5>
+          <canvas id="prefillDecodeChart" width="400" height="180"></canvas>
         </div>
       </div>
-
-      <div class="space-y-3">
-        <div class="flex justify-between">
-          <span class="text-gray-600">Strategy:</span>
-          <span id="resultStrategy" class="font-medium">-</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-600">Total Tokens:</span>
-          <span id="resultTokens" class="font-medium">-</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-600">Latency:</span>
-          <span id="resultLatency" class="font-medium">-</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-600">Tokens/Second:</span>
-          <span id="resultTokensPerSec" class="font-medium">-</span>
-        </div>
-      </div>
-
-      <!-- Modification Impact removed as requested -->
     </div>
 
   </div>
@@ -674,6 +683,10 @@
     const cliModal = document.getElementById('cliModal');
     const cliLog = document.getElementById('cliLog');
     const closeCliModalBtn = document.getElementById('closeCliModalBtn');
+    let _genProgressEl = null;
+    let _genTimer = null;
+    let _genStartMs = 0;
+    let _genSpinIdx = 0;
 
     // Benchmark controls
     const currentBenchmarkInfo = document.getElementById('currentBenchmarkInfo');
@@ -750,11 +763,26 @@
             <td class="px-3 py-2 whitespace-nowrap text-gray-500">${(s.cv ?? 0).toFixed(3)}</td>
             <td class="px-3 py-2 whitespace-nowrap text-green-700">${(s.meanInputTokens != null ? s.meanInputTokens.toFixed(0) : 'n/a')} / ${(s.medianInputTokens != null ? s.medianInputTokens.toFixed(0) : 'n/a')}</td>
             <td class="px-3 py-2 whitespace-nowrap text-blue-700">${(s.meanOutputTokens != null ? s.meanOutputTokens.toFixed(0) : 'n/a')} / ${(s.medianOutputTokens != null ? s.medianOutputTokens.toFixed(0) : 'n/a')}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-gray-900">${(s.meanTotalWh != null ? s.meanTotalWh.toFixed(6) : 'n/a')}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-gray-900">${(s.medianTotalWh != null ? s.medianTotalWh.toFixed(6) : 'n/a')}</td>
             <td class="px-3 py-2 whitespace-nowrap">
               <button data-id="${s.id}" class="text-red-600 hover:text-red-800 text-xs">Remove</button>
             </td>
           `;
         raplBatchTableBody.appendChild(tr);
+
+        // Secondary details row
+        const tr2 = document.createElement('tr');
+        tr2.className = 'bg-gray-50';
+        tr2.innerHTML = `
+          <td class="px-3 py-2 text-gray-600" colspan="2">Injected: ${s.injectedTokens != null ? s.injectedTokens : 'n/a'}</td>
+          <td class="px-3 py-2 text-gray-700" colspan="2">Thinking tok μ/med: ${(s.meanThinkingTokens != null ? s.meanThinkingTokens.toFixed(0) : 'n/a')} / ${(s.medianThinkingTokens != null ? s.medianThinkingTokens.toFixed(0) : 'n/a')}</td>
+          <td class="px-3 py-2 text-gray-700" colspan="2">TTFT μ/med: ${(s.meanTTFT != null ? s.meanTTFT.toFixed(3) : 'n/a')}s / ${(s.medianTTFT != null ? s.medianTTFT.toFixed(3) : 'n/a')}s</td>
+          <td class="px-3 py-2 text-gray-700" colspan="2">Decode μ/med: ${(s.meanDecode != null ? s.meanDecode.toFixed(3) : 'n/a')}s / ${(s.medianDecode != null ? s.medianDecode.toFixed(3) : 'n/a')}s</td>
+          <td class="px-3 py-2 text-gray-700" colspan="2">Run μ/med: ${(s.meanRunDur != null ? s.meanRunDur.toFixed(3) : 'n/a')}s / ${(s.medianRunDur != null ? s.medianRunDur.toFixed(3) : 'n/a')}s</td>
+          <td></td><td></td>
+        `;
+        raplBatchTableBody.appendChild(tr2);
       });
 
       raplBatchTableBody.querySelectorAll('button[data-id]').forEach(btn => {
@@ -768,6 +796,7 @@
 
     // Chart
     let energyChart = null;
+    let prefillDecodeChart = null;
 
     // Initialize (called at bottom)
 
@@ -958,46 +987,41 @@
           console.log('🎯 ROUTING LOG:', data.log);
           appendCliLog(data.log);
         } else if (data.token && !data.done) {
-          // Streaming token with thinking wrap
+          // Streaming token: update UI output only; suppress token logging in CLI
           const isThinking = data.thinking === true;
           if (isThinking) {
             if (!inThinking) {
-              // Heading for thinking
               responseOutput.textContent += (responseOutput.textContent.endsWith('\n') ? '' : '\n') + 'Thinking:\n';
-              appendCliLog('Thinking:');
-              // Open tag wrapper
               responseOutput.textContent += '<thinking>';
-              appendCliLog('<thinking>');
               inThinking = true;
             }
           } else {
             if (inThinking) {
               responseOutput.textContent += '</thinking>';
-              appendCliLog('</thinking>');
               inThinking = false;
             }
-            // First answer heading
             if (!answerStarted) {
               responseOutput.textContent += (responseOutput.textContent.endsWith('\n') ? '' : '\n') + '\nAnswer:\n';
-              appendCliLog('');
-              appendCliLog('Answer:');
               answerStarted = true;
             }
           }
 
           responseOutput.textContent += data.token;
-          appendCliLog(data.token);
+          if (!_genTimer) {
+            startGenerationProgress();
+          }
         } else if (data.done) {
           console.log('✔️ Test completion received');
           // Ensure closing tag if we ended inside thinking
           if (inThinking) {
             responseOutput.textContent += '</thinking>';
-            appendCliLog('</thinking>');
             inThinking = false;
           }
+          stopGenerationProgress();
           await handleTestCompletion(data);
         } else if (data.error) {
           console.error('❌ Error from backend:', data.error);
+          stopGenerationProgress(true);
           alert(`Error: ${data.error}`);
         } else {
           console.warn('⚠️ Unknown message type:', data);
@@ -1061,8 +1085,14 @@
           blockLines.push('</conversation_context>');
 
           const block = blockLines.join('\n');
-          const existing = conversationContextText.value.trim();
-          conversationContextText.value = existing ? (existing + '\n\n' + block) : block;
+          const existing = conversationContextText.value || '';
+          // If this exact block is already present, do not append again
+          if (existing.includes(block)) {
+            return;
+          }
+          conversationContextText.value = existing.trim()
+            ? (existing.trimEnd() + '\n\n' + block)
+            : block;
         });
       }
 
@@ -1126,6 +1156,44 @@
             x: {
               title: { display: true, text: 'Test Run' }
             }
+          }
+        }
+      });
+    }
+
+    function initPrefillDecodeChart() {
+      const el = document.getElementById('prefillDecodeChart');
+      if (!el) return;
+      const ctx = el.getContext('2d');
+      prefillDecodeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Prefill Wh',
+              data: [],
+              borderColor: 'rgb(16, 185, 129)', // Emerald
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              yAxisID: 'y',
+              tension: 0.1
+            },
+            {
+              label: 'Decode Wh',
+              data: [],
+              borderColor: 'rgb(59, 130, 246)', // Blue
+              backgroundColor: 'rgba(59, 130, 246, 0.12)',
+              yAxisID: 'y',
+              tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Energy (Wh)' } },
+            x: { title: { display: true, text: 'Test Run' } }
           }
         }
       });
@@ -1265,21 +1333,30 @@
       const statusEl = document.getElementById('raplCalibrationStatus');
       const statsContainer = document.getElementById('raplCalibrationStats');
       const runs = parseInt(runsInput.value, 10) || 1;
+      const targetWordsInput = document.getElementById('raplCalibrationWords');
+      const target_words = parseInt(targetWordsInput.value, 10) || 120;
 
       const model = modelSelect.value;
+      const includeThinking = document.getElementById('includeThinking').checked;
       if (!model) {
         alert('Please select a model before running RAPL calibration.');
         return;
       }
 
       try {
-        statusEl.textContent = `Running ${runs} RAPL calibration run(s)… this may take a while.`;
+        if (statusEl) statusEl.textContent = `Running ${runs} RAPL calibration run(s)… this may take a while.`;
         runRaplCalibration.disabled = true;
+        // Open CLI modal and log start
+        if (cliModal && cliLog) {
+          cliModal.classList.remove('hidden');
+          cliLog.textContent += `\n[CALIBRATION] Starting ${runs} RAPL calibration run(s) for ${model}…`;
+          cliLog.scrollTop = cliLog.scrollHeight;
+        }
 
         const r = await fetch('/api/rapl-calibrate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ runs, model_name: model })
+          body: JSON.stringify({ runs, model_name: model, include_thinking: includeThinking, target_words })
         });
 
         if (!r.ok) {
@@ -1291,16 +1368,29 @@
         const s = data.stats || {};
         const b = data.benchmark || {};
 
-        document.getElementById('raplCalMean').textContent = (s.mean ?? 0).toFixed(6);
-        document.getElementById('raplCalMedian').textContent = (s.median ?? 0).toFixed(6);
-        document.getElementById('raplCalStd').textContent = (s.std ?? 0).toFixed(6);
-        document.getElementById('raplCalP5').textContent = (s.p5 ?? 0).toFixed(6);
-        document.getElementById('raplCalP95').textContent = (s.p95 ?? 0).toFixed(6);
-        document.getElementById('raplCalCv').textContent = s.cv != null ? s.cv.toFixed(2) : '-';
-        document.getElementById('raplCalBenchmarkName').textContent = b.name || '-';
+        const meanEl = document.getElementById('raplCalMean');
+        const medEl = document.getElementById('raplCalMedian');
+        const stdEl = document.getElementById('raplCalStd');
+        const p5El = document.getElementById('raplCalP5');
+        const p95El = document.getElementById('raplCalP95');
+        const cvEl = document.getElementById('raplCalCv');
+        const nameEl = document.getElementById('raplCalBenchmarkName');
 
-        statsContainer.classList.remove('hidden');
-        statusEl.textContent = `RAPL calibration complete. Created/updated benchmark '${b.name}'.`;
+        if (meanEl) meanEl.textContent = (s.mean ?? 0).toFixed(6);
+        if (medEl) medEl.textContent = (s.median ?? 0).toFixed(6);
+        if (stdEl) stdEl.textContent = (s.std ?? 0).toFixed(6);
+        if (p5El) p5El.textContent = (s.p5 ?? 0).toFixed(6);
+        if (p95El) p95El.textContent = (s.p95 ?? 0).toFixed(6);
+        if (cvEl) cvEl.textContent = s.cv != null ? s.cv.toFixed(2) : '-';
+        if (nameEl) nameEl.textContent = b.name || '-';
+
+        if (statsContainer) statsContainer.classList.remove('hidden');
+        if (statusEl) statusEl.textContent = `RAPL calibration complete. Benchmark '${b.name || ''}' is now available.`;
+
+        if (cliLog) {
+          cliLog.textContent += `\n[CALIBRATION] Complete. Benchmark '${b.name || ''}' median=${(s.median ?? 0).toFixed(6)} Wh/1K.`;
+          cliLog.scrollTop = cliLog.scrollHeight;
+        }
 
         // Refresh benchmark lists and auto-select the new calibrated benchmark
         await loadBenchmarks();
@@ -1308,8 +1398,11 @@
         if (energyBenchmark) energyBenchmark.value = b.name;
       } catch (e) {
         console.error('RAPL calibration failed:', e);
-        alert(`RAPL calibration failed: ${e.message}`);
-        statusEl.textContent = 'RAPL calibration failed.';
+        if (statusEl) statusEl.textContent = 'RAPL calibration failed.';
+        if (cliLog) {
+          cliLog.textContent += `\n[CALIBRATION] Failed: ${e && e.message ? e.message : e}`;
+          cliLog.scrollTop = cliLog.scrollHeight;
+        }
       } finally {
         runRaplCalibration.disabled = false;
       }
@@ -1469,6 +1562,7 @@
       currentTestResults = null;
       inThinking = false;
       answerStarted = false;
+      stopGenerationProgress(true);
       if (cliLog) cliLog.innerHTML = '';
 
       if (liveChecked) openCliModal();
@@ -1612,6 +1706,11 @@
       batchStopRequested = false;
       let completed = 0;
       const raplValues = [];
+      const raplTotalWhValues = [];
+      const ttftArr = [];
+      const decodeArr = [];
+      const runDurArr = [];
+      const thinkTokArr = [];
       const inputTokensArr = [];
       const outputTokensArr = [];
       _raplBatchFirstDuration = null;
@@ -1659,10 +1758,20 @@
           const latency = data.basic_metrics.latency;
           const energyWh = data.energy_metrics.watt_hours_consumed;
           const raplWhPer1k = data.live_power_metrics && data.live_power_metrics.measured_wh_per_1000_tokens;
+          const raplTotalWh = (data.live_power_metrics && data.live_power_metrics.total_wh != null) ? data.live_power_metrics.total_wh : null;
+          const ttft = data.live_power_metrics && data.live_power_metrics.ttft_seconds;
+          const decDur = data.live_power_metrics && data.live_power_metrics.decode_duration_seconds;
+          const runDur = data.live_power_metrics && data.live_power_metrics.run_duration_seconds;
+          const thinkTok = (data.token_metrics && data.token_metrics.breakdown && data.token_metrics.breakdown.generation && (data.token_metrics.breakdown.generation.thinking_tokens != null)) ? data.token_metrics.breakdown.generation.thinking_tokens : null;
 
           if (raplWhPer1k != null) raplValues.push(raplWhPer1k);
+          if (raplTotalWh != null) raplTotalWhValues.push(raplTotalWh);
           if (promptTokens != null) inputTokensArr.push(promptTokens);
           if (completionTokens != null) outputTokensArr.push(completionTokens);
+          if (typeof ttft === 'number') ttftArr.push(ttft);
+          if (typeof decDur === 'number') decodeArr.push(decDur);
+          if (typeof runDur === 'number') runDurArr.push(runDur);
+          if (typeof thinkTok === 'number') thinkTokArr.push(thinkTok);
 
           // Record first-run duration for ETA
           if (_raplBatchFirstDuration === null && latency && latency > 0) {
@@ -1671,8 +1780,11 @@
 
           appendCliLog(
             `Run ${completed}: input=${promptTokens ?? 'n/a'} tok, output=${completionTokens ?? 'n/a'} tok, total=${totalTokens}, ` +
-            `latency=${latency.toFixed(2)}s, energy=${energyWh.toFixed(3)} Wh, ` +
-            `RAPL Wh/1K=${raplWhPer1k != null ? raplWhPer1k.toFixed(3) : 'n/a'}`
+            `latency=${latency.toFixed(2)}s, energy=${energyWh.toFixed(4)} Wh, ` +
+            `TTFT=${(typeof ttft==='number') ? ttft.toFixed(3) : 'n/a'}s, ` +
+            `Decode=${(typeof decDur==='number') ? decDur.toFixed(3) : 'n/a'}s, ` +
+            `RAPL Total Wh=${raplTotalWh != null ? raplTotalWh.toFixed(6) : 'n/a'}, ` +
+            `RAPL Wh/1K=${raplWhPer1k != null ? raplWhPer1k.toFixed(4) : 'n/a'}`
           );
 
           // Estimated remaining time based on first run
@@ -1694,6 +1806,8 @@
       batchStopRequested = false;
 
       if (raplValues.length > 0) {
+        const meanOf = arr => arr.reduce((s, x) => s + x, 0) / arr.length;
+        const medianOf = arr => { const a = [...arr].sort((a,b)=>a-b); const n=a.length; return n%2? a[(n-1)/2] : 0.5*(a[n/2-1]+a[n/2]); };
         const sorted = [...raplValues].sort((a, b) => a - b);
         const n = sorted.length;
         const mean = sorted.reduce((s, x) => s + x, 0) / n;
@@ -1703,6 +1817,26 @@
         const p5 = sorted[Math.max(Math.floor(n * 0.05) - 1, 0)];
         const p95 = sorted[Math.min(Math.floor(n * 0.95), n - 1)];
         const cv = std / mean;
+
+        // Measured Total Wh stats (if available)
+        let meanTotWh = null;
+        let medianTotWh = null;
+        if (raplTotalWhValues.length > 0) {
+          const sortedWh = [...raplTotalWhValues].sort((a, b) => a - b);
+          const nwh = sortedWh.length;
+          meanTotWh = sortedWh.reduce((s, x) => s + x, 0) / nwh;
+          medianTotWh = nwh % 2 === 1 ? sortedWh[(nwh - 1) / 2] : 0.5 * (sortedWh[nwh / 2 - 1] + sortedWh[nwh / 2]);
+        }
+
+        // Thinking tokens and timing stats
+        const meanThink = thinkTokArr.length ? meanOf(thinkTokArr) : null;
+        const medianThink = thinkTokArr.length ? medianOf(thinkTokArr) : null;
+        const meanTTFT = ttftArr.length ? meanOf(ttftArr) : null;
+        const medianTTFT = ttftArr.length ? medianOf(ttftArr) : null;
+        const meanDecode = decodeArr.length ? meanOf(decodeArr) : null;
+        const medianDecode = decodeArr.length ? medianOf(decodeArr) : null;
+        const meanRunDur = runDurArr.length ? meanOf(runDurArr) : null;
+        const medianRunDur = runDurArr.length ? medianOf(runDurArr) : null;
 
         // Compute token statistics
         const meanIn = inputTokensArr.length ? (inputTokensArr.reduce((s, x) => s + x, 0) / inputTokensArr.length) : null;
@@ -1722,11 +1856,27 @@
 
         appendCliLog('\n📈 RAPL Batch Summary (UI prompt + injections)');
         appendCliLog(`  Successful runs: ${n}`);
-        appendCliLog(`  Mean:   ${mean.toFixed(3)} Wh/1K`);
-        appendCliLog(`  Median: ${median.toFixed(3)} Wh/1K`);
-        appendCliLog(`  Std:    ${std.toFixed(3)} Wh/1K`);
-        appendCliLog(`  5–95%:  ${p5.toFixed(3)} – ${p95.toFixed(3)} Wh/1K`);
-        appendCliLog(`  CV:     ${cv.toFixed(3)}`);
+        appendCliLog(`  Mean:   ${mean.toFixed(4)} Wh/1K`);
+        appendCliLog(`  Median: ${median.toFixed(4)} Wh/1K`);
+        appendCliLog(`  Std:    ${std.toFixed(4)} Wh/1K`);
+        appendCliLog(`  5–95%:  ${p5.toFixed(4)} – ${p95.toFixed(4)} Wh/1K`);
+        appendCliLog(`  CV:     ${cv.toFixed(4)}`);
+        if (meanTotWh != null || medianTotWh != null) {
+          appendCliLog(`  Mean Total Wh:   ${meanTotWh != null ? meanTotWh.toFixed(6) : 'n/a'} Wh`);
+          appendCliLog(`  Median Total Wh: ${medianTotWh != null ? medianTotWh.toFixed(6) : 'n/a'} Wh`);
+        }
+        if (meanThink != null || medianThink != null) {
+          appendCliLog(`  Thinking tokens μ/med: ${meanThink != null ? meanThink.toFixed(0) : 'n/a'} / ${medianThink != null ? medianThink.toFixed(0) : 'n/a'}`);
+        }
+        if (meanTTFT != null || medianTTFT != null) {
+          appendCliLog(`  TTFT μ/med: ${meanTTFT != null ? meanTTFT.toFixed(3) : 'n/a'}s / ${medianTTFT != null ? medianTTFT.toFixed(3) : 'n/a'}s`);
+        }
+        if (meanDecode != null || medianDecode != null) {
+          appendCliLog(`  Decode μ/med: ${meanDecode != null ? meanDecode.toFixed(3) : 'n/a'}s / ${medianDecode != null ? medianDecode.toFixed(3) : 'n/a'}s`);
+        }
+        if (meanRunDur != null || medianRunDur != null) {
+          appendCliLog(`  Run μ/med: ${meanRunDur != null ? meanRunDur.toFixed(3) : 'n/a'}s / ${medianRunDur != null ? medianRunDur.toFixed(3) : 'n/a'}s`);
+        }
         if (meanIn != null || meanOut != null) {
           appendCliLog(`  Input tokens μ: ${meanIn != null ? meanIn.toFixed(0) : 'n/a'}`);
           appendCliLog(`  Output tokens μ: ${meanOut != null ? meanOut.toFixed(0) : 'n/a'}`);
@@ -1753,6 +1903,16 @@
           medianInputTokens: medIn,
           meanOutputTokens: meanOut,
           medianOutputTokens: medOut,
+          meanTotalWh: meanTotWh,
+          medianTotalWh: medianTotWh,
+          meanThinkingTokens: meanThink,
+          medianThinkingTokens: medianThink,
+          meanTTFT: meanTTFT,
+          medianTTFT: medianTTFT,
+          meanDecode: meanDecode,
+          medianDecode: medianDecode,
+          meanRunDur: meanRunDur,
+          medianRunDur: medianRunDur,
         });
         renderRaplBatchTable();
       } else {
@@ -1776,6 +1936,8 @@
         alert('WebSocket not connected. Please refresh the page.');
         return;
       }
+      // Ensure CLI modal is visible for live progress
+      openCliModal();
 
       const startTokens = parseInt(document.getElementById('crossoverStartTokens').value) || 100;
       const stepTokens = parseInt(document.getElementById('crossoverStepTokens').value) || 200;
@@ -1790,9 +1952,11 @@
         let payload;
         try { payload = buildEnergyPayload(true); } catch (e) { alert(e.message); return; }
         const base = userPrompt.value.trim();
-        const padChars = Math.max(0, (tokensTarget * 4) - base.length);
-        const pad = (' '.repeat(10) + 'x').repeat(Math.ceil(padChars / 11)).slice(0, padChars);
-        payload.user_prompt = base + (padChars > 0 ? ('\n' + pad) : '');
+        // Create a padding string that tokenizes into many distinct tokens across models
+        // Use space-separated alphanumeric tokens to avoid aggressive BPE merges
+        const padWordCount = Math.max(0, tokensTarget);
+        const pad = padWordCount > 0 ? Array.from({ length: padWordCount }, (_, k) => `w${k}`).join(' ') : '';
+        payload.user_prompt = base + (pad ? ('\n' + pad) : '');
         payload.user = payload.user_prompt;
 
         ws.send(JSON.stringify(payload));
@@ -1833,7 +1997,7 @@
       const energy = energyMetrics.watt_hours_consumed;
       const carbon = energyMetrics.carbon_grams_co2;
 
-      testEnergy.textContent = `${energy.toFixed(3)} Wh`;
+      // Single precise line for consistency
       testEnergy.textContent = `${energy.toFixed(4)} Wh`;
       carbonImpact.textContent = `${carbon.toFixed(2)} gCO2`;
       // Per-run RAPL metrics (if available on this response)
@@ -1846,20 +2010,38 @@
         const prefillEl = document.getElementById('prefillEnergy');
         const decodeEl = document.getElementById('decodeEnergy');
         if (prefillEl) {
-          if (lpm.prefill_wh != null) {
-            const per1kIn = lpm.prefill_wh_per_1000_input_tokens;
-            prefillEl.textContent = `${lpm.prefill_wh.toFixed(6)} Wh${per1kIn != null ? ` (${per1kIn.toFixed(4)} Wh/1K input)` : ''}`;
+          const prefillVal = (lpm.calib_prefill_est_wh != null) ? lpm.calib_prefill_est_wh : ((lpm.prefill_wh_active != null) ? lpm.prefill_wh_active : lpm.prefill_wh);
+          if (prefillVal != null) {
+            const per1kIn = (lpm.calib_prefill_per_1000_input_tokens != null) ? lpm.calib_prefill_per_1000_input_tokens : ((lpm.prefill_active_per_1000_input_tokens != null) ? lpm.prefill_active_per_1000_input_tokens : lpm.prefill_wh_per_1000_input_tokens);
+            prefillEl.textContent = `${prefillVal.toFixed(6)} Wh${per1kIn != null ? ` (${per1kIn.toFixed(4)} Wh/1K input)` : ''}`;
           } else {
             prefillEl.textContent = '-';
           }
         }
         if (decodeEl) {
-          if (lpm.decode_wh != null) {
-            const per1kOut = lpm.decode_wh_per_1000_output_tokens;
-            decodeEl.textContent = `${lpm.decode_wh.toFixed(6)} Wh${per1kOut != null ? ` (${per1kOut.toFixed(4)} Wh/1K output)` : ''}`;
+          const decodeVal = (lpm.calib_expected_decode_wh != null) ? lpm.calib_expected_decode_wh : ((lpm.decode_wh_active != null) ? lpm.decode_wh_active : lpm.decode_wh);
+          if (decodeVal != null) {
+            const per1kOut = (lpm.calib_baseline_per_1000_output_tokens != null) ? lpm.calib_baseline_per_1000_output_tokens : ((lpm.decode_active_per_1000_output_tokens != null) ? lpm.decode_active_per_1000_output_tokens : lpm.decode_wh_per_1000_output_tokens);
+            decodeEl.textContent = `${decodeVal.toFixed(6)} Wh${per1kOut != null ? ` (${per1kOut.toFixed(4)} Wh/1K output)` : ''}`;
           } else {
             decodeEl.textContent = '-';
           }
+        }
+
+        // Update Prefill vs Decode chart (only when both values available)
+        const prefillChartVal = (lpm.calib_prefill_est_wh != null) ? lpm.calib_prefill_est_wh : ((lpm.prefill_wh_active != null) ? lpm.prefill_wh_active : lpm.prefill_wh);
+        const decodeChartVal = (lpm.calib_expected_decode_wh != null) ? lpm.calib_expected_decode_wh : ((lpm.decode_wh_active != null) ? lpm.decode_wh_active : lpm.decode_wh);
+        if (prefillDecodeChart && prefillChartVal != null && decodeChartVal != null) {
+          const labels = prefillDecodeChart.data.labels;
+          labels.push(`Test ${labels.length + 1}`);
+          if (labels.length > 20) labels.shift();
+          const ds0 = prefillDecodeChart.data.datasets[0].data;
+          const ds1 = prefillDecodeChart.data.datasets[1].data;
+          ds0.push(prefillChartVal);
+          ds1.push(decodeChartVal);
+          if (ds0.length > 20) ds0.shift();
+          if (ds1.length > 20) ds1.shift();
+          prefillDecodeChart.update();
         }
       } else {
         raplEfficiency.textContent = '0.00';
@@ -1917,8 +2099,8 @@
         const prefillPer = document.getElementById('prefillPer1kIn');
         const decodePer = document.getElementById('decodePer1kOut');
         const ewPer = document.getElementById('ewOutPer1k');
-        if (prefillPer) prefillPer.textContent = (lpm.prefill_wh_per_1000_input_tokens != null) ? lpm.prefill_wh_per_1000_input_tokens.toFixed(4) : '-';
-        if (decodePer) decodePer.textContent = (lpm.decode_wh_per_1000_output_tokens != null) ? lpm.decode_wh_per_1000_output_tokens.toFixed(4) : '-';
+        if (prefillPer) prefillPer.textContent = (lpm.calib_prefill_per_1000_input_tokens != null ? lpm.calib_prefill_per_1000_input_tokens : (lpm.prefill_active_per_1000_input_tokens != null ? lpm.prefill_active_per_1000_input_tokens : lpm.prefill_wh_per_1000_input_tokens)) != null ? (lpm.calib_prefill_per_1000_input_tokens != null ? lpm.calib_prefill_per_1000_input_tokens : (lpm.prefill_active_per_1000_input_tokens != null ? lpm.prefill_active_per_1000_input_tokens : lpm.prefill_wh_per_1000_input_tokens)).toFixed(4) : '-';
+        if (decodePer) decodePer.textContent = (lpm.calib_baseline_per_1000_output_tokens != null ? lpm.calib_baseline_per_1000_output_tokens : (lpm.decode_active_per_1000_output_tokens != null ? lpm.decode_active_per_1000_output_tokens : lpm.decode_wh_per_1000_output_tokens)) != null ? (lpm.calib_baseline_per_1000_output_tokens != null ? lpm.calib_baseline_per_1000_output_tokens : (lpm.decode_active_per_1000_output_tokens != null ? lpm.decode_active_per_1000_output_tokens : lpm.decode_wh_per_1000_output_tokens)).toFixed(4) : '-';
         if (ewPer) ewPer.textContent = (lpm.measured_wh_per_1000_tokens != null) ? lpm.measured_wh_per_1000_tokens.toFixed(4) : '-';
 
         // Update Chart
@@ -2046,6 +2228,9 @@
         sessionCarbon.textContent = `${summary.total_carbon_gco2.toFixed(2)} gCO2`;
         sessionEfficiency.textContent = `${summary.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
         sessionTokens.textContent = summary.total_tokens;
+        if (summary.rapl_session && typeof summary.rapl_session.measured_wh === 'number') {
+          sessionRaplEnergy.textContent = `${summary.rapl_session.measured_wh.toFixed(6)} Wh`;
+        }
       } catch (e) {
         console.error('Failed to update session summary:', e);
       }
@@ -2119,6 +2304,44 @@
       cliLog.scrollTop = cliLog.scrollHeight;
     }
 
+    function startGenerationProgress() {
+      _genStartMs = Date.now();
+      _genSpinIdx = 0;
+      _genProgressEl = document.createElement('div');
+      _genProgressEl.textContent = 'output generation in progress 00:00';
+      if (cliLog) {
+        cliLog.appendChild(_genProgressEl);
+        cliLog.scrollTop = cliLog.scrollHeight;
+      }
+      const spins = ['|','/','-','\\'];
+      _genTimer = setInterval(() => {
+        const elapsed = Date.now() - _genStartMs;
+        const s = Math.floor(elapsed / 1000);
+        const m = Math.floor(s / 60);
+        const rr = String(s % 60).padStart(2, '0');
+        const sp = spins[_genSpinIdx % spins.length];
+        _genSpinIdx++;
+        if (_genProgressEl) {
+          _genProgressEl.textContent = `output generation in progress ${sp} ${m}:${rr}`;
+        }
+      }, 200);
+    }
+
+    function stopGenerationProgress(silent = false) {
+      if (_genTimer) {
+        clearInterval(_genTimer);
+        _genTimer = null;
+      }
+      if (_genProgressEl && !silent) {
+        const elapsed = Date.now() - _genStartMs;
+        const s = Math.floor(elapsed / 1000);
+        const m = Math.floor(s / 60);
+        const rr = String(s % 60).padStart(2, '0');
+        _genProgressEl.textContent = `output generation complete in ${m}:${rr}`;
+      }
+      _genProgressEl = null;
+    }
+
     async function init() {
       // Load all data
       await loadModels();
@@ -2132,6 +2355,7 @@
       setupWebSocket();
       setupEventListeners();
       initChart();
+      initPrefillDecodeChart();
       renderRaplBatchTable();
 
       // Check connection

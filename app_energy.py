@@ -12,6 +12,10 @@ import contextlib
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
+try:
+    from transformers import AutoTokenizer  # type: ignore
+except Exception:
+    AutoTokenizer = None  # Optional, used only for debug preflight
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -69,7 +73,7 @@ class EnergyPayload:
     tool_config: Dict[str, Any] = field(default_factory=dict)
     
     temp: float = 0.7
-    max_tokens: int = 100
+    max_tokens: int = 1000
     seed: Optional[int] = None
     enable_live_power_monitoring: bool = False
     include_thinking: bool = False
@@ -190,6 +194,89 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         if safe_max_tokens != payload.max_tokens:
             print(f"⚠️ Capping max_tokens from {payload.max_tokens} to {safe_max_tokens}")
         
+        # ===== PHASE 5.25: PREFLIGHT TOKENIZATION (NO ENERGY MEASUREMENT) =====
+        # 1) Attempt a fast Ollama preflight (num_predict=0, no stream) to get prompt_eval_count
+        # 2) Optionally try HF Qwen tokenizer on ChatML-rendered prompt if available
+        preflight_hf_tokens = None
+        preflight_ollama_tokens = None
+        chatml_text = None
+
+        # Build a ChatML rendering for Qwen-like templates to feed HF tokenizer if present
+        try:
+            def build_chatml(msgs: List[Dict[str, str]]) -> str:
+                parts = []
+                for m in msgs:
+                    role = m.get("role", "user")
+                    content = m.get("content", "")
+                    parts.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
+                # Assistant preamble as many chat templates do
+                parts.append("<|im_start|>assistant\n")
+                return "".join(parts)
+
+            chatml_text = build_chatml(messages)
+        except Exception:
+            chatml_text = None
+
+        # HF tokenizer (optional)
+        if AutoTokenizer is not None and chatml_text:
+            try:
+                # Try Qwen3 first, then fallback to Qwen2.5 instruct variants
+                model_ids = [
+                    "Qwen/Qwen2.5-0.5B-Instruct",
+                    "Qwen/Qwen2.5-1.8B-Instruct",
+                    "Qwen/Qwen2.5-0.5B",
+                ]
+                tok = None
+                for mid in model_ids:
+                    try:
+                        tok = AutoTokenizer.from_pretrained(mid, trust_remote_code=True, local_files_only=True)
+                        break
+                    except Exception:
+                        continue
+                if tok is not None:
+                    preflight_hf_tokens = len(tok.encode(chatml_text))
+            except Exception:
+                preflight_hf_tokens = None
+
+        # Ollama preflight
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client_pf:
+                r = await client_pf.post(
+                    f"{OLLAMA_BASE_URL}/api/chat",
+                    json={
+                        "model": payload.model_name,
+                        "messages": messages,
+                        "stream": False,
+                        "think": bool(getattr(payload, "include_thinking", False)),
+                        "options": {
+                            "temperature": payload.temp,
+                            "num_predict": 0,
+                            "seed": payload.seed if payload.seed is not None else None,
+                            "num_ctx": desired_ctx
+                        }
+                    }
+                )
+                if r.status_code == 200:
+                    j = r.json()
+                    preflight_ollama_tokens = int(j.get("prompt_eval_count", 0))
+        except Exception as e:
+            preflight_ollama_tokens = None
+            try:
+                await websocket.send_json({"log": f"⏭️ Preflight token count skipped: {str(e)}"})
+            except Exception:
+                pass
+
+        try:
+            await websocket.send_json({
+                "log": (
+                    f"🔎 Preflight tokens → estimated≈{middleware_tokens.get('final_total', 0)}, "
+                    f"ollama≈{preflight_ollama_tokens if preflight_ollama_tokens is not None else 'n/a'}, "
+                    f"hf≈{preflight_hf_tokens if preflight_hf_tokens is not None else 'n/a'}, num_ctx={desired_ctx}"
+                )
+            })
+        except Exception:
+            pass
+
         # ===== PHASE 5.5: MEASURE BASELINE POWER (IF ENABLED) =====
         power_baseline = None
         power_before = None
@@ -267,6 +354,29 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         except Exception:
             pass
         
+        # Take RAPL start snapshot BEFORE issuing the request to include server-side prefill
+        if live_power_enabled and power_monitor and rapl_start_snap is None:
+            try:
+                loop = asyncio.get_running_loop()
+                rapl_start_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
+                await websocket.send_json({"log": "📍 RAPL snapshot taken: start (pre-request)"})
+            except Exception as e:
+                await websocket.send_json({"log": f"⚠️ RAPL snapshot start (pre-request) error: {str(e)}"})
+
+        # Estimate context need to avoid truncation of large injections
+        try:
+            estimated_prompt_tokens_guess = int(middleware_tokens.get("final_total", 0))
+        except Exception:
+            estimated_prompt_tokens_guess = 0
+        # Heuristic: desired ctx = estimated prompt + planned output + small slack
+        desired_ctx = estimated_prompt_tokens_guess + safe_max_tokens + 256
+        # Clip to a generous maximum (most modern small models support large ctx; engine will cap safely)
+        desired_ctx = max(2048, min(desired_ctx, 40960))
+        try:
+            await websocket.send_json({"log": f"🧮 Setting num_ctx={desired_ctx} (estimated prompt≈{estimated_prompt_tokens_guess}, max_out={safe_max_tokens})"})
+        except Exception:
+            pass
+
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             async with client.stream(
                 "POST",
@@ -279,7 +389,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     "options": {
                         "temperature": payload.temp,
                         "num_predict": safe_max_tokens,  # Use validated max_tokens
-                        "seed": payload.seed if payload.seed is not None else None
+                        "seed": payload.seed if payload.seed is not None else None,
+                        "num_ctx": desired_ctx
                     }
                 }
             ) as response:
@@ -291,14 +402,34 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     })
                     return
 
-                # Take RAPL start snapshot right before reading first chunk
-                if live_power_enabled and power_monitor:
+                # Fallback: Take RAPL start snapshot right before reading first chunk if not already taken
+                if live_power_enabled and power_monitor and rapl_start_snap is None:
                     try:
                         loop = asyncio.get_running_loop()
                         rapl_start_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
-                        await websocket.send_json({"log": "📍 RAPL snapshot taken: start"})
+                        await websocket.send_json({"log": "📍 RAPL snapshot taken: start (fallback)"})
                     except Exception as e:
                         await websocket.send_json({"log": f"⚠️ RAPL snapshot start error: {str(e)}"})
+
+                split_time = None
+                # TTFT heartbeat: log periodically while waiting for first token
+                heartbeat_task = None
+                async def _ttft_heartbeat():
+                    try:
+                        while rapl_split_snap is None and not cancel_event.is_set():
+                            elapsed = asyncio.get_event_loop().time() - start_time
+                            try:
+                                await websocket.send_json({"log": f"⌛ Prefill in progress… {elapsed:.1f}s (ctx~{estimated_prompt_tokens_guess})"})
+                            except Exception:
+                                pass
+                            await asyncio.sleep(2.0)
+                    except Exception:
+                        pass
+
+                try:
+                    heartbeat_task = asyncio.create_task(_ttft_heartbeat())
+                except Exception:
+                    heartbeat_task = None
 
                 async for line in response.aiter_lines():
                     if cancel_event.is_set():
@@ -325,6 +456,11 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                                 loop = asyncio.get_running_loop()
                                 rapl_split_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
                                 await websocket.send_json({"log": "📍 RAPL snapshot taken: split (first token)"})
+                                # Record first token time for TTFT
+                                split_time = asyncio.get_event_loop().time()
+                                # Stop heartbeat
+                                if 'heartbeat_task' in locals() and heartbeat_task is not None:
+                                    heartbeat_task.cancel()
                             except Exception as e:
                                 await websocket.send_json({"log": f"⚠️ RAPL snapshot split error: {str(e)}"})
 
@@ -359,6 +495,10 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 
                 # Always close the response stream properly
                 await response.aclose()
+                # Ensure heartbeat stopped
+                if 'heartbeat_task' in locals() and heartbeat_task is not None:
+                    with contextlib.suppress(Exception):
+                        heartbeat_task.cancel()
 
         generation_done = True
         if live_power_enabled and power_monitor:
@@ -370,6 +510,32 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 total_wh = power_monitor.energy_diff_wh(rapl_start_snap or {}, rapl_end_snap or {})
                 prefill_wh = power_monitor.energy_diff_wh(rapl_start_snap or {}, rapl_split_snap or (rapl_start_snap or {}))
                 decode_wh = power_monitor.energy_diff_wh(rapl_split_snap or (rapl_start_snap or {}), rapl_end_snap or {})
+                # Closure error diagnostics
+                try:
+                    closure_err_wh = (total_wh or 0.0) - ((prefill_wh or 0.0) + (decode_wh or 0.0))
+                    closure_err_pct = (closure_err_wh / total_wh * 100.0) if (total_wh and total_wh > 0) else None
+                except Exception:
+                    closure_err_wh = None
+                    closure_err_pct = None
+                # Baseline-corrected active energy (subtract idle baseline × time)
+                prefill_time = None
+                decode_time = None
+                active_prefill_wh = None
+                active_decode_wh = None
+                active_total_wh = None
+                try:
+                    prefill_time = (rapl_split_snap is not None and 'split_time' in locals() and split_time is not None) and (split_time - start_time) or None
+                    decode_time = ('split_time' in locals() and split_time is not None) and (end_time - split_time) or None
+                    baseline = power_baseline.total_watts if power_baseline else None
+                    if baseline is not None:
+                        if prefill_time is not None and prefill_wh is not None:
+                            active_prefill_wh = max(0.0, prefill_wh - (baseline * prefill_time / 3600.0))
+                        if decode_time is not None and decode_wh is not None:
+                            active_decode_wh = max(0.0, decode_wh - (baseline * decode_time / 3600.0))
+                        if total_wh is not None and latency is not None:
+                            active_total_wh = max(0.0, total_wh - (baseline * latency / 3600.0))
+                except Exception:
+                    pass
                 await websocket.send_json({
                     "log": f"🔬 Prefill energy: {prefill_wh:.6f} Wh",
                 })
@@ -379,6 +545,14 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 await websocket.send_json({
                     "log": f"🎯 Total energy:   {total_wh:.6f} Wh"
                 })
+                if closure_err_wh is not None:
+                    await websocket.send_json({
+                        "log": f"🧪 Energy closure: prefill+decode {( (prefill_wh or 0.0)+(decode_wh or 0.0) ):.6f} Wh, total {total_wh:.6f} Wh, Δ={closure_err_wh:.6f} Wh ({(closure_err_pct or 0.0):.2f}%)"
+                    })
+                if active_total_wh is not None:
+                    await websocket.send_json({
+                        "log": f"🧮 Active energy (baseline-subtracted): prefill={(active_prefill_wh if active_prefill_wh is not None else 0.0):.6f} Wh, decode={(active_decode_wh if active_decode_wh is not None else 0.0):.6f} Wh, total={active_total_wh:.6f} Wh"
+                    })
             except Exception as e:
                 await websocket.send_json({"log": f"⚠️ RAPL snapshot end error: {str(e)}"})
 
@@ -413,6 +587,13 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         # ===== PHASE 6.5: FINALIZE RAPL MEASUREMENT USING CUMULATIVE ENERGY (IF ENABLED) =====
         # NOTE: All Wh/1000 calculations here are defined per 1000 *output* tokens (completion tokens).
         measured_wh_per_1000_tokens = None
+        # Calibration-based metrics (computed when we have total_wh and completion_tokens)
+        calib_profile_used = None
+        calib_baseline_per_1k_out = None
+        calib_expected_decode_wh = None
+        calib_prefill_est_wh = None
+        calib_delta_per_1k_out = None
+        calib_prefill_per_1k_in = None
         if live_power_enabled and total_wh is not None:
             try:
                 # Use output tokens only for Wh/1000 calculation
@@ -424,14 +605,52 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens
                 })
 
-                # Record into session-level RAPL tracker (keep total tokens for session rollups)
-                total_tokens = prompt_tokens + completion_tokens
-                if total_tokens > 0 and total_wh is not None:
-                    energy_tracker.record_rapl_measurement(total_wh, total_tokens)
+                # === Calibration-based prefill from baselines ===
+                try:
+                    model_key = (payload.model_name or "").replace(":", "_").replace(" ", "_")
+                    # Prefer thinking profile if requested and available
+                    candidates = []
+                    if getattr(payload, "include_thinking", False):
+                        candidates.append(f"rapl_calibrated_{model_key}_thinking")
+                    candidates.append(f"rapl_calibrated_{model_key}")
+                    # Also try currently selected benchmark if it looks calibrated
+                    if payload.energy_benchmark and payload.energy_benchmark.startswith("rapl_calibrated_"):
+                        candidates.insert(0, payload.energy_benchmark)
+                    for name in candidates:
+                        if name in ENERGY_BENCHMARKS:
+                            calib_profile_used = name
+                            calib_b = ENERGY_BENCHMARKS[name]
+                            calib_baseline_per_1k_out = float(calib_b.output_wh_per_1000_tokens or calib_b.watt_hours_per_1000_tokens)
+                            break
+                    # If baseline found, compute expected decode Wh and prefill estimate
+                    if calib_baseline_per_1k_out is not None and completion_tokens > 0:
+                        calib_expected_decode_wh = calib_baseline_per_1k_out * (completion_tokens / 1000.0)
+                        # Prefill (and any extra overhead) attributed to variance
+                        calib_prefill_est_wh = max(0.0, float(total_wh) - float(calib_expected_decode_wh))
+                        if measured_wh_per_1000_tokens is not None:
+                            calib_delta_per_1k_out = max(0.0, float(measured_wh_per_1000_tokens) - float(calib_baseline_per_1k_out))
+                        if (prompt_tokens or 0) > 0:
+                            calib_prefill_per_1k_in = calib_prefill_est_wh / (prompt_tokens / 1000.0)
+                        await websocket.send_json({
+                            "log": (
+                                f"📏 Calibration baseline: {calib_profile_used} | baseline(out)={calib_baseline_per_1k_out:.4f} Wh/1K; "
+                                f"expected decode={calib_expected_decode_wh:.6f} Wh; prefill≈{calib_prefill_est_wh:.6f} Wh; Δ(out)={calib_delta_per_1k_out if calib_delta_per_1k_out is not None else 'n/a'}"
+                            ) if calib_profile_used else "ℹ️ No calibration baseline found; skipping calibration-based split"
+                        })
+                except Exception as e_cal:
+                    with contextlib.suppress(Exception):
+                        await websocket.send_json({"log": f"⚠️ Calibration-based split failed: {str(e_cal)}"})
+
+                # Record into session-level RAPL tracker using OUTPUT tokens for Wh/1K semantics
+                # Using completion tokens aligns with the definition of Wh per 1000 output tokens.
+                if (completion_tokens or 0) > 0 and total_wh is not None:
+                    energy_tracker.record_rapl_measurement(total_wh, completion_tokens)
 
                 # DYNAMIC BENCHMARK UPDATE
                 # If we have a valid measurement, create/update a dynamic benchmark and use it
-                if measured_wh_per_1000_tokens is not None and measured_wh_per_1000_tokens > 0:
+                # Do NOT auto-switch when the user selected a calibrated baseline (keep baselines stable)
+                auto_switch_allowed = not (payload.energy_benchmark and payload.energy_benchmark.startswith("rapl_calibrated_"))
+                if auto_switch_allowed and measured_wh_per_1000_tokens is not None and measured_wh_per_1000_tokens > 0:
                     dynamic_benchmark_name = "rapl_live_dynamic"
                     print(f"🔄 Creating dynamic benchmark '{dynamic_benchmark_name}' with {measured_wh_per_1000_tokens:.4f} Wh/1K")
                     
@@ -485,6 +704,15 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         # Log breakdown for debugging
         print(f"✅ Token breakdown created: {token_breakdown['totals']['grand_total']} total tokens")
         print(f"   Accuracy: {token_breakdown['verification']['accuracy_percent']}%")
+
+        # Log likely truncation if estimation >> actual
+        try:
+            if estimated_prompt_tokens_guess > 0 and prompt_tokens > 0 and estimated_prompt_tokens_guess > (prompt_tokens * 2):
+                await websocket.send_json({
+                    "log": f"⚠️ Estimated prompt ({estimated_prompt_tokens_guess}) >> actual used ({prompt_tokens}). Context truncation likely; increase num_ctx or reduce injections."
+                })
+        except Exception:
+            pass
 
         # ===== PHASE 8: RECORD ENERGY CONSUMPTION =====
         # CRITICAL FIX: Set the benchmark before recording
@@ -550,9 +778,28 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "prefill_wh": prefill_wh,
                 "decode_wh": decode_wh,
                 "total_wh": total_wh,
+                "closure_error_wh": closure_err_wh if 'closure_err_wh' in locals() else None,
+                "closure_error_percent": closure_err_pct if 'closure_err_pct' in locals() else None,
                 "prefill_wh_per_1000_input_tokens": (prefill_wh / max(prompt_tokens / 1000, 0.001)) if (prefill_wh is not None) else None,
                 "decode_wh_per_1000_output_tokens": (decode_wh / max(completion_tokens / 1000, 0.001)) if (decode_wh is not None) else None,
-                "energy_weighted_output_wh_per_1000_tokens": measured_wh_per_1000_tokens
+                "energy_weighted_output_wh_per_1000_tokens": measured_wh_per_1000_tokens,
+                # Calibration-based split (preferred when available)
+                "calib_profile_used": calib_profile_used,
+                "calib_baseline_per_1000_output_tokens": calib_baseline_per_1k_out,
+                "calib_expected_decode_wh": calib_expected_decode_wh,
+                "calib_prefill_est_wh": calib_prefill_est_wh,
+                "calib_delta_per_1000_output_tokens": calib_delta_per_1k_out,
+                "calib_prefill_per_1000_input_tokens": calib_prefill_per_1k_in,
+                # Timing metrics
+                "ttft_seconds": (split_time - start_time) if ("split_time" in locals() and split_time is not None) else None,
+                "decode_duration_seconds": (end_time - split_time) if ("split_time" in locals() and split_time is not None) else None,
+                "run_duration_seconds": latency,
+                # Baseline-corrected active energy
+                "prefill_wh_active": active_prefill_wh if 'active_prefill_wh' in locals() else None,
+                "decode_wh_active": active_decode_wh if 'active_decode_wh' in locals() else None,
+                "total_wh_active": active_total_wh if 'active_total_wh' in locals() else None,
+                "prefill_active_per_1000_input_tokens": ((active_prefill_wh / max(prompt_tokens / 1000, 0.001)) if ('active_prefill_wh' in locals() and active_prefill_wh is not None) else None),
+                "decode_active_per_1000_output_tokens": ((active_decode_wh / max(completion_tokens / 1000, 0.001)) if ('active_decode_wh' in locals() and active_decode_wh is not None) else None)
             },
 
             # Modification tracking (IMPROVED with actual token counts)
@@ -568,6 +815,13 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
 
             # Session summary
             "session_summary": energy_tracker.get_session_summary(),
+            # Debug helpers for truncation/tokenization sanity check
+            "debug_metrics": {
+                "estimated_prompt_tokens": middleware_tokens.get("final_total", 0),
+                "preflight_ollama_prompt_tokens": preflight_ollama_tokens,
+                "preflight_hf_qwen_prompt_tokens": preflight_hf_tokens,
+                "num_ctx_used": desired_ctx
+            }
         })
 
 # ---------- FastAPI App ----------

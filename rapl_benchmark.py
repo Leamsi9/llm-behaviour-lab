@@ -33,6 +33,8 @@ async def measure_wh_per_1000_tokens(
     max_tokens: int = 512,
     idle_seconds: float = 0.5,
     sample_seconds: float = 0.5,
+    include_thinking: bool = False,
+    target_words: int = 120,
 ) -> Optional[RAPLMeasurementResult]:
     """Measure Wh and Wh/1000 tokens for a single non-streaming Ollama run.
 
@@ -74,11 +76,13 @@ async def measure_wh_per_1000_tokens(
     sampler_task = asyncio.create_task(rapl_sampler())
     try:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+            # Use generate API with a concrete prompt; ignore include_thinking for robustness here
+            full_prompt = f"Write exactly {max(target_words, 10)} words. Keep it concise.\n\n{prompt}"
             resp = await client.post(
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json={
                     "model": model,
-                    "prompt": prompt,
+                    "prompt": full_prompt,
                     "stream": False,
                     "options": {"num_predict": max_tokens},
                 },

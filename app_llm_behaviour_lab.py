@@ -296,6 +296,8 @@ async def rapl_calibrate(request: dict):
     runs = max(int(request.get("runs", 10)), 1)
     model_name = request.get("model_name") or DEFAULT_MODEL
     prompt = request.get("prompt") or "Explain how transformers work in machine learning in 3 sentences."
+    include_thinking = bool(request.get("include_thinking", False))
+    target_words = int(request.get("target_words", 120))
 
     values = []
 
@@ -305,6 +307,8 @@ async def rapl_calibrate(request: dict):
                 prompt=prompt,
                 model=model_name,
                 max_tokens=512,
+                include_thinking=include_thinking,
+                target_words=target_words,
             )
         except Exception as exc:
             # Best-effort: skip failed runs, continue
@@ -330,7 +334,8 @@ async def rapl_calibrate(request: dict):
     cv = std / mean if mean else None
 
     # Create/update a calibrated benchmark using the median
-    benchmark_name = f"rapl_calibrated_{model_name.replace(':', '_').replace(' ', '_')}"
+    base_key = model_name.replace(":", "_").replace(" ", "_")
+    benchmark_name = f"rapl_calibrated_{base_key}{'_thinking' if include_thinking else ''}"
     energy_tracker.add_custom_benchmark(
         name=benchmark_name,
         description=(
@@ -360,6 +365,8 @@ async def rapl_calibrate(request: dict):
         "benchmark": {
             "name": benchmark_name,
             "watt_hours_per_1000_tokens": median,
+            "thinking": include_thinking,
+            "target_words": target_words,
         },
     }
 
