@@ -83,6 +83,7 @@
             <p class="text-gray-600 mt-1">Measure real-world energy consumption and carbon footprint of LLM
               interactions.</p>
           </div>
+
           <button onclick="document.getElementById('methodologyModal').classList.remove('hidden')"
             class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center">
             <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,6 +134,28 @@
             <h1 class="text-3xl font-bold text-gray-900">Energy Testing Lab</h1>
             </p>
           </div>
+        </div>
+      </div>
+
+      <!-- RAPL Crossover Results -->
+      <div class="mb-6">
+        <h4 class="font-medium text-gray-900 mb-2">RAPL Prefill/Decode Crossover</h4>
+        <p class="text-xs text-gray-600 mb-2">Sequential runs increasing input length until Prefill Wh > Decode Wh. Records actual prompt tokens and energies.</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs text-left border">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-2 py-1 border">Run</th>
+                <th class="px-2 py-1 border">Prompt Tokens (actual)</th>
+                <th class="px-2 py-1 border">Prefill Wh</th>
+                <th class="px-2 py-1 border">Decode Wh</th>
+                <th class="px-2 py-1 border">Total Wh</th>
+                <th class="px-2 py-1 border">Wh/1K Output</th>
+                <th class="px-2 py-1 border">Stop?</th>
+              </tr>
+            </thead>
+            <tbody id="raplCrossoverTableBody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -271,6 +294,29 @@
               </button>
             </div>
             <div id="raplCalibrationStatus" class="mt-2 text-xs text-gray-500"></div>
+          </div>
+        </div>
+
+        <!-- Crossover Finder -->
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-6">
+          <h4 class="text-sm font-medium text-gray-700 mb-3">Prefill/Decode Crossover Finder</h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Start Input Tokens</label>
+              <input type="number" id="crossoverStartTokens" value="100" min="1" class="w-full p-2 border rounded text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Step Tokens</label>
+              <input type="number" id="crossoverStepTokens" value="200" min="1" class="w-full p-2 border rounded text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Max Steps</label>
+              <input type="number" id="crossoverMaxSteps" value="10" min="1" class="w-full p-2 border rounded text-sm">
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-3">
+            <button id="runRaplCrossover" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded text-sm transition-colors">Run Crossover</button>
+            <div class="text-xs text-gray-500">Increases input length until Prefill Wh exceeds Decode Wh; records the stop point.</div>
           </div>
         </div>
 
@@ -478,6 +524,18 @@
           </div>
         </div>
 
+        <!-- Prefill / Decode breakdown (RAPL counters) -->
+        <div class="grid grid-cols-2 gap-4 mt-2">
+          <div class="text-center p-3 bg-gray-50 rounded">
+            <div class="text-gray-500">Prefill Energy (Input Tokens)</div>
+            <div class="font-bold" id="prefillEnergy">-</div>
+          </div>
+          <div class="text-center p-3 bg-gray-50 rounded">
+            <div class="text-gray-500">Decode Energy (Output Tokens)</div>
+            <div class="font-bold" id="decodeEnergy">-</div>
+          </div>
+        </div>
+
         <!-- Live Power Metrics (Hidden by default) -->
         <div id="livePowerSection" class="mt-2 hidden">
           <h4 class="font-medium text-gray-900 mb-2">Live Power Measurements (RAPL)</h4>
@@ -517,6 +575,9 @@
             <span class="font-bold text-yellow-700">Overhead: <span id="overheadTokensVal">-</span></span>
             <span class="font-bold text-purple-700">Thinking: <span id="thinkingTokensVal">-</span></span>
             <span class="font-bold text-blue-700">Output: <span id="outputTokensVal">-</span></span>
+            <span class="font-bold text-gray-700">Prefill: <span id="prefillPer1kIn">-</span></span>
+            <span class="font-bold text-gray-700">Decode: <span id="decodePer1kOut">-</span></span>
+            <span class="font-bold text-gray-700">E-Weighted: <span id="ewOutPer1k">-</span></span>
           </div>
         </div>
       </div>
@@ -668,6 +729,8 @@
     let _raplLastBatchResult = null;
     let raplBatchSummaries = [];
     let systemPrompts = [];
+    let inThinking = false;
+    let answerStarted = false;
 
     function renderRaplBatchTable() {
       if (!raplBatchTableBody) return;
@@ -895,16 +958,43 @@
           console.log('🎯 ROUTING LOG:', data.log);
           appendCliLog(data.log);
         } else if (data.token && !data.done) {
-          // Streaming token
-          console.log('📝 TOKEN RECEIVED:', data.token);
-          console.log('📍 responseOutput element:', responseOutput);
-          console.log('📍 Current responseOutput content length:', responseOutput.textContent.length);
+          // Streaming token with thinking wrap
+          const isThinking = data.thinking === true;
+          if (isThinking) {
+            if (!inThinking) {
+              // Heading for thinking
+              responseOutput.textContent += (responseOutput.textContent.endsWith('\n') ? '' : '\n') + 'Thinking:\n';
+              appendCliLog('Thinking:');
+              // Open tag wrapper
+              responseOutput.textContent += '<thinking>';
+              appendCliLog('<thinking>');
+              inThinking = true;
+            }
+          } else {
+            if (inThinking) {
+              responseOutput.textContent += '</thinking>';
+              appendCliLog('</thinking>');
+              inThinking = false;
+            }
+            // First answer heading
+            if (!answerStarted) {
+              responseOutput.textContent += (responseOutput.textContent.endsWith('\n') ? '' : '\n') + '\nAnswer:\n';
+              appendCliLog('');
+              appendCliLog('Answer:');
+              answerStarted = true;
+            }
+          }
+
           responseOutput.textContent += data.token;
-          console.log('✅ Updated responseOutput. New length:', responseOutput.textContent.length);
-          // Also mirror tokens into CLI log when live logs are open
           appendCliLog(data.token);
         } else if (data.done) {
           console.log('✔️ Test completion received');
+          // Ensure closing tag if we ended inside thinking
+          if (inThinking) {
+            responseOutput.textContent += '</thinking>';
+            appendCliLog('</thinking>');
+            inThinking = false;
+          }
           await handleTestCompletion(data);
         } else if (data.error) {
           console.error('❌ Error from backend:', data.error);
@@ -981,6 +1071,8 @@
       clearResults.addEventListener('click', clearAllResults);
       exportData.addEventListener('click', exportSessionData);
       showLogs.addEventListener('click', openCliModal);
+      const runRaplCrossoverBtn = document.getElementById('runRaplCrossover');
+      if (runRaplCrossoverBtn) runRaplCrossoverBtn.addEventListener('click', runRaplCrossoverHandler);
       closeCliModalBtn.addEventListener('click', closeCliModal);
     }
 
@@ -1375,6 +1467,8 @@
 
       responseOutput.textContent = '';
       currentTestResults = null;
+      inThinking = false;
+      answerStarted = false;
       if (cliLog) cliLog.innerHTML = '';
 
       if (liveChecked) openCliModal();
@@ -1490,6 +1584,13 @@
         const resolve = window._raplBatchResolve;
         window._raplBatchResolve = null;
         resolve(data);
+      }
+
+      // Resolve any pending crossover run
+      if (typeof window._raplCrossoverResolve === 'function') {
+        const resolveX = window._raplCrossoverResolve;
+        window._raplCrossoverResolve = null;
+        resolveX(data);
       }
     }
 
@@ -1670,6 +1771,64 @@
       }
     }
 
+    async function runRaplCrossoverHandler() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('WebSocket not connected. Please refresh the page.');
+        return;
+      }
+
+      const startTokens = parseInt(document.getElementById('crossoverStartTokens').value) || 100;
+      const stepTokens = parseInt(document.getElementById('crossoverStepTokens').value) || 200;
+      const maxSteps = parseInt(document.getElementById('crossoverMaxSteps').value) || 10;
+      const tableBody = document.getElementById('raplCrossoverTableBody');
+      if (tableBody) tableBody.innerHTML = '';
+
+      appendCliLog('🚦 Starting RAPL Crossover Finder...');
+      let tokensTarget = startTokens;
+      for (let i = 1; i <= maxSteps; i++) {
+        // Build payload and inflate user prompt approximately to reach tokensTarget (heuristic: 1 token ≈ 4 chars)
+        let payload;
+        try { payload = buildEnergyPayload(true); } catch (e) { alert(e.message); return; }
+        const base = userPrompt.value.trim();
+        const padChars = Math.max(0, (tokensTarget * 4) - base.length);
+        const pad = (' '.repeat(10) + 'x').repeat(Math.ceil(padChars / 11)).slice(0, padChars);
+        payload.user_prompt = base + (padChars > 0 ? ('\n' + pad) : '');
+        payload.user = payload.user_prompt;
+
+        ws.send(JSON.stringify(payload));
+        const data = await new Promise(resolve => { window._raplCrossoverResolve = resolve; });
+
+        const lpm = data && data.live_power_metrics ? data.live_power_metrics : {};
+        const promptTok = data && data.basic_metrics ? (data.basic_metrics.prompt_tokens ?? null) : null;
+        const preWh = (lpm.prefill_wh != null) ? lpm.prefill_wh : null;
+        const decWh = (lpm.decode_wh != null) ? lpm.decode_wh : null;
+        const totWh = (lpm.total_wh != null) ? lpm.total_wh : null;
+        const wh1k = (lpm.measured_wh_per_1000_tokens != null) ? lpm.measured_wh_per_1000_tokens : null;
+
+        // Append row
+        if (tableBody) {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-gray-50';
+          tr.innerHTML = `
+            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${i}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-gray-900">${promptTok ?? 'n/a'}</td>
+            <td class="px-3 py-2 whitespace-nowrap">${preWh != null ? preWh.toFixed(6) : '-'}</td>
+            <td class="px-3 py-2 whitespace-nowrap">${decWh != null ? decWh.toFixed(6) : '-'}</td>
+            <td class="px-3 py-2 whitespace-nowrap">${totWh != null ? totWh.toFixed(6) : '-'}</td>
+            <td class="px-3 py-2 whitespace-nowrap">${wh1k != null ? wh1k.toFixed(4) : '-'}</td>
+            <td class="px-3 py-2 whitespace-nowrap">${(preWh != null && decWh != null && preWh > decWh) ? '✅' : ''}</td>
+          `;
+          tableBody.appendChild(tr);
+        }
+
+        if (preWh != null && decWh != null && preWh > decWh) {
+          appendCliLog(`🛑 Crossover reached at run ${i} (Prefill > Decode).`);
+          break;
+        }
+        tokensTarget += stepTokens;
+      }
+      appendCliLog('✅ Crossover Finder finished.');
+    }
     function updateEnergyDisplay(energyMetrics) {
       const energy = energyMetrics.watt_hours_consumed;
       const carbon = energyMetrics.carbon_grams_co2;
@@ -1678,12 +1837,36 @@
       testEnergy.textContent = `${energy.toFixed(4)} Wh`;
       carbonImpact.textContent = `${carbon.toFixed(2)} gCO2`;
       // Per-run RAPL metrics (if available on this response)
-      if (currentTestResults && currentTestResults.live_power_metrics && currentTestResults.live_power_metrics.measured_wh) {
-        if (currentTestResults.live_power_metrics.measured_wh_per_1000_tokens) {
-          raplEfficiency.textContent = `${currentTestResults.live_power_metrics.measured_wh_per_1000_tokens.toFixed(4)} Wh/1K`;
+      if (currentTestResults && currentTestResults.live_power_metrics) {
+        const lpm = currentTestResults.live_power_metrics;
+        if (lpm.measured_wh_per_1000_tokens != null) {
+          raplEfficiency.textContent = `${lpm.measured_wh_per_1000_tokens.toFixed(4)} Wh/1K`;
+        }
+        // Prefill/Decode display if available
+        const prefillEl = document.getElementById('prefillEnergy');
+        const decodeEl = document.getElementById('decodeEnergy');
+        if (prefillEl) {
+          if (lpm.prefill_wh != null) {
+            const per1kIn = lpm.prefill_wh_per_1000_input_tokens;
+            prefillEl.textContent = `${lpm.prefill_wh.toFixed(6)} Wh${per1kIn != null ? ` (${per1kIn.toFixed(4)} Wh/1K input)` : ''}`;
+          } else {
+            prefillEl.textContent = '-';
+          }
+        }
+        if (decodeEl) {
+          if (lpm.decode_wh != null) {
+            const per1kOut = lpm.decode_wh_per_1000_output_tokens;
+            decodeEl.textContent = `${lpm.decode_wh.toFixed(6)} Wh${per1kOut != null ? ` (${per1kOut.toFixed(4)} Wh/1K output)` : ''}`;
+          } else {
+            decodeEl.textContent = '-';
+          }
         }
       } else {
         raplEfficiency.textContent = '0.00';
+        const prefillEl = document.getElementById('prefillEnergy');
+        const decodeEl = document.getElementById('decodeEnergy');
+        if (prefillEl) prefillEl.textContent = '-';
+        if (decodeEl) decodeEl.textContent = '-';
       }
 
       // Update energy bar
@@ -1728,6 +1911,15 @@
         if (Array.isArray(breakdown.analysis_notes) && breakdown.analysis_notes.length > 0) {
           tokenAnalysisNotes.textContent = breakdown.analysis_notes.join('. ') + '.';
         }
+
+        // RAPL energy metrics into Token Analysis summary if present
+        const lpm = data.live_power_metrics || {};
+        const prefillPer = document.getElementById('prefillPer1kIn');
+        const decodePer = document.getElementById('decodePer1kOut');
+        const ewPer = document.getElementById('ewOutPer1k');
+        if (prefillPer) prefillPer.textContent = (lpm.prefill_wh_per_1000_input_tokens != null) ? lpm.prefill_wh_per_1000_input_tokens.toFixed(4) : '-';
+        if (decodePer) decodePer.textContent = (lpm.decode_wh_per_1000_output_tokens != null) ? lpm.decode_wh_per_1000_output_tokens.toFixed(4) : '-';
+        if (ewPer) ewPer.textContent = (lpm.measured_wh_per_1000_tokens != null) ? lpm.measured_wh_per_1000_tokens.toFixed(4) : '-';
 
         // Update Chart
         const ctx = document.getElementById('tokenBreakdownChart').getContext('2d');
@@ -1865,6 +2057,8 @@
       testEnergyBar.style.width = '0%';
       efficiencyScore.textContent = '0.00';
       carbonImpact.textContent = '0.00';
+      inThinking = false;
+      answerStarted = false;
 
       resultStrategy.textContent = '-';
       resultTokens.textContent = '-';

@@ -58,6 +58,90 @@ class RAPLMonitor:
                 return None
         return None
     
+    def _read_max_energy_range_uj(self, zone_path: Path) -> Optional[int]:
+        """Read the maximum energy counter range for wraparound handling"""
+        max_file = zone_path / "max_energy_range_uj"
+        if max_file.exists():
+            try:
+                return int(max_file.read_text().strip())
+            except (ValueError, IOError):
+                return None
+        return None
+
+    def take_energy_snapshot(self) -> Optional[Dict[str, int]]:
+        """
+        Take a snapshot of cumulative energy_uj per zone.
+        Returns mapping: zone_name -> energy_uj
+        """
+        if not self.available:
+            return None
+        snapshot: Dict[str, int] = {}
+        for name, zone in self.rapl_zones.items():
+            val = self._read_energy_uj(zone)
+            if val is not None:
+                snapshot[name] = val
+        return snapshot
+
+    def _energy_diff_uj(self, start: Dict[str, int], end: Dict[str, int]) -> Dict[str, int]:
+        """Compute per-zone energy diff with wraparound handling"""
+        diffs: Dict[str, int] = {}
+        for name, start_val in start.items():
+            if name not in end:
+                continue
+            end_val = end[name]
+            zone_path = self.rapl_zones.get(name)
+            if zone_path is None:
+                continue
+            diff = end_val - start_val
+            if diff < 0:
+                # handle wrap using max_energy_range_uj
+                max_range = self._read_max_energy_range_uj(zone_path) or 0
+                if max_range > 0:
+                    diff = (end_val + max_range) - start_val
+            if diff < 0:
+                # if still negative, skip
+                continue
+            diffs[name] = diff
+        return diffs
+
+    def energy_diff_wh(self, start: Dict[str, int], end: Dict[str, int]) -> float:
+        """
+        Compute total energy delta in Wh between two snapshots.
+        Preference order:
+          1) psys (platform) if available in both
+          2) Sum of package-* zones plus dramatic energy if present
+          3) Fallback: sum across all zones present in both (may double count on some platforms)
+        """
+        if not start or not end:
+            return 0.0
+
+        diffs = self._energy_diff_uj(start, end)
+        if not diffs:
+            return 0.0
+
+        # Prefer psys
+        if 'psys' in diffs:
+            total_uj = diffs['psys']
+        else:
+            # Sum packages and dram
+            total_uj = 0
+            has_package = False
+            for name, val in diffs.items():
+                if name.startswith('package-'):
+                    total_uj += val
+                    has_package = True
+            # Add DRAM if present (not included in package)
+            if 'dram' in diffs:
+                total_uj += diffs['dram']
+
+            if not has_package:
+                # Fallback to summing all zones (may double count)
+                total_uj = sum(diffs.values())
+
+        # Convert microjoules to Wh: (uj -> J) / 3600
+        total_wh = (total_uj / 1_000_000.0) / 3600.0
+        return total_wh
+    
     def read_power(self, duration_seconds: float = 1.0) -> Optional[PowerReading]:
         """
         Measure power consumption over a short duration

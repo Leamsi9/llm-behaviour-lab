@@ -1,3 +1,13 @@
+#### Prefill/Decode Crossover Finder
+- In Energy UI → Live Hardware Tests → “Prefill/Decode Crossover Finder”
+- Configure Start Input Tokens, Step Tokens, Max Steps, then Run Crossover
+- The app performs successive RAPL runs, increasing input length until Prefill Wh > Decode Wh (stop point)
+- Results table shows per-run actual prompt tokens, Prefill/Decode/Total energy, Wh/1K output, and stop flag.
+
+### Thinking Toggle and Stream Presentation
+- The UI includes an “Include Thinking (reasoning)” checkbox next to Model Selection.
+- When disabled, the backend sets `think: false` for Ollama chat and injects a brief no-CoT instruction.
+- Streaming includes a `thinking` flag per token; the UI wraps reasoning in `<thinking>…</thinking>` and displays “Thinking:” and “Answer:” headings.
 # LLM Behaviour Lab
 
 A FastAPI-based lab for analyzing LLM behavior with two primary experiences:
@@ -130,7 +140,7 @@ open http://localhost:8002/energy
 
 ### Energy Testing Lab (primary)
 - ✅ **Per-output-token energy metrics**: All "Wh/1000" metrics are per 1000 output tokens ("Wh/1000 e-tokens").
-- ✅ **Live Hardware Tests (RAPL)**: Integrated continuous sampling with baseline and active power, and measured Wh/1K.
+- ✅ **Live Hardware Tests (RAPL)**: Snapshot-based cumulative energy counters with start/split/end snapshots to separate Prefill (input) vs Decode (output) energy, plus measured Wh/1K.
 - ✅ **Estimated Hardware Tests**: Switch and create benchmarks; recalculate session with new benchmarks.
 - ✅ **Middleware Injections**: Fixed System Prompt (presets from `./system_prompts`), Conversation Context (with "Inject conversation"), and free-form injections.
 - ✅ **RAPL Batch Runner**: Multiple live runs using current UI query + injections with CLI logs and stop support; results table appears in Test Results.
@@ -167,7 +177,10 @@ Layout & ordering (top to bottom):
 - **Test Results**
   - RAPL Batch Results (UI Prompt + Injections) table
   - Energy Consumption (incl. Wh/1000 e-tokens, Carbon, RAPL Measured Wh/1K)
-  - Token Analysis (Input, Output, Injection, Tool Overhead)
+  - Token Analysis (Input, Output, Injection, Tool Overhead, Thinking) and RAPL energy metrics:
+    - Prefill Wh/1K input tokens
+    - Decode Wh/1K output tokens
+    - Energy‑weighted Wh/1K output tokens (total energy amortized over output)
   - Strategy / tokens / latency / tokens/sec
 - **Response Output**
 - **Session Summary** (Total Energy, Carbon Footprint, Energy Weight – Wh/1000 e‑tokens, Total Tokens)
@@ -190,8 +203,8 @@ Notes:
 2. Enter your query, configure injections/context as desired.
 3. Click "Run Energy Test".
 4. The Live Logs modal will open and stream:
-   - Baseline/active watts snapshots
-   - Integrated RAPL energy (Wh total)
+   - RAPL Snapshots: start → split (first token) → end
+   - Prefill energy (Wh), Decode energy (Wh), and Total energy (Wh)
    - Measured Wh/1000 e‑tokens (per 1000 output tokens)
 5. On completion:
    - A single-row summary is added to "RAPL Batch Results (UI Prompt + Injections)".
@@ -330,7 +343,8 @@ Streaming inference endpoint with cancellation support. Used by Energy UI.
   "temp": 0.7,
   "max_tokens": 512,
   "energy_benchmark": "conservative_estimate",
-  "enable_live_power_monitoring": true
+  "enable_live_power_monitoring": true,
+  "include_thinking": false
 }
 ```
 
@@ -338,12 +352,17 @@ Legacy fields `system` and `user` are still accepted if `system_prompt`/`user_pr
 
 **Response stream:**
 ```json
-{"token": "Quantum"}
-{"token": " computing"}
-{"token": " is"}
+{"token": "Okay, the user is…", "thinking": true}
+{"token": "I'm an AI assistant…", "thinking": false}
 {"token": "..."}
-{"token": "[DONE]", "done": true, "metrics": {...}}
+{"token": "[DONE]", "done": true, "basic_metrics": {...}, "live_power_metrics": {...}}
 ```
+
+`live_power_metrics` (when RAPL is enabled) includes:
+- `prefill_wh`, `decode_wh`, `total_wh`
+- `prefill_wh_per_1000_input_tokens`
+- `decode_wh_per_1000_output_tokens`
+- `energy_weighted_output_wh_per_1000_tokens`
 
 ### GET `/api/models`
 Returns available Ollama models.

@@ -116,21 +116,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "tokens": len(content) // 4 # Approximate
             })
 
-        # Apply thinking suppression instruction if disabled
-        if not payload.include_thinking:
-            suppression_text = (
-                "[No Chain-of-Thought]\n"
-                "Do not provide your chain-of-thought or intermediate reasoning. "
-                "Provide the final answer directly in the assistant message."
-            )
-            if final_system_prompt:
-                final_system_prompt += "\n\n---\n\n" + suppression_text
-            else:
-                final_system_prompt = suppression_text
-            try:
-                await websocket.send_json({"log": "🛑 Thinking disabled: added no-CoT system instruction"})
-            except Exception:
-                pass
+        # Do not inject hidden no-CoT text when thinking is disabled; rely on think=false only.
 
         # 2. Construct Messages
         original_messages = [] # "Original" means just the user query + base system (optional definition)
@@ -208,8 +194,13 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         power_baseline = None
         power_before = None
         power_after = None
-        rapl_measured_wh = 0.0
-        sampler_task = None
+        # Snapshot-based RAPL energy accounting
+        rapl_start_snap = None
+        rapl_split_snap = None
+        rapl_end_snap = None
+        prefill_wh = None
+        decode_wh = None
+        total_wh = None
         live_power_enabled = payload.enable_live_power_monitoring and POWER_MONITORING_AVAILABLE
         print(f"🔌 Live Power Monitoring: Requested={payload.enable_live_power_monitoring}, Available={POWER_MONITORING_AVAILABLE}, Enabled={live_power_enabled}")
         if payload.enable_live_power_monitoring and not POWER_MONITORING_AVAILABLE:
@@ -258,28 +249,13 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         generation_done = False
         had_error = False
 
-        # Continuous RAPL sampling task (integrated Wh)
+        # (Deprecated) Continuous RAPL sampling task kept for backward compatibility (unused for metrics)
         async def rapl_sampler():
-            nonlocal rapl_measured_wh
-            if not live_power_enabled or not power_monitor:
-                return
-            sample_seconds = 0.5
-            try:
-                loop = asyncio.get_running_loop()
-                await websocket.send_json({"log": f"📡 Starting RAPL sampling every {sample_seconds:.1f}s"})
-                while not generation_done and not cancel_event.is_set():
-                    sample = await loop.run_in_executor(None, power_monitor.read_power, sample_seconds)
-                    if sample and power_baseline:
-                        active_watts = max(sample.total_watts - power_baseline.total_watts, 0.0)
-                        rapl_measured_wh += (active_watts * sample_seconds) / 3600.0
-                await websocket.send_json({"log": f"📏 Integrated RAPL energy: {rapl_measured_wh:.6f} Wh"})
-            except Exception as e:
-                await websocket.send_json({"log": f"⚠️ RAPL sampler error: {str(e)}"})
+            return
 
         # Make request to Ollama
         if live_power_enabled:
             await websocket.send_json({"log": "Running LLM inference with power monitoring..."})
-            sampler_task = asyncio.create_task(rapl_sampler())
         
         print(f"📤 Sending to Ollama - Model: {payload.model_name}")  # DEBUG
         print(f"📤 Messages array: {json.dumps(messages, indent=2)}")  # DEBUG
@@ -315,6 +291,15 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     })
                     return
 
+                # Take RAPL start snapshot right before reading first chunk
+                if live_power_enabled and power_monitor:
+                    try:
+                        loop = asyncio.get_running_loop()
+                        rapl_start_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
+                        await websocket.send_json({"log": "📍 RAPL snapshot taken: start"})
+                    except Exception as e:
+                        await websocket.send_json({"log": f"⚠️ RAPL snapshot start error: {str(e)}"})
+
                 async for line in response.aiter_lines():
                     if cancel_event.is_set():
                         break
@@ -334,6 +319,15 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                         content_text = msg.get("content") or ""
                         thinking_text = msg.get("thinking") or ""
 
+                        # On first token (either thinking or content), take split snapshot
+                        if (content_text or thinking_text) and live_power_enabled and power_monitor and rapl_split_snap is None:
+                            try:
+                                loop = asyncio.get_running_loop()
+                                rapl_split_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
+                                await websocket.send_json({"log": "📍 RAPL snapshot taken: split (first token)"})
+                            except Exception as e:
+                                await websocket.send_json({"log": f"⚠️ RAPL snapshot split error: {str(e)}"})
+
                         if content_text:
                             print(f"📝 Extracted content: '{content_text}' (length: {len(content_text)})")
                             full_response += content_text
@@ -342,6 +336,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                                 "token": content_text,
                                 "model": payload.model_name,
                                 "strategy": payload.strategy_name,
+                                "thinking": False,
                                 "done": False,
                             })
                         elif thinking_text and getattr(payload, "include_thinking", False):
@@ -352,6 +347,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                                 "token": thinking_text,
                                 "model": payload.model_name,
                                 "strategy": payload.strategy_name,
+                                "thinking": True,
                                 "done": False,
                             })
 
@@ -365,12 +361,26 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 await response.aclose()
 
         generation_done = True
-        if live_power_enabled:
-            # Ensure sampler has finished
-            if sampler_task:
-                sampler_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError, Exception):
-                    await sampler_task
+        if live_power_enabled and power_monitor:
+            # Take end snapshot and compute energies
+            try:
+                loop = asyncio.get_running_loop()
+                rapl_end_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
+                await websocket.send_json({"log": "📍 RAPL snapshot taken: end"})
+                total_wh = power_monitor.energy_diff_wh(rapl_start_snap or {}, rapl_end_snap or {})
+                prefill_wh = power_monitor.energy_diff_wh(rapl_start_snap or {}, rapl_split_snap or (rapl_start_snap or {}))
+                decode_wh = power_monitor.energy_diff_wh(rapl_split_snap or (rapl_start_snap or {}), rapl_end_snap or {})
+                await websocket.send_json({
+                    "log": f"🔬 Prefill energy: {prefill_wh:.6f} Wh",
+                })
+                await websocket.send_json({
+                    "log": f"🔬 Decode energy:  {decode_wh:.6f} Wh"
+                })
+                await websocket.send_json({
+                    "log": f"🎯 Total energy:   {total_wh:.6f} Wh"
+                })
+            except Exception as e:
+                await websocket.send_json({"log": f"⚠️ RAPL snapshot end error: {str(e)}"})
 
         if cancel_event.is_set():
             await websocket.send_json({
@@ -388,10 +398,6 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         await websocket.send_json({"error": str(e), "done": True})
     finally:
         generation_done = True
-        if live_power_enabled and sampler_task and not sampler_task.done():
-            sampler_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await sampler_task
 
         # If an error occurred or the request was cancelled, skip emitting final results
         if had_error or (cancel_event and cancel_event.is_set()):
@@ -404,36 +410,24 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             await websocket.send_json({"log": f"✅ Generated {prompt_tokens + completion_tokens} tokens"})
             await websocket.send_json({"log": f"⏱ Duration: {latency:.2f}s"})
 
-        # ===== PHASE 6.5: FINALIZE RAPL MEASUREMENT (IF ENABLED) =====
-        # NOTE: All Wh/1000 calculations here are defined per 1000 *output* tokens
-        # (completion tokens), not total (prompt + completion).
+        # ===== PHASE 6.5: FINALIZE RAPL MEASUREMENT USING CUMULATIVE ENERGY (IF ENABLED) =====
+        # NOTE: All Wh/1000 calculations here are defined per 1000 *output* tokens (completion tokens).
         measured_wh_per_1000_tokens = None
-        if live_power_enabled and rapl_measured_wh > 0:
+        if live_power_enabled and total_wh is not None:
             try:
-                # Optional final power_after sample for display
-                loop = asyncio.get_running_loop()
-                power_after = await loop.run_in_executor(None, power_monitor.read_power, 0.5)
-                if power_after:
-                    await websocket.send_json({
-                        "log": f"🔋 Power after inference: {power_after.total_watts:.2f} W",
-                        "power_after": power_after.total_watts
-                    })
-
                 # Use output tokens only for Wh/1000 calculation
                 if completion_tokens > 0:
-                    measured_wh_per_1000_tokens = (rapl_measured_wh / completion_tokens) * 1000
-
+                    measured_wh_per_1000_tokens = (total_wh / completion_tokens) * 1000
                 await websocket.send_json({
-                    "log": f"🎯 Integrated RAPL: {rapl_measured_wh:.6f} Wh total",
-                    "log": f"🎯 Measured: {measured_wh_per_1000_tokens:.4f} Wh/1K tokens" if measured_wh_per_1000_tokens else "🎯 Measured: (insufficient tokens)",
-                    "measured_wh": rapl_measured_wh,
+                    "log": f"🎯 Measured (RAPL counters): {measured_wh_per_1000_tokens:.4f} Wh/1K tokens" if measured_wh_per_1000_tokens else "🎯 Measured: (insufficient tokens)",
+                    "measured_wh": total_wh,
                     "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens
                 })
 
                 # Record into session-level RAPL tracker (keep total tokens for session rollups)
                 total_tokens = prompt_tokens + completion_tokens
-                if total_tokens > 0:
-                    energy_tracker.record_rapl_measurement(rapl_measured_wh, total_tokens)
+                if total_tokens > 0 and total_wh is not None:
+                    energy_tracker.record_rapl_measurement(total_wh, total_tokens)
 
                 # DYNAMIC BENCHMARK UPDATE
                 # If we have a valid measurement, create/update a dynamic benchmark and use it
@@ -551,7 +545,14 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 # Per-1000 metrics are expressed per 1000 *output* tokens
                 "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens,
                 "benchmark_wh_per_1000_tokens": energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001),
-                "accuracy_percent": ((measured_wh_per_1000_tokens / (energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001))) * 100) if measured_wh_per_1000_tokens else None
+                "accuracy_percent": ((measured_wh_per_1000_tokens / (energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001))) * 100) if measured_wh_per_1000_tokens else None,
+                # Snapshot-based split
+                "prefill_wh": prefill_wh,
+                "decode_wh": decode_wh,
+                "total_wh": total_wh,
+                "prefill_wh_per_1000_input_tokens": (prefill_wh / max(prompt_tokens / 1000, 0.001)) if (prefill_wh is not None) else None,
+                "decode_wh_per_1000_output_tokens": (decode_wh / max(completion_tokens / 1000, 0.001)) if (decode_wh is not None) else None,
+                "energy_weighted_output_wh_per_1000_tokens": measured_wh_per_1000_tokens
             },
 
             # Modification tracking (IMPROVED with actual token counts)
