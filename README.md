@@ -132,7 +132,7 @@ open http://localhost:8002/energy
 - ✅ **Per-output-token energy metrics**: All "Wh/1000" metrics are per 1000 output tokens ("Wh/1000 e-tokens").
 - ✅ **Live Hardware Tests (RAPL)**: Integrated continuous sampling with baseline and active power, and measured Wh/1K.
 - ✅ **Estimated Hardware Tests**: Switch and create benchmarks; recalculate session with new benchmarks.
-- ✅ **Middleware Injections**: Fixed System Prompt (presets from `htmlcov/system_prompts`), Conversation Context (with "Inject conversation"), and free-form injections.
+- ✅ **Middleware Injections**: Fixed System Prompt (presets from `./system_prompts`), Conversation Context (with "Inject conversation"), and free-form injections.
 - ✅ **RAPL Batch Runner**: Multiple live runs using current UI query + injections with CLI logs and stop support; results table appears in Test Results.
 - ✅ **Session Summary**: Cumulative energy/carbon across session, plus Energy Weight (Wh/1000 e-tokens).
 - ✅ **Real-time streaming**: Token streaming over WebSocket (supports reasoning "thinking" streams when present).
@@ -501,7 +501,7 @@ llm-behaviour-lab/
 ├── static/
 │   ├── ui_energy.html         # Energy Testing UI
 │   └── ui_multi.html          # Model comparison UI
-├── htmlcov/system_prompts/    # Preset system prompts (txt/md)
+├── system_prompts/    # Preset system prompts (txt/md)
 ├── tests/                     # Test suite
 ├── .env-example               # Environment configuration template
 ├── requirements.txt           # Python dependencies

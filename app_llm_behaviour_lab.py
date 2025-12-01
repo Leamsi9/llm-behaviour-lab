@@ -69,7 +69,7 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-SYSTEM_PROMPTS_DIR = Path("htmlcov/system_prompts")
+SYSTEM_PROMPTS_DIR = Path("./system_prompts")
 
 # ---------- Routes ----------
 
@@ -150,7 +150,7 @@ async def get_energy_benchmarks():
 
 @app.get("/api/system-prompts")
 async def get_system_prompts():
-    """List available reference system prompts from htmlcov/system_prompts.
+    """List available reference system prompts from ./system_prompts.
 
     Returns a list of objects with:
       - id: filename without extension
