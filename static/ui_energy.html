@@ -147,6 +147,12 @@
               <option>Loading models…</option>
             </select>
           </div>
+          <div class="flex items-end">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="includeThinking" class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
+              <span class="text-sm font-medium text-gray-700">Include Thinking (reasoning)</span>
+            </label>
+          </div>
         </div>
 
         <!-- Prompt Configuration -->
@@ -509,6 +515,7 @@
           <div class="space-x-4">
             <span class="font-bold text-green-700">Input: <span id="inputTokensVal">-</span></span>
             <span class="font-bold text-yellow-700">Overhead: <span id="overheadTokensVal">-</span></span>
+            <span class="font-bold text-purple-700">Thinking: <span id="thinkingTokensVal">-</span></span>
             <span class="font-bold text-blue-700">Output: <span id="outputTokensVal">-</span></span>
           </div>
         </div>
@@ -1252,7 +1259,8 @@
         temp: parseFloat(temperature.value),
         max_tokens: parseInt(maxTokens.value),
         seed: document.getElementById('seedInput').value ? parseInt(document.getElementById('seedInput').value) : null,
-        enable_live_power_monitoring: forceRapl ? true : (document.getElementById('enableLivePower')?.checked === true)
+        enable_live_power_monitoring: forceRapl ? true : (document.getElementById('enableLivePower')?.checked === true),
+        include_thinking: (document.getElementById('includeThinking')?.checked === true)
       };
 
       return payload;
@@ -1705,12 +1713,16 @@
         const injected = breakdown.injected || {};
 
         const userTokens = original.total_original_tokens ?? 0;
-        const outputTokens = generation.direct_output_tokens ?? 0;
+        const thinkingTokens = generation.thinking_tokens ?? 0;
+        const contentTokens = (generation.content_tokens != null) ? generation.content_tokens : (generation.direct_output_tokens ?? 0);
+        const outputTokens = contentTokens;
         const injectionOverhead = injected.total_injection_tokens ?? 0;
 
         // Update summary text
         document.getElementById('inputTokensVal').textContent = userTokens;
         document.getElementById('overheadTokensVal').textContent = injectionOverhead;
+        const thinkEl = document.getElementById('thinkingTokensVal');
+        if (thinkEl) thinkEl.textContent = thinkingTokens;
         document.getElementById('outputTokensVal').textContent = outputTokens;
 
         if (Array.isArray(breakdown.analysis_notes) && breakdown.analysis_notes.length > 0) {
@@ -1739,6 +1751,12 @@
                 label: 'Injection Overhead',
                 data: [injectionOverhead],
                 backgroundColor: '#f59e0b', // Yellow
+                barThickness: 40
+              },
+              {
+                label: 'Thinking Output',
+                data: [thinkingTokens],
+                backgroundColor: '#a855f7', // Purple
                 barThickness: 40
               },
               {
@@ -1859,6 +1877,8 @@
       if (injectionTokens) injectionTokens.textContent = '-';
       if (toolTokens) toolTokens.textContent = '-';
       tokenAnalysisNotes.textContent = 'Run a test to see detailed token breakdown.';
+      const thinkEl = document.getElementById('thinkingTokensVal');
+      if (thinkEl) thinkEl.textContent = '-';
 
       if (modificationImpact) {
         modificationImpact.textContent = 'Run a test to see energy impact analysis.';

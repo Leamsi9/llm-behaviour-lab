@@ -72,6 +72,7 @@ class EnergyPayload:
     max_tokens: int = 100
     seed: Optional[int] = None
     enable_live_power_monitoring: bool = False
+    include_thinking: bool = False
 
 # ---------- Ollama Client ----------
 # (Now imported from ollama_client.py)
@@ -114,6 +115,22 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "type": desc,
                 "tokens": len(content) // 4 # Approximate
             })
+
+        # Apply thinking suppression instruction if disabled
+        if not payload.include_thinking:
+            suppression_text = (
+                "[No Chain-of-Thought]\n"
+                "Do not provide your chain-of-thought or intermediate reasoning. "
+                "Provide the final answer directly in the assistant message."
+            )
+            if final_system_prompt:
+                final_system_prompt += "\n\n---\n\n" + suppression_text
+            else:
+                final_system_prompt = suppression_text
+            try:
+                await websocket.send_json({"log": "🛑 Thinking disabled: added no-CoT system instruction"})
+            except Exception:
+                pass
 
         # 2. Construct Messages
         original_messages = [] # "Original" means just the user query + base system (optional definition)
@@ -236,6 +253,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         full_response = ""
         prompt_tokens = 0
         completion_tokens = 0
+        thinking_chars = 0
+        content_chars = 0
         generation_done = False
         had_error = False
 
@@ -265,6 +284,12 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         print(f"📤 Sending to Ollama - Model: {payload.model_name}")  # DEBUG
         print(f"📤 Messages array: {json.dumps(messages, indent=2)}")  # DEBUG
         print(f"📤 Options: temp={payload.temp}, num_predict={safe_max_tokens}, seed={payload.seed}")  # DEBUG
+        try:
+            await websocket.send_json({
+                "log": f"🧠 Thinking setting → include_thinking={payload.include_thinking}; sending think={bool(getattr(payload, 'include_thinking', False))}"
+            })
+        except Exception:
+            pass
         
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             async with client.stream(
@@ -274,6 +299,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     "model": payload.model_name,
                     "messages": messages,
                     "stream": True,
+                    "think": bool(getattr(payload, "include_thinking", False)),
                     "options": {
                         "temperature": payload.temp,
                         "num_predict": safe_max_tokens,  # Use validated max_tokens
@@ -305,14 +331,25 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     if "message" in chunk:
                         # Support both regular models (content) and reasoning models (thinking)
                         msg = chunk["message"] or {}
-                        text = msg.get("content") or msg.get("thinking") or ""
+                        content_text = msg.get("content") or ""
+                        thinking_text = msg.get("thinking") or ""
 
-                        if text:  # Only send if we have actual text
-                            print(f"📝 Extracted text: '{text}' (length: {len(text)})")  # DEBUG
-                            full_response += text
-
+                        if content_text:
+                            print(f"📝 Extracted content: '{content_text}' (length: {len(content_text)})")
+                            full_response += content_text
+                            content_chars += len(content_text)
                             await websocket.send_json({
-                                "token": text,
+                                "token": content_text,
+                                "model": payload.model_name,
+                                "strategy": payload.strategy_name,
+                                "done": False,
+                            })
+                        elif thinking_text and getattr(payload, "include_thinking", False):
+                            print(f"🧠 Extracted thinking: '{thinking_text}' (length: {len(thinking_text)})")
+                            full_response += thinking_text
+                            thinking_chars += len(thinking_text)
+                            await websocket.send_json({
+                                "token": thinking_text,
                                 "model": payload.model_name,
                                 "strategy": payload.strategy_name,
                                 "done": False,
@@ -433,6 +470,23 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             ollama_prompt_tokens=prompt_tokens,
             ollama_completion_tokens=completion_tokens
         )
+        # Estimate split of completion tokens between thinking vs content by proportional characters
+        try:
+            total_gen_chars = thinking_chars + content_chars
+            if total_gen_chars > 0 and completion_tokens >= 0:
+                thinking_tokens_est = int(round((completion_tokens * thinking_chars) / max(total_gen_chars, 1)))
+                thinking_tokens_est = max(0, min(thinking_tokens_est, completion_tokens))
+                content_tokens_est = max(0, completion_tokens - thinking_tokens_est)
+            else:
+                thinking_tokens_est = 0
+                content_tokens_est = completion_tokens
+        except Exception:
+            thinking_tokens_est = 0
+            content_tokens_est = completion_tokens
+
+        if isinstance(token_breakdown.get("generation"), dict):
+            token_breakdown["generation"]["thinking_tokens"] = thinking_tokens_est
+            token_breakdown["generation"]["content_tokens"] = content_tokens_est
         
         # Log breakdown for debugging
         print(f"✅ Token breakdown created: {token_breakdown['totals']['grand_total']} total tokens")

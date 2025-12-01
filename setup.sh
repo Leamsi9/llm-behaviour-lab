@@ -11,16 +11,17 @@ echo "2. Pull models: ollama pull llama3:text, ollama pull llama3:instruct"
 echo ""
 
 # Check if virtual environment exists
-if [ ! -d "venv" ]; then
+if [ ! -d ".venv" ]; then
     echo "Creating virtual environment..."
-    python3 -m venv venv
+    python3 -m venv .venv
 fi
 
 echo "Activating virtual environment..."
-source venv/bin/activate
+source .venv/bin/activate
 
 echo "Installing dependencies..."
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+pip install -r requirements.txt -r requirements-dev.txt
 
 echo ""
 echo "✓ Setup complete!"
@@ -44,8 +45,8 @@ echo ""
 echo "=========================================="
 echo "Next steps:"
 echo "1. Start Ollama: ollama serve"
-echo "2. Run the app:"
-echo "   source venv/bin/activate"
-echo "   uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8000 --reload"
-echo "3. Open: http://localhost:8000/static/ui_multi.html"
+echo "2. Run the integrated lab:"
+echo "   source .venv/bin/activate"
+echo "   uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload"
+echo "3. Open: http://localhost:8001/energy"
 echo "=========================================="
