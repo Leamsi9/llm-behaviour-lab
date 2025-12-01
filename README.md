@@ -1,9 +1,19 @@
 # LLM Behaviour Lab
 
-A FastAPI-based web application for comparing multiple language models side by side using Ollama. Features dynamic model selection, per-pane controls, and stability limits to prevent system freezes.
+A FastAPI-based lab for analyzing LLM behavior with two primary experiences:
+
+- **Energy Testing Lab (primary)**: Measure energy consumption per 1000 output tokens ("Wh/1000 e-tokens"), run live hardware tests via RAPL, and benchmark/compare energy profiles across models and prompts.
+- **Model Comparison (secondary)**: Side-by-side model comparison UI.
+
+Alignment Testing Lab is available in the integrated app (see /alignment).
+
+
+
+
 
 ## Table of Contents
 
+- [Methodology & Metrics](#methodology--metrics)
 - [Basic Workflow](#basic-workflow)
 - [Quick Start](#quick-start)
 - [Features](#features)
@@ -22,6 +32,18 @@ A FastAPI-based web application for comparing multiple language models side by s
 
 At its core, the LLM Behaviour Lab enables systematic exploration of how **deterministic, interpretable and corrigible human-defined parameters extrinsic to the model** interact with the **intrinsic, probabilistic model outputs**. These deterministic parameters include both the direct inference time configuration and code scaffolds (e.g. system/user prompts, temperature, token limits), and the post training inputs (e.g. Q&A, instructions, preferences, reinforcements).
 
+## Methodology & Metrics
+
+### Energy Measurement
+- **Live (RAPL)**: Direct hardware measurement using Intel/AMD RAPL interface. Measures CPU/DRAM energy during inference. Accurate but requires local execution on Linux with RAPL available.
+- **Estimated**: Uses benchmark coefficients (Wh/1000 tokens) derived from hardware specs or calibration. Good for approximation when live monitoring isn't available.
+
+### Metrics Explained
+- **Wh/1000 Energy-Weighted Output Tokens (E-Tokens**: Energy intensity metric. Amortizes total energy (input + output) over generated output tokens. Useful for comparing the “cost of production.”
+- **Input/Output Split**: Separate energy costs for processing the prompt (prefill) and generating tokens (decode). Used in estimated mode for more accurate attribution.
+- **Injection Overhead**: Extra tokens added by system prompts, tools, or conversation context that the user doesn’t see but still pay for in energy.
+
+See the “RAPL Workflow” section for step-by-step live measurement and batch procedures.
 
 ## Basic Workflow
 1. **Select models** from the multi-select dropdown (hold Ctrl/Cmd for multiple)
@@ -86,35 +108,132 @@ MAX_CONTEXT_TOKENS=4096
 MAX_OUTPUT_TOKENS=2048
 ```
 
-### 5. Run the Application
+### 5. Run the Application (Integrated Lab)
 ```bash
 source venv/bin/activate
-uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 ### 6. Open UI
-Navigate to: `http://localhost:8000`
+- Energy Testing Lab: `http://localhost:8001/energy`
+- Model Comparison: `http://localhost:8001/comparison`
+- Alignment Testing Lab: `http://localhost:8001/alignment`
+
+Optional standalone Energy app (same UI/endpoints on a separate port):
+
+```bash
+uvicorn app_energy:app --host 0.0.0.0 --port 8002 --reload
+open http://localhost:8002/energy
+```
 
 ## Features
 
-- ✅ **Multi-model comparison**: Compare any number of Ollama models simultaneously
-- ✅ **Dynamic model loading**: Automatically detects and lists all pulled Ollama models
-- ✅ **Per-pane controls**: Individual Generate/Stop/Clear/Remove buttons for each model
-- ✅ **Global controls**: Generate All and Stop All buttons for batch operations
-- ✅ **Real-time streaming**: Token-by-token generation with visual indicators
-- ✅ **Stability limits**: Configurable limits to prevent system freezes (.env file)
-- ✅ **Cancellation support**: Properly interrupts generation without leaving orphaned processes
-- ✅ **Token counting**: Detailed metrics (prompt tokens, completion tokens, latency, TPS)
-- ✅ **Model aliases**: Tag each model pane with custom labels
-- ✅ **Responsive UI**: Works on desktop and mobile devices
+### Energy Testing Lab (primary)
+- ✅ **Per-output-token energy metrics**: All "Wh/1000" metrics are per 1000 output tokens ("Wh/1000 e-tokens").
+- ✅ **Live Hardware Tests (RAPL)**: Integrated continuous sampling with baseline and active power, and measured Wh/1K.
+- ✅ **Estimated Hardware Tests**: Switch and create benchmarks; recalculate session with new benchmarks.
+- ✅ **Middleware Injections**: Fixed System Prompt (presets from `htmlcov/system_prompts`), Conversation Context (with "Inject conversation"), and free-form injections.
+- ✅ **RAPL Batch Runner**: Multiple live runs using current UI query + injections with CLI logs and stop support; results table appears in Test Results.
+- ✅ **Session Summary**: Cumulative energy/carbon across session, plus Energy Weight (Wh/1000 e-tokens).
+- ✅ **Real-time streaming**: Token streaming over WebSocket (supports reasoning "thinking" streams when present).
+
+### Model Comparison (secondary)
+- ✅ Multi-model comparison panes with per-pane controls.
+- ✅ Streaming outputs, token counts (prompt/completion), and TPS.
 
 ## Usage
 
-### Comparison Strategies
+### Energy Testing Lab Overview
+
+Layout & ordering (top to bottom):
+
+- **Header**
+- **Test Configuration**
+  - Model & Energy Benchmark selection
+  - User Query
+  - Temperature / Max Tokens
+  - Middleware Injections:
+    - System Prompt dropdown + textarea + Clear button
+    - Conversation Context + Inject Conversation button
+    - Free‑form injection list
+- **Controls**
+  - Enable Live Power Monitoring (RAPL) toggle + helper text
+  - Run Energy Test / Stop Test / Clear Results / Export Data / View Live Logs
+- **Live Hardware Tests**
+  - RAPL Batch Runs (left)
+  - RAPL Calibration (right)
+- **Estimated Hardware Tests**
+  - Current Benchmark / Switch Benchmark / Add Custom Benchmark
+- **Test Results**
+  - RAPL Batch Results (UI Prompt + Injections) table
+  - Energy Consumption (incl. Wh/1000 e-tokens, Carbon, RAPL Measured Wh/1K)
+  - Token Analysis (Input, Output, Injection, Tool Overhead)
+  - Strategy / tokens / latency / tokens/sec
+- **Response Output**
+- **Session Summary** (Total Energy, Carbon Footprint, Energy Weight – Wh/1000 e‑tokens, Total Tokens)
+
+Notes:
+
+- RAPL toggle controls live power monitoring for single runs. When enabled, logs modal opens automatically.
+- Energy Weight equals average Wh/1000 e‑tokens (per output tokens only).
+- System prompt presets are served by `/api/system-prompts`; conversation context injection is wrapped in `<conversation_context>` tags.
+
+### RAPL Workflow
+
+#### Prerequisites
+- Linux host with RAPL available at `/sys/class/powercap/*-rapl*`.
+- Sufficient permissions to read RAPL energy counters (root/sudo may be required on some systems).
+- If RAPL is unavailable, the app gracefully degrades to estimated benchmarks (no measured values).
+
+#### Single Run (live measurement)
+1. Enable "Enable Live Power (RAPL)" in the Energy UI.
+2. Enter your query, configure injections/context as desired.
+3. Click "Run Energy Test".
+4. The Live Logs modal will open and stream:
+   - Baseline/active watts snapshots
+   - Integrated RAPL energy (Wh total)
+   - Measured Wh/1000 e‑tokens (per 1000 output tokens)
+5. On completion:
+   - A single-row summary is added to "RAPL Batch Results (UI Prompt + Injections)".
+   - A dynamic benchmark named `rapl_live_dynamic` is created/updated and used for the energy metrics of that run.
+
+#### Batch Mode (N runs)
+1. Set "Number of Runs" > 1 in Batch Testing.
+2. Keep "Enable Live Power (RAPL)" enabled.
+3. Click "Run Energy Test".
+4. The UI performs N back-to-back live runs with current query + injections.
+5. CLI logs show per-run tokens, latency, energy (Wh), and measured Wh/1K.
+6. At the end, a summary row is added to "RAPL Batch Results (UI Prompt + Injections)" containing:
+   - Mean/Median/Std and 5–95% Wh/1000 e‑tokens
+   - Coefficient of Variation (CV)
+   - Input/Output token statistics (μ/median)
+7. Use the red Remove action to delete rows. Results are not persisted as benchmarks.
+
+Tip: Use the first-run duration to estimate time remaining; the CLI log prints an ETA.
+
+#### Calibration (Benchmark creation)
+- Use `POST /api/rapl-calibrate` (or the Calibration UI button when available) to run many integrated measurements and create/update a named benchmark (e.g., `rapl_calibrated_<model>`). See API Endpoints for request/response.
+
+#### Output Interpretation
+- Measured Wh/1000 e‑tokens are normalized per 1000 output tokens only (completion tokens).
+- The Energy chart shows:
+  - Total Energy (blue)
+  - Intensity (Wh/1000 e‑tokens) (purple)
+- Session Summary aggregates energy/carbon across runs, independent of RAPL availability.
+
+#### Troubleshooting RAPL
+- No rows appear in the RAPL table:
+  - Ensure the RAPL toggle is enabled for the run(s).
+  - Check Live Logs for "Integrated RAPL" and "Measured" lines; if absent, RAPL may be unavailable.
+  - If logs show "insufficient tokens", increase output tokens or prompt complexity.
+- Permission denied reading `energy_uj`:
+  - Try running with elevated permissions or adjust udev permissions for powercap.
+
+### Model Comparison Strategies
 Each model comparison reveals insights about:
 
 #### The Deterministic Elements (Human-Controlled)
-- **System Prompt**: Defines the AI's role, personality, and behavioral constraints. To compare behaviour under the system prompts of major LLMs, see https://github.com/elder-plinius/CL4R1T4S for a collection of system prompts for major LLMs and tools which you can use.
+- **System Prompt**: Defines the AI's role, personality, and behavioral constraints. Presets sourced from https://github.com/elder-plinius/CL4R1T4S are available in the Energy UI.
 - **User Prompt**: The specific task or question being asked
 - **Temperature**: Controls randomness (0.0 = deterministic, 1.0 = creative, 2.0 = chaotic)
 - **Token limits**: Limits output length and computational cost
@@ -190,25 +309,32 @@ MAX_CONTEXT_TOKENS=2048
 
 # Restart
 ollama serve
-uvicorn app_ollama:app --reload
+uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 ## API Endpoints
 
 ### WebSocket `/ws`
-Streaming inference endpoint with cancellation support.
+Streaming inference endpoint with cancellation support. Used by Energy UI.
 
-**Request payload:**
+**Request payload (Energy):**
 ```json
 {
-  "model_name": "qwen2.5:7b",
-  "system": "You are a helpful assistant.",
-  "user": "Explain quantum computing.",
+  "model_name": "qwen3:0.6b",
+  "system_prompt": "You are a helpful assistant.",
+  "user_prompt": "Explain quantum computing.",
+  "conversation_context": "<prior_msgs>...</prior_msgs>",
+  "injections": [
+    { "description": "Safety guardrails", "content": "..." }
+  ],
   "temp": 0.7,
-  "max_tokens": 1024,
-  "stop": ["USER:", "ASSISTANT:", "</s>"]
+  "max_tokens": 512,
+  "energy_benchmark": "conservative_estimate",
+  "enable_live_power_monitoring": true
 }
 ```
+
+Legacy fields `system` and `user` are still accepted if `system_prompt`/`user_prompt` are omitted. The server composes the final system prompt as: Base system + `<conversation_context>` wrapper + free‑form injections.
 
 **Response stream:**
 ```json
@@ -248,6 +374,32 @@ Health check endpoint.
   }
 }
 ```
+
+### POST `/api/rapl-calibrate`
+Run N integrated RAPL measurements and create/update a calibrated benchmark.
+
+Request:
+```json
+{ "runs": 30, "model_name": "qwen3:0.6b", "prompt": "Explain transformers in 3 sentences." }
+```
+
+Response (abridged):
+```json
+{
+  "metric": "wh_per_1000_tokens",
+  "successful_runs": 28,
+  "stats": { "mean": 0.115, "median": 0.112, "std": 0.010, "cv": 0.087 },
+  "benchmark": { "name": "rapl_calibrated_qwen3_0.6b", "watt_hours_per_1000_tokens": 0.112 }
+}
+```
+
+Additional endpoints used by the Energy UI:
+- `GET /api/energy-benchmarks` – list benchmarks
+- `GET /api/system-prompts` – list preset system prompts
+- `GET /api/benchmark-info` – metadata about benchmarks and CO2
+- `POST /api/switch-benchmark` – switch current benchmark
+- `POST /api/add-custom-benchmark` – add a custom benchmark
+- `POST /api/export-session` – export session readings
 
 ## Configuration
 
@@ -295,6 +447,15 @@ ollama pull llama3.2:3b
 ollama list
 ```
 
+### pip install blocked (externally-managed environment)
+Create and use a virtual environment (recommended):
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+If you must install system-wide, you can use `--break-system-packages` at your own risk. Prefer a venv to avoid conflicts.
+
 ### System Freezes
 1. **Reduce limits** in `.env`:
    ```bash
@@ -334,16 +495,21 @@ These environment variables allow fine-tuning Ollama's resource consumption to m
 
 ```
 llm-behaviour-lab/
-├── app_ollama.py          # FastAPI application with Ollama integration
+├── app_llm_behaviour_lab.py   # Integrated FastAPI app (Energy primary, Comparison secondary)
+├── app_energy.py              # Standalone Energy app (optional)
+├── app_model_comparison.py    # Model comparison app
 ├── static/
-│   └── ui_multi.html      # Multi-model comparison UI
-├── .env-example          # Environment configuration template
-├── .gitignore            # Git ignore rules
-├── requirements.txt      # Python dependencies
-├── setup.sh             # Automated setup script
-├── README.md            # This file
-└── Stability.md         # Detailed stability configuration
+│   ├── ui_energy.html         # Energy Testing UI
+│   └── ui_multi.html          # Model comparison UI
+├── htmlcov/system_prompts/    # Preset system prompts (txt/md)
+├── tests/                     # Test suite
+├── .env-example               # Environment configuration template
+├── requirements.txt           # Python dependencies
+├── setup.sh                   # Automated setup script
+└── README.md                  # This file
 ```
+
+Alignment app: Placeholder/WIP (not yet implemented).
 
 ## Dependencies
 
@@ -352,6 +518,8 @@ llm-behaviour-lab/
 - **httpx**: HTTP client for Ollama API
 - **python-dotenv**: Environment configuration
 - **Ollama**: Local LLM inference server
+
+Optional for live power monitoring (Linux/Intel RAPL): kernel RAPL support and read permissions. The app will gracefully degrade if RAPL is unavailable.
 
 ## Performance Tips
 

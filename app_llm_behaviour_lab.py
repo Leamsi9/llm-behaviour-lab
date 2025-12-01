@@ -26,6 +26,7 @@ from app_model_comparison import Payload as ComparisonPayload, run_generation as
 
 # Import our specialized modules
 from energy_tracker import energy_tracker, estimate_energy_impact, get_available_benchmarks, ENERGY_BENCHMARKS
+from rapl_benchmark import measure_wh_per_1000_tokens
 from alignment_analyzer import alignment_analyzer, AlignmentScore
 from prompt_injection import injection_manager, InjectionConfig, InjectionType
 from tool_integration import tool_manager, ToolIntegrationConfig, ToolIntegrationMethod, ToolCall
@@ -67,6 +68,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+SYSTEM_PROMPTS_DIR = Path("htmlcov/system_prompts")
 
 # ---------- Routes ----------
 
@@ -143,6 +146,39 @@ async def health_check():
 async def get_energy_benchmarks():
     """Get available energy benchmarks"""
     return {"benchmarks": get_available_benchmarks()}
+
+
+@app.get("/api/system-prompts")
+async def get_system_prompts():
+    """List available reference system prompts from htmlcov/system_prompts.
+
+    Returns a list of objects with:
+      - id: filename without extension
+      - name: same as id (for display)
+      - content: full file contents
+    """
+
+    prompts: List[Dict[str, Any]] = []
+
+    if SYSTEM_PROMPTS_DIR.is_dir():
+        for path in sorted(SYSTEM_PROMPTS_DIR.iterdir()):
+            if not path.is_file():
+                continue
+            # Accept common text/markdown extensions but don't expose them in the name
+            if path.suffix.lower() not in {".txt", ".md", ".mkd", ".markdown"}:
+                continue
+            try:
+                content = path.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                content = ""
+
+            prompts.append({
+                "id": path.stem,
+                "name": path.stem,
+                "content": content,
+            })
+
+    return {"prompts": prompts}
 
 @app.get("/api/injection-methods")
 async def get_injection_methods():
@@ -244,6 +280,89 @@ async def get_benchmark_info():
         }
     }
 
+
+@app.post("/api/rapl-calibrate")
+async def rapl_calibrate(request: dict):
+    """Run N integrated-RAPL measurements and create/update a calibrated benchmark.
+
+    Request JSON:
+      {
+        "runs": 30,
+        "model_name": "qwen3:0.6b",
+        "prompt": "..."  # optional, defaults to same as create_custom_benchmark
+      }
+    """
+
+    runs = max(int(request.get("runs", 10)), 1)
+    model_name = request.get("model_name") or DEFAULT_MODEL
+    prompt = request.get("prompt") or "Explain how transformers work in machine learning in 3 sentences."
+
+    values = []
+
+    for _ in range(runs):
+        try:
+            result = await measure_wh_per_1000_tokens(
+                prompt=prompt,
+                model=model_name,
+                max_tokens=512,
+            )
+        except Exception as exc:
+            # Best-effort: skip failed runs, continue
+            print(f"RAPL calibration run failed: {exc}")
+            continue
+
+        if result and result.wh_per_1000_tokens is not None:
+            values.append(float(result.wh_per_1000_tokens))
+
+    if not values:
+        raise HTTPException(status_code=500, detail="No successful RAPL measurements. Check RAPL and Ollama.")
+
+    # Basic statistics
+    values_sorted = sorted(values)
+    n = len(values_sorted)
+    mean = sum(values_sorted) / n
+    median = values_sorted[n // 2] if n % 2 == 1 else 0.5 * (values_sorted[n // 2 - 1] + values_sorted[n // 2])
+    # Population std dev
+    var = sum((x - mean) ** 2 for x in values_sorted) / n
+    std = var ** 0.5
+    p5 = values_sorted[max(int(n * 0.05) - 1, 0)]
+    p95 = values_sorted[min(int(n * 0.95), n - 1)]
+    cv = std / mean if mean else None
+
+    # Create/update a calibrated benchmark using the median
+    benchmark_name = f"rapl_calibrated_{model_name.replace(':', '_').replace(' ', '_')}"
+    energy_tracker.add_custom_benchmark(
+        name=benchmark_name,
+        description=(
+            f"RAPL-calibrated benchmark for {model_name} (median of {n} runs: {median:.4f} Wh/1K)"
+        ),
+        watt_hours_per_1000_tokens=median,
+        source="Integrated RAPL calibration",
+        hardware_specs="Current system (RAPL measured)",
+        # Use force_update if available; safe to ignore if not
+    )
+
+    return {
+        "metric": "wh_per_1000_tokens",
+        "model": model_name,
+        "prompt": prompt,
+        "requested_runs": runs,
+        "successful_runs": n,
+        "values": values_sorted,
+        "stats": {
+            "mean": mean,
+            "median": median,
+            "std": std,
+            "p5": p5,
+            "p95": p95,
+            "cv": cv,
+        },
+        "benchmark": {
+            "name": benchmark_name,
+            "watt_hours_per_1000_tokens": median,
+        },
+    }
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for energy/alignment testing"""
@@ -303,6 +422,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # Determine test type and call appropriate function from standalone apps
             test_type = raw.get('test_type', 'energy')  # Default to energy for backward compatibility
             print(f"🧪 [INTEGRATED LAB /ws] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)")
+            print(f"🧪 [INTEGRATED LAB /ws] Creating task for payload: {raw.get('model_name')}") # DEBUG
             await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)"})
             if test_type == 'alignment':
                 # Create AlignmentPayload and delegate to standalone app
@@ -320,10 +440,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 current_task = asyncio.create_task(run_alignment_test(payload_obj, websocket, cancel_event))
             else:  # energy or default
-                # Create EnergyPayload and delegate to standalone app
+                # Create EnergyPayload and delegate to standalone app (include new composition fields)
                 payload_obj = EnergyPayload(
+                    # New fields
+                    system_prompt=raw.get('system_prompt', ''),
+                    user_prompt=raw.get('user_prompt', ''),
+                    conversation_context=raw.get('conversation_context', ''),
+                    injections=raw.get('injections', []),
+
+                    # Legacy fields
                     system=raw.get('system', ''),
                     user=raw.get('user', ''),
+
                     model_name=raw.get('model_name', ''),
                     strategy_name=raw.get('strategy_name', 'baseline'),
                     energy_benchmark=raw.get('energy_benchmark', 'conservative_estimate'),

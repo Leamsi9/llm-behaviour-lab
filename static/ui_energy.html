@@ -8,17 +8,36 @@
   <script src="/static/tailwind.min.js"></script>
   <script src="/static/chart.min.js"></script>
   <style>
+    /* Modern UI Polish */
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
     .model-output {
       white-space: pre-wrap;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+      font-size: 0.9rem;
+      line-height: 1.5;
     }
 
     .energy-bar {
-      transition: width 0.5s ease;
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .energy-high {
-      background: linear-gradient(90deg, #ef4444, #dc2626);
+      background: linear-gradient(90deg, #ef4444, #b91c1c);
     }
 
     .energy-medium {
@@ -28,6 +47,26 @@
     .energy-low {
       background: linear-gradient(90deg, #10b981, #059669);
     }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      color: white;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+    }
+
+    input[type="range"] {
+      accent-color: #4f46e5;
+    }
   </style>
 </head>
 
@@ -36,90 +75,137 @@
 
     <!-- Header -->
     <div class="bg-white rounded-lg shadow p-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900">Energy Testing Lab</h1>
-          </p>
+      <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header & Methodology -->
+        <div class="flex justify-between items-center mb-8">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">LLM Energy Testing Lab</h1>
+            <p class="text-gray-600 mt-1">Measure real-world energy consumption and carbon footprint of LLM
+              interactions.</p>
+          </div>
+          <button onclick="document.getElementById('methodologyModal').classList.remove('hidden')"
+            class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Methodology & Metrics
+          </button>
         </div>
-        <div id="connectionStatus" class="px-4 py-2 rounded-full bg-gray-200 text-gray-700">Connecting…</div>
-      </div>
 
-      <!-- Session Energy Summary -->
-      <div class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div class="bg-blue-50 p-4 rounded-lg">
-          <div class="text-sm text-blue-600 font-medium">Total Energy</div>
-          <div id="sessionEnergy" class="text-2xl font-bold text-blue-900">0.00 Wh</div>
-        </div>
-        <div class="bg-green-50 p-4 rounded-lg">
-          <div class="text-sm text-green-600 font-medium">Carbon Footprint</div>
-          <div id="sessionCarbon" class="text-2xl font-bold text-green-900">0.00 gCO2</div>
-        </div>
-        <div class="bg-purple-50 p-4 rounded-lg">
-          <div class="text-sm text-purple-600 font-medium">Avg Efficiency</div>
-          <div id="sessionEfficiency" class="text-2xl font-bold text-purple-900">0.00 Wh/1K</div>
-        </div>
-        <div class="bg-orange-50 p-4 rounded-lg">
-          <div class="text-sm text-orange-600 font-medium">Total Tokens</div>
-          <div id="sessionTokens" class="text-2xl font-bold text-orange-900">0</div>
-        </div>
-        <div class="bg-gray-50 p-4 rounded-lg">
-          <div class="text-sm text-gray-600 font-medium">RAPL Measured Energy</div>
-          <div id="sessionRaplEnergy" class="text-2xl font-bold text-gray-900">0.000000 Wh</div>
-        </div>
-      </div>
-    </div>
+        <!-- Methodology Modal -->
+        <div id="methodologyModal"
+          class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+          <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-bold text-gray-900">Methodology & Metrics</h3>
+              <button onclick="document.getElementById('methodologyModal').classList.add('hidden')"
+                class="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            <div class="prose prose-sm max-w-none text-gray-600">
+              <h4 class="font-bold text-gray-900">Energy Measurement</h4>
+              <p>We use two methods to track energy:</p>
+              <ul class="list-disc pl-5 mb-2">
+                <li><strong>Live (RAPL):</strong> Direct hardware measurement using Intel/AMD RAPL interface. Measures
+                  CPU/DRAM energy during inference. Accurate but requires local execution.</li>
+                <li><strong>Estimated:</strong> Uses benchmark coefficients (Wh/1000 tokens) derived from hardware
+                  specs. Good for approximation when live monitoring isn't available.</li>
+              </ul>
 
-    <!-- Test Configuration -->
-    <div class="bg-white rounded-lg shadow p-6 space-y-6">
-
-      <!-- Model and Benchmark Selection -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Model Selection</label>
-          <select id="modelSelect" class="w-full p-2 border rounded">
-            <option>Loading models…</option>
-          </select>
+              <h4 class="font-bold text-gray-900 mt-4">Metrics Explained</h4>
+              <ul class="list-disc pl-5 mb-2">
+                <li><strong>Wh/1000 Output Tokens:</strong> Energy intensity metric. Amortizes the total energy (Input +
+                  Output) over the generated output tokens. Useful for comparing "cost of production".</li>
+                <li><strong>Input/Output Split:</strong> Separate energy costs for processing prompt (prefill) and
+                  generating tokens (decode). Used for more accurate estimation.</li>
+                <li><strong>Injection Overhead:</strong> Extra tokens added by system prompts, tools, or context that
+                  the user doesn't see but pays for in energy.</li>
+              </ul>
+            </div>
+            <div class="mt-6 text-right">
+              <button onclick="document.getElementById('methodologyModal').classList.add('hidden')"
+                class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Close</button>
+            </div>
+          </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Energy Benchmark</label>
-          <select id="energyBenchmark" class="w-full p-2 border rounded">
-            <option value="conservative_estimate">Conservative Estimate (1.0 Wh/1000 tokens)</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Prompt Configuration -->
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">User Query</label>
-          <textarea id="userPrompt" class="w-full p-2 border rounded h-24"
-            placeholder="Explain quantum computing in simple terms."></textarea>
-          <div class="text-xs text-gray-500 mt-1">This is your actual query - the only "original" tokens</div>
-        </div>
-      </div>
-
-      <!-- Model Parameters -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Temperature</label>
-          <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.7" class="w-full" />
-          <div class="text-xs text-gray-600 mt-1">Value: <span id="tempValue">0.7</span></div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Max Tokens</label>
-          <input type="number" id="maxTokens" min="1" max="4096" value="512" class="w-full p-2 border rounded" />
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Energy Testing Lab</h1>
+            </p>
+          </div>
         </div>
       </div>
 
-      <!-- Middleware Injections -->
-      <div class="space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Middleware Injections (Exposes Hidden LLM Overhead)</h3>
+      <!-- Test Configuration -->
+      <div class="bg-white rounded-lg shadow p-6 space-y-6">
+
+        <!-- Model and Benchmark Selection -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Model Selection</label>
+            <select id="modelSelect" class="w-full p-2 border rounded">
+              <option>Loading models…</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Prompt Configuration -->
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">User Query</label>
+            <textarea id="userPrompt" class="w-full p-2 border rounded h-24"
+              placeholder="Explain quantum computing in simple terms."></textarea>
+            <div class="text-xs text-gray-500 mt-1">This is your actual query - the only \"original\" tokens</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Middleware Injections (separate card) -->
+      <div class="card p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Middleware Injections</h3>
         <div class="text-sm text-gray-600 mb-3">
           Add any prompt injections below. Each one adds middleware overhead to your query. Common examples:
           • System prompts (5,000-7,000 tokens in commercial LLMs)
           • Tool results (web searches, database queries)
           • Memory/personalization context
           • Chain-of-thought instructions
+        </div>
+
+        <!-- Fixed System Prompt and Conversation Context as middleware -->
+        <div class="space-y-3">
+          <!-- System Prompt (fixed field with presets) -->
+          <div>
+            <h4 class="font-medium text-gray-900 mb-2">System Prompt (optional)</h4>
+            <div class="flex flex-col md:flex-row md:items-center md:space-x-2 space-y-2 md:space-y-0 mb-2">
+              <select id="systemPromptSelect" class="w-full md:w-1/3 p-2 border rounded">
+                <option value="">Custom / empty</option>
+              </select>
+              <button id="clearSystemPromptBtn"
+                class="px-3 py-1 bg-gray-200 text-gray-800 rounded text-xs hover:bg-gray-300">
+                Clear System Prompt
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">source: https://github.com/elder-plinius/CL4R1T4S</p>
+            <textarea id="systemPromptText" class="w-full p-2 border rounded h-24"
+              placeholder="Optional system prompt or middleware instructions (empty by default)"></textarea>
+          </div>
+
+          <!-- Conversation Context -->
+          <div>
+            <h4 class="font-medium text-gray-900 mb-2">Conversation Context</h4>
+            <p class="text-xs text-gray-600 mb-2">
+              Use this to accumulate relevant turns from the conversation that should be included as context.
+              The latest user query and response can be injected below.
+            </p>
+            <div class="flex items-center mb-2">
+              <button id="injectConversationBtn"
+                class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                Inject conversation
+              </button>
+            </div>
+            <textarea id="conversationContextText" class="w-full p-2 border rounded h-24"
+              placeholder="Conversation context will be wrapped in &lt;conversation_context&gt; tags when sent."></textarea>
+          </div>
         </div>
 
         <!-- Container for injections -->
@@ -133,106 +219,61 @@
         </button>
       </div>
 
-      <!-- Test Controls -->
-      <div class="flex gap-4 pt-4 border-t">
-        <!-- Live Power Monitoring Toggle -->
-        <div class="mb-4">
-          <label class="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" id="enableLivePower" class="form-checkbox h-5 w-5 text-blue-600">
-            <span class="text-gray-700 font-medium">Enable Live Power Monitoring (RAPL)</span>
-          </label>
-          <p class="text-xs text-gray-500 mt-1 ml-7">Measures actual hardware power consumption during inference.</p>
-        </div>
-
-        <button id="runTest"
-          class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition font-bold">
-          Run Energy Test
-        </button>
-        <button id="stopTest" class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-medium" disabled>
-          Stop Test
-        </button>
-        <button id="clearResults" class="bg-gray-200 text-gray-800 px-6 py-2 rounded hover:bg-gray-300">
-          Clear Results
-        </button>
-        <button id="exportData" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
-          Export Data
-        </button>
-        <button id="showLogs" class="bg-gray-700 text-white px-6 py-2 rounded hover:bg-gray-800">
-          View Live Logs
-        </button>
-      </div>
+      <!-- Test Controls moved to separate card below -->
     </div>
 
-    <!-- Results Display -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Results Display: Live vs Estimated hardware tests -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
 
-      <!-- Energy Metrics -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-xl font-semibold text-gray-900 mb-4">Energy Consumption</h3>
+      <!-- Live Hardware Tests (RAPL) -->
+      <div class="card p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-medium text-gray-900 flex items-center">
+            <span class="mr-2">🔌</span> Live Hardware Tests (RAPL)
+            <span class="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Linux Only</span>
+          </h3>
+        </div>
 
-        <div class="space-y-4">
-          <!-- Current Test Energy -->
-          <div>
-            <div class="flex justify-between text-sm mb-1">
-              <span>Test Energy</span>
-              <span id="testEnergy">0.00 Wh</span>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-4">
-              <div id="testEnergyBar" class="energy-bar energy-low h-4 rounded-full" style="width: 0%"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Batch Config -->
+          <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3">Batch Testing</h4>
+            <div class="flex items-center gap-3">
+              <div class="flex-1">
+                <label class="block text-xs text-gray-500 mb-1">Number of Runs</label>
+                <input type="number" id="raplBatchRuns" value="1" min="1" max="100"
+                  class="w-full p-2 border rounded text-sm">
+              </div>
+              <div class="flex-1 pt-5">
+                <p class="text-xs text-gray-500">Enable "Live Power" and click "Run Energy Test" to start batch.</p>
+              </div>
             </div>
           </div>
 
-          <!-- Efficiency Comparison -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="text-center p-3 bg-gray-50 rounded">
-              <div class="text-2xl font-bold text-blue-600" id="efficiencyScore">0.00</div>
-              <div class="text-sm text-gray-600">Wh/1000 tokens (actual)</div>
-            </div>
-            <div class="text-center p-3 bg-gray-50 rounded">
-              <div class="text-2xl font-bold text-green-600" id="carbonImpact">0.00</div>
-              <div class="text-sm text-gray-600">gCO2</div>
-            </div>
-            <div class="text-center p-3 bg-gray-50 rounded">
-              <div class="text-2xl font-bold text-gray-600" id="raplEnergy">0.000000 Wh</div>
-              <div class="text-sm text-gray-600">RAPL Measured Energy</div>
-            </div>
-            <div class="text-center p-3 bg-gray-50 rounded">
-              <div class="text-2xl font-bold text-gray-600" id="raplEfficiency">0.00</div>
-              <div class="text-sm text-gray-600">RAPL Measured Wh/1K</div>
-            </div>
-          </div>
-
-          <!-- Live Power Metrics (Hidden by default) -->
-          <div id="livePowerSection" class="mt-4 hidden">
-            <h4 class="font-bold text-gray-700 mb-2">Live Power Measurements (RAPL)</h4>
-            <div class="grid grid-cols-3 gap-2 text-center text-sm">
-              <div class="bg-gray-50 p-2 rounded">
-                <div class="text-gray-500">Baseline</div>
-                <div class="font-bold" id="powerBaseline">-</div>
+          <!-- Calibration -->
+          <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3">Calibration</h4>
+            <div class="flex items-center gap-3">
+              <div class="flex-1">
+                <label class="block text-xs text-gray-500 mb-1">Calibration Runs</label>
+                <input type="number" id="raplCalibrationRuns" value="5" min="3" max="20"
+                  class="w-full p-2 border rounded text-sm">
               </div>
-              <div class="bg-gray-50 p-2 rounded">
-                <div class="text-gray-500">Active</div>
-                <div class="font-bold text-blue-600" id="powerActive">-</div>
-              </div>
-              <div class="bg-gray-50 p-2 rounded">
-                <div class="text-gray-500">Measured Wh/1K</div>
-                <div class="font-bold text-green-600" id="powerMeasured">-</div>
-              </div>
+              <button id="runRaplCalibration"
+                class="mt-4 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded text-sm transition-colors">
+                Calibrate
+              </button>
             </div>
-            <div class="mt-2 text-xs text-gray-500 text-center" id="powerAccuracy"></div>
+            <div id="raplCalibrationStatus" class="mt-2 text-xs text-gray-500"></div>
           </div>
         </div>
 
-        <!-- Energy Chart -->
-        <div class="mt-6">
-          <canvas id="energyChart" width="400" height="200"></canvas>
-        </div>
-      </div>
+        
+      </div> <!-- RAPL Batch Results moved to Test Results card -->
 
-      <!-- Benchmark Controls -->
+      <!-- Estimated Hardware Tests -->
       <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-xl font-semibold text-gray-900 mb-4">Energy Benchmark Controls</h3>
-
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Estimated Hardware Tests</h3>
         <div class="space-y-4">
           <!-- Current Benchmark Info -->
           <div class="p-4 bg-blue-50 rounded">
@@ -291,7 +332,80 @@
               Add Custom Benchmark
             </button>
           </div>
+
         </div>
+      </div>
+    </div>
+
+    <!-- Response Output -->
+    <div class="card p-6 mb-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-3">Response Output</h3>
+      <!-- Response Output moved to main results area -->
+    </div>
+
+    <!-- Controls & Settings -->
+    <div class="card p-6 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
+          <div class="flex items-center space-x-2">
+            <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7"
+              class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            <span id="tempValue" class="text-sm text-gray-600 w-8">0.7</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
+          <input type="number" id="maxTokens" value="100"
+            class="w-full p-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Seed (Optional)</label>
+          <input type="number" id="seedInput" placeholder="Random"
+            class="w-full p-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-4">
+        <button id="runTest" class="btn-primary px-6 py-2.5 rounded-lg font-medium shadow-sm flex items-center">
+          <span class="mr-2">⚡</span> Run Energy Test
+        </button>
+        <button id="stopTest" disabled
+          class="bg-gray-100 text-gray-400 px-6 py-2.5 rounded-lg font-medium cursor-not-allowed">
+          Stop
+        </button>
+        <div class="border-l pl-4 flex items-center gap-4">
+          <label class="flex items-center space-x-2 cursor-pointer">
+            <input type="checkbox" id="enableLivePower" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+            <span class="text-sm font-medium text-gray-700">Enable Live Power (RAPL)</span>
+          </label>
+          <button id="showLogs" class="text-gray-500 hover:text-gray-700 text-sm underline flex items-center">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+              </path>
+            </svg>
+            Logs
+          </button>
+        </div>
+        <div class="flex-grow"></div>
+        <button id="clearResults"
+          class="text-gray-600 hover:text-gray-900 px-4 py-2 text-sm font-medium flex items-center">
+          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+            </path>
+          </svg>
+          Clear
+        </button>
+        <button id="exportData"
+          class="text-indigo-600 hover:text-indigo-800 px-4 py-2 text-sm font-medium flex items-center">
+          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          Export
+        </button>
       </div>
     </div>
 
@@ -299,29 +413,104 @@
     <div class="bg-white rounded-lg shadow p-6">
       <h3 class="text-xl font-semibold text-gray-900 mb-4">Test Results</h3>
 
-      <!-- Token Breakdown -->
+      <!-- RAPL Batch Results full-width (moved here) -->
       <div class="mb-6">
-        <h4 class="font-medium text-gray-900 mb-3">Token Analysis</h4>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div class="text-center p-3 bg-green-50 rounded">
-            <div class="font-medium text-green-900" id="inputTokens">-</div>
-            <div class="text-green-700">Input Tokens</div>
+        <h4 class="font-medium text-gray-900 mb-2">RAPL Batch Results (UI Prompt + Injections)</h4>
+        <p class="text-xs text-gray-600 mb-2">
+          Each row represents one completed batch of RAPL runs using the current UI configuration. These
+          are not stored as benchmarks but as experimental results. You can remove rows individually.
+        </p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs text-left border">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-2 py-1 border">Time</th>
+                <th class="px-2 py-1 border">Runs</th>
+                <th class="px-2 py-1 border">Mean Wh/1000 e-tokens</th>
+                <th class="px-2 py-1 border">Median Wh/1000 e-tokens</th>
+                <th class="px-2 py-1 border">Std Wh/1000 e-tokens</th>
+                <th class="px-2 py-1 border">5–95% Wh/1000 e-tokens</th>
+                <th class="px-2 py-1 border">CV</th>
+                <th class="px-2 py-1 border">Query/Input Tokens (μ/med)</th>
+                <th class="px-2 py-1 border">Output Tokens (μ/med)</th>
+                <th class="px-2 py-1 border">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="raplBatchTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Energy Consumption & Live Power -->
+      <div class="mb-6 space-y-4">
+        <h4 class="font-medium text-gray-900 mb-3">Energy Consumption</h4>
+
+        <!-- Current Test Energy -->
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span>Test Energy</span>
+            <span id="testEnergy">0.00 Wh</span>
           </div>
-          <div class="text-center p-3 bg-blue-50 rounded">
-            <div class="font-medium text-blue-900" id="outputTokens">-</div>
-            <div class="text-blue-700">Output Tokens</div>
-          </div>
-          <div class="text-center p-3 bg-yellow-50 rounded">
-            <div class="font-medium text-yellow-900" id="injectionTokens">-</div>
-            <div class="text-yellow-700">Injection Overhead</div>
-          </div>
-          <div class="text-center p-3 bg-purple-50 rounded">
-            <div class="font-medium text-purple-900" id="toolTokens">-</div>
-            <div class="text-purple-700">Tool Overhead</div>
+          <div class="w-full bg-gray-200 rounded-full h-4">
+            <div id="testEnergyBar" class="energy-bar energy-low h-4 rounded-full" style="width: 0%"></div>
           </div>
         </div>
-        <div class="mt-3 text-xs text-gray-600">
+
+        <!-- Efficiency Comparison -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="text-center p-3 bg-gray-50 rounded">
+            <div class="text-2xl font-bold text-blue-600" id="efficiencyScore">0.00</div>
+            <div class="text-sm text-gray-600">Wh/1000 e-tokens (net i/o energy-weighted output tokens)</div>
+          </div>
+          <div class="text-center p-3 bg-gray-50 rounded">
+            <div class="text-2xl font-bold text-green-600" id="carbonImpact">0.00</div>
+            <div class="text-sm text-gray-600">gCO2</div>
+          </div>
+          <div class="text-center p-3 bg-gray-50 rounded">
+            <div class="text-2xl font-bold text-gray-600" id="raplEfficiency">0.00</div>
+            <div class="text-sm text-gray-600">RAPL Measured Wh/1K</div>
+          </div>
+        </div>
+
+        <!-- Live Power Metrics (Hidden by default) -->
+        <div id="livePowerSection" class="mt-2 hidden">
+          <h4 class="font-medium text-gray-900 mb-2">Live Power Measurements (RAPL)</h4>
+          <div class="grid grid-cols-3 gap-2 text-center text-sm">
+            <div class="bg-gray-50 p-2 rounded">
+              <div class="text-gray-500">Baseline</div>
+              <div class="font-bold" id="powerBaseline">-</div>
+            </div>
+            <div class="bg-gray-50 p-2 rounded">
+              <div class="text-gray-500">Active</div>
+              <div class="font-bold text-blue-600" id="powerActive">-</div>
+            </div>
+            <div class="bg-gray-50 p-2 rounded">
+              <div class="text-gray-500">Measured Wh/1K</div>
+              <div class="font-bold text-green-600" id="powerMeasured">-</div>
+            </div>
+          </div>
+          <div class="mt-2 text-xs text-gray-500 text-center" id="powerAccuracy"></div>
+        </div>
+
+        <!-- Energy Chart -->
+        <div class="mt-2">
+          <canvas id="energyChart" width="400" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Token Breakdown Chart -->
+      <div class="mb-6">
+        <h4 class="font-medium text-gray-900 mb-3">Token Analysis</h4>
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+          <canvas id="tokenBreakdownChart" width="400" height="120"></canvas>
+        </div>
+        <div class="mt-3 text-xs text-gray-600 flex justify-between">
           <span id="tokenAnalysisNotes">Run a test to see detailed token breakdown.</span>
+          <div class="space-x-4">
+            <span class="font-bold text-green-700">Input: <span id="inputTokensVal">-</span></span>
+            <span class="font-bold text-yellow-700">Overhead: <span id="overheadTokensVal">-</span></span>
+            <span class="font-bold text-blue-700">Output: <span id="outputTokensVal">-</span></span>
+          </div>
         </div>
       </div>
 
@@ -344,21 +533,46 @@
         </div>
       </div>
 
-      <!-- Modification Impact -->
-      <div class="mt-6 p-4 bg-blue-50 rounded">
-        <h4 class="font-medium text-blue-900 mb-2">Modification Impact</h4>
-        <div class="text-sm text-blue-800">
-          <div id="modificationImpact">Run a test to see energy impact analysis.</div>
+      <!-- Modification Impact removed as requested -->
+    </div>
+
+  </div>
+
+  <!-- Response Output -->
+  <div class="bg-white rounded-lg shadow p-6">
+    <h3 class="text-xl font-semibold text-gray-900 mb-4">Response Output</h3>
+    <div id="responseOutput" class="model-output bg-gray-50 p-4 rounded min-h-32 border">
+      Run a test to see the model response here.
+    </div>
+  </div>
+
+  <!-- Session Energy Summary -->
+  <div class="max-w-7xl mx-auto mt-6">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-xl font-semibold text-gray-900 mb-4">Cummulative Session Summary</h3>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <div class="text-sm text-blue-600 font-medium">Total Energy</div>
+          <div id="sessionEnergy" class="text-2xl font-bold text-blue-900">0.00 Wh</div>
+        </div>
+        <div class="bg-green-50 p-4 rounded-lg">
+          <div class="text-sm text-green-600 font-medium">Carbon Footprint</div>
+          <div id="sessionCarbon" class="text-2xl font-bold text-green-900">0.00 gCO2</div>
+        </div>
+        <div class="bg-purple-50 p-4 rounded-lg">
+          <div class="text-sm text-purple-600 font-medium">Energy Weight</div>
+          <div id="sessionEfficiency" class="text-2xl font-bold text-purple-900">0.00 Wh/1000 e-tokens</div>
+        </div>
+        <div class="bg-orange-50 p-4 rounded-lg">
+          <div class="text-sm text-orange-600 font-medium">Total Tokens</div>
+          <div id="sessionTokens" class="text-2xl font-bold text-orange-900">0</div>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="text-sm text-gray-600 font-medium">RAPL Measured Energy</div>
+          <div id="sessionRaplEnergy" class="text-2xl font-bold text-gray-900">0.000000 Wh</div>
         </div>
       </div>
     </div>
-    <div class="bg-white rounded-lg shadow p-6">
-      <h3 class="text-xl font-semibold text-gray-900 mb-4">Response Output</h3>
-      <div id="responseOutput" class="model-output bg-gray-50 p-4 rounded min-h-32 border">
-        Run a test to see the model response here.
-      </div>
-    </div>
-
   </div>
 
   <div id="cliModal" class="fixed inset-0 hidden z-50">
@@ -377,6 +591,9 @@
     // DOM references
     const modelSelect = document.getElementById('modelSelect');
     const energyBenchmark = document.getElementById('energyBenchmark');
+    const systemPromptSelect = document.getElementById('systemPromptSelect');
+    const systemPromptText = document.getElementById('systemPromptText');
+    const conversationContextText = document.getElementById('conversationContextText');
     const userPrompt = document.getElementById('userPrompt');
     const temperature = document.getElementById('temperature');
     const maxTokens = document.getElementById('maxTokens');
@@ -400,6 +617,9 @@
     const customBenchmarkDesc = document.getElementById('customBenchmarkDesc');
     const customBenchmarkSpecs = document.getElementById('customBenchmarkSpecs');
     const addCustomBenchmarkBtn = document.getElementById('addCustomBenchmarkBtn');
+    const runRaplCalibration = document.getElementById('runRaplCalibration');
+    const runRaplBatch = document.getElementById('runRaplBatch');
+    const raplBatchTableBody = document.getElementById('raplBatchTableBody');
 
     // Token analysis elements
     const inputTokens = document.getElementById('inputTokens');
@@ -435,28 +655,65 @@
     let ws = null;
     let energyHistory = [];
     let currentTestResults = null;
+    let batchRunning = false;
+    let batchStopRequested = false;
+    let _raplBatchFirstDuration = null;
+    let _raplLastBatchResult = null;
+    let raplBatchSummaries = [];
+    let systemPrompts = [];
+
+    function renderRaplBatchTable() {
+      if (!raplBatchTableBody) return;
+      raplBatchTableBody.innerHTML = '';
+
+      const sorted = raplBatchSummaries.slice().reverse();
+      sorted.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50';
+        tr.innerHTML = `
+            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${s.time}</td>
+            <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-900">${s.runs}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-indigo-700 font-bold">${(s.meanWhPer1k ?? 0).toFixed(3)}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-indigo-600">${(s.medianWhPer1k ?? 0).toFixed(3)}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${(s.stdWhPer1k ?? 0).toFixed(3)}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${(s.p5WhPer1k != null && s.p95WhPer1k != null) ? `${s.p5WhPer1k.toFixed(3)} – ${s.p95WhPer1k.toFixed(3)}` : 'n/a'}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${(s.cv ?? 0).toFixed(3)}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-green-700">${(s.meanInputTokens != null ? s.meanInputTokens.toFixed(0) : 'n/a')} / ${(s.medianInputTokens != null ? s.medianInputTokens.toFixed(0) : 'n/a')}</td>
+            <td class="px-3 py-2 whitespace-nowrap text-blue-700">${(s.meanOutputTokens != null ? s.meanOutputTokens.toFixed(0) : 'n/a')} / ${(s.medianOutputTokens != null ? s.medianOutputTokens.toFixed(0) : 'n/a')}</td>
+            <td class="px-3 py-2 whitespace-nowrap">
+              <button data-id="${s.id}" class="text-red-600 hover:text-red-800 text-xs">Remove</button>
+            </td>
+          `;
+        raplBatchTableBody.appendChild(tr);
+      });
+
+      raplBatchTableBody.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-id');
+          raplBatchSummaries = raplBatchSummaries.filter(r => String(r.id) !== String(id));
+          renderRaplBatchTable();
+        });
+      });
+    }
 
     // Chart
     let energyChart = null;
 
-    // Initialize
-    init();
-
-    async function init() {
-      await loadModels();
-      await loadBenchmarks();
-      await loadBenchmarkSwitcher();
-      await updateCurrentBenchmarkInfo();
-      await updateSessionSummary();
-      setupWebSocket();
-      setupEventListeners();
-      initChart();
-    }
+    // Initialize (called at bottom)
 
     async function loadModels() {
+      console.log('🔄 Attempting to load models...');
       try {
         const r = await fetch('/api/models');
+        console.log('📡 Models API response status:', r.status);
+        if (!r.ok) {
+          const errorText = await r.text();
+          console.error('❌ Models API request failed:', r.status, errorText);
+          modelSelect.innerHTML = '<option>Error loading models (API failed)</option>';
+          return;
+        }
         const d = await r.json();
+        console.log('✓ Models API response data:', d);
         modelSelect.innerHTML = '';
         if (d.models && d.models.length > 0) {
           d.models.forEach(model => {
@@ -465,30 +722,80 @@
             opt.textContent = model;
             modelSelect.appendChild(opt);
           });
+          console.log('✓ Models dropdown populated with', d.models.length, 'models');
+          const preferred = (d.current && (d.current.instruct || d.current.base)) || null;
+          if (preferred && d.models.includes(preferred)) {
+            modelSelect.value = preferred;
+          } else if (modelSelect.options.length > 0) {
+            modelSelect.selectedIndex = 0;
+          }
         } else {
           modelSelect.innerHTML = '<option>No models available</option>';
+          console.log('⚠️ No models found in API response');
         }
       } catch (e) {
-        console.error('Failed to load models:', e);
-        modelSelect.innerHTML = '<option>Error loading models</option>';
+        console.error('❌ Failed to load models (JS error):', e);
+        modelSelect.innerHTML = '<option>Error loading models (JS error)</option>';
+      }
+    }
+
+    async function loadSystemPrompts() {
+      try {
+        const r = await fetch('/api/system-prompts');
+        const d = await r.json();
+        systemPrompts = Array.isArray(d.prompts) ? d.prompts : [];
+
+        // Reset dropdown, keep the custom/empty option
+        systemPromptSelect.innerHTML = '<option value="">Custom / empty</option>';
+
+        systemPrompts.forEach(prompt => {
+          const opt = document.createElement('option');
+          opt.value = prompt.id;
+          opt.textContent = prompt.name;
+          systemPromptSelect.appendChild(opt);
+        });
+      } catch (e) {
+        console.error('Failed to load system prompts:', e);
       }
     }
 
     async function loadBenchmarks() {
+      console.log('🔄 Attempting to load benchmarks...');
       try {
         const r = await fetch('/api/energy-benchmarks');
+        console.log('📡 Benchmarks API response status:', r.status);
+        if (!r.ok) {
+          const errorText = await r.text();
+          console.error('❌ Benchmarks API request failed:', r.status, errorText);
+          if (energyBenchmark) energyBenchmark.innerHTML = '<option>Error loading (API fail)</option>';
+          return;
+        }
         const d = await r.json();
-        energyBenchmark.innerHTML = '';
-        if (d.benchmarks) {
-          d.benchmarks.forEach(benchmark => {
-            const opt = document.createElement('option');
-            opt.value = benchmark.name;
-            opt.textContent = `${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh/1000 tokens)`;
-            energyBenchmark.appendChild(opt);
-          });
+        console.log('✓ Benchmarks API response data:', d);
+        if (energyBenchmark) {
+          energyBenchmark.innerHTML = '';
+          if (d.benchmarks && d.benchmarks.length > 0) {
+            d.benchmarks.forEach(benchmark => {
+              const opt = document.createElement('option');
+              opt.value = benchmark.name;
+              const isRapl =
+                (benchmark.source && benchmark.source.toLowerCase().includes('rapl')) ||
+                benchmark.name.toLowerCase().startsWith('rapl_');
+              const labelPrefix = isRapl ? '[RAPL] ' : '';
+              opt.textContent = `${labelPrefix}${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh / 1000 tokens)`;
+              energyBenchmark.appendChild(opt);
+            });
+            console.log('✓ Benchmarks dropdown populated with', d.benchmarks.length, 'benchmarks');
+          } else {
+            energyBenchmark.innerHTML = '<option>No benchmarks available</option>';
+            console.log('⚠️ No benchmarks found in API response');
+          }
+        } else {
+          console.log('ℹ️ energyBenchmark element not found, skipping population');
         }
       } catch (e) {
-        console.error('Failed to load benchmarks:', e);
+        console.error('❌ Failed to load benchmarks (JS error):', e);
+        if (energyBenchmark) energyBenchmark.innerHTML = '<option>Error loading (JS error)</option>';
       }
     }
 
@@ -500,25 +807,36 @@
         benchmarkSwitcher.innerHTML = '';
 
         let found = false;
-        if (d.benchmarks) {
+        if (d.benchmarks && d.benchmarks.length > 0) {
           d.benchmarks.forEach(benchmark => {
             const opt = document.createElement('option');
             opt.value = benchmark.name;
-            opt.textContent = `${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh/1000 tokens)`;
+            const isRapl =
+              (benchmark.source && benchmark.source.toLowerCase().includes('rapl')) ||
+              benchmark.name.toLowerCase().startsWith('rapl_');
+            const labelPrefix = isRapl ? '[RAPL] ' : '';
+            opt.textContent = `${labelPrefix}${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh / 1000 tokens)`;
             benchmarkSwitcher.appendChild(opt);
 
             if (valueToSelect && benchmark.name === valueToSelect) {
               found = true;
             } else if (!valueToSelect && benchmark.name === currentValue) {
               found = true;
+            } else if (!valueToSelect && !currentValue && benchmark.name === 'conservative_estimate') {
+              // Default to conservative_estimate
+              found = true;
             }
           });
-        }
 
-        if (valueToSelect && found) {
-          benchmarkSwitcher.value = valueToSelect;
-        } else if (currentValue && found) {
-          benchmarkSwitcher.value = currentValue;
+          // Set the value
+          if (valueToSelect) {
+            benchmarkSwitcher.value = valueToSelect;
+          } else if (found && currentValue) {
+            benchmarkSwitcher.value = currentValue;
+          } else {
+            // Default to conservative_estimate
+            benchmarkSwitcher.value = 'conservative_estimate';
+          }
         }
 
         switchBenchmarkBtn.disabled = false;
@@ -545,16 +863,21 @@
     }
 
     function setupWebSocket() {
-      ws = new WebSocket(`ws://${location.host}/ws`);
+      const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${wsProto}://${location.host}/ws`);
 
       ws.onopen = () => {
-        connectionStatus.textContent = 'Connected';
-        connectionStatus.className = 'px-4 py-2 rounded-full bg-green-100 text-green-700';
+        if (connectionStatus) {
+          connectionStatus.textContent = 'Connected';
+          connectionStatus.className = 'px-4 py-2 rounded-full bg-green-100 text-green-700';
+        }
       };
 
       ws.onclose = () => {
-        connectionStatus.textContent = 'Disconnected';
-        connectionStatus.className = 'px-4 py-2 rounded-full bg-red-100 text-red-700';
+        if (connectionStatus) {
+          connectionStatus.textContent = 'Disconnected';
+          connectionStatus.className = 'px-4 py-2 rounded-full bg-red-100 text-red-700';
+        }
       };
 
       ws.onmessage = async (event) => {
@@ -566,11 +889,21 @@
           appendCliLog(data.log);
         } else if (data.token && !data.done) {
           // Streaming token
+          console.log('📝 TOKEN RECEIVED:', data.token);
+          console.log('📍 responseOutput element:', responseOutput);
+          console.log('📍 Current responseOutput content length:', responseOutput.textContent.length);
           responseOutput.textContent += data.token;
+          console.log('✅ Updated responseOutput. New length:', responseOutput.textContent.length);
+          // Also mirror tokens into CLI log when live logs are open
+          appendCliLog(data.token);
         } else if (data.done) {
+          console.log('✔️ Test completion received');
           await handleTestCompletion(data);
         } else if (data.error) {
+          console.error('❌ Error from backend:', data.error);
           alert(`Error: ${data.error}`);
+        } else {
+          console.warn('⚠️ Unknown message type:', data);
         }
       };
     }
@@ -579,9 +912,62 @@
       temperature.addEventListener('input', () => tempValue.textContent = temperature.value);
 
       // Benchmark controls
+      // Benchmark controls
       benchmarkInfoBtn.addEventListener('click', showBenchmarkInfo);
       switchBenchmarkBtn.addEventListener('click', switchBenchmark);
       addCustomBenchmarkBtn.addEventListener('click', addCustomBenchmark);
+      if (runRaplCalibration) runRaplCalibration.addEventListener('click', runRaplCalibrationHandler);
+      // runRaplBatch button removed (integrated into main run)
+
+      // System prompt selection
+      if (systemPromptSelect) {
+        systemPromptSelect.addEventListener('change', () => {
+          const id = systemPromptSelect.value;
+          if (!id) {
+            // Custom / empty
+            return;
+          }
+          const found = systemPrompts.find(p => p.id === id);
+          if (found && typeof found.content === 'string') {
+            systemPromptText.value = found.content;
+          }
+        });
+      }
+
+      // Clear system prompt
+      const clearSystemPromptBtn = document.getElementById('clearSystemPromptBtn');
+      if (clearSystemPromptBtn) {
+        clearSystemPromptBtn.addEventListener('click', () => {
+          if (systemPromptSelect) systemPromptSelect.value = '';
+          if (systemPromptText) systemPromptText.value = '';
+        });
+      }
+
+      // Inject latest conversation into context
+      const injectConversationBtn = document.getElementById('injectConversationBtn');
+      if (injectConversationBtn && conversationContextText) {
+        injectConversationBtn.addEventListener('click', () => {
+          const userText = userPrompt.value.trim();
+          const responseText = responseOutput.textContent.trim();
+          if (!userText && !responseText) {
+            return;
+          }
+
+          const blockLines = [];
+          blockLines.push('<conversation_context>');
+          if (userText) {
+            blockLines.push('[User] ' + userText);
+          }
+          if (responseText) {
+            blockLines.push('[Assistant] ' + responseText);
+          }
+          blockLines.push('</conversation_context>');
+
+          const block = blockLines.join('\n');
+          const existing = conversationContextText.value.trim();
+          conversationContextText.value = existing ? (existing + '\n\n' + block) : block;
+        });
+      }
 
       runTest.addEventListener('click', runEnergyTest);
       stopTest.addEventListener('click', stopEnergyTest);
@@ -597,29 +983,49 @@
         type: 'line',
         data: {
           labels: [],
-          datasets: [{
-            label: 'Energy Consumption (Wh)',
-            data: [],
-            borderColor: 'rgb(59, 130, 246)',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            tension: 0.1
-          }]
+          datasets: [
+            {
+              label: 'Total Energy (Wh)',
+              data: [],
+              borderColor: 'rgb(59, 130, 246)', // Blue
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              yAxisID: 'y',
+              tension: 0.1
+            },
+            {
+              label: 'Intensity (Wh/1k e-tokens)',
+              data: [],
+              borderColor: 'rgb(147, 51, 234)', // Purple
+              backgroundColor: 'rgba(147, 51, 234, 0.15)',
+              yAxisID: 'y1',
+              tension: 0.1
+            }
+          ]
         },
         options: {
           responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
           scales: {
             y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Watt-hours'
-              }
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: { display: true, text: 'Total Energy (Wh)' }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: { display: true, text: 'Wh / 1000 Output Tokens' },
+              grid: {
+                drawOnChartArea: false, // only want the grid lines for one axis to show up
+              },
             },
             x: {
-              title: {
-                display: true,
-                text: 'Test Run'
-              }
+              title: { display: true, text: 'Test Run' }
             }
           }
         }
@@ -755,13 +1161,112 @@
       }
     }
 
+    async function runRaplCalibrationHandler() {
+      const runsInput = document.getElementById('raplCalibrationRuns');
+      const statusEl = document.getElementById('raplCalibrationStatus');
+      const statsContainer = document.getElementById('raplCalibrationStats');
+      const runs = parseInt(runsInput.value, 10) || 1;
+
+      const model = modelSelect.value;
+      if (!model) {
+        alert('Please select a model before running RAPL calibration.');
+        return;
+      }
+
+      try {
+        statusEl.textContent = `Running ${runs} RAPL calibration run(s)… this may take a while.`;
+        runRaplCalibration.disabled = true;
+
+        const r = await fetch('/api/rapl-calibrate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ runs, model_name: model })
+        });
+
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          throw new Error(err.detail || 'Calibration failed');
+        }
+
+        const data = await r.json();
+        const s = data.stats || {};
+        const b = data.benchmark || {};
+
+        document.getElementById('raplCalMean').textContent = (s.mean ?? 0).toFixed(6);
+        document.getElementById('raplCalMedian').textContent = (s.median ?? 0).toFixed(6);
+        document.getElementById('raplCalStd').textContent = (s.std ?? 0).toFixed(6);
+        document.getElementById('raplCalP5').textContent = (s.p5 ?? 0).toFixed(6);
+        document.getElementById('raplCalP95').textContent = (s.p95 ?? 0).toFixed(6);
+        document.getElementById('raplCalCv').textContent = s.cv != null ? s.cv.toFixed(2) : '-';
+        document.getElementById('raplCalBenchmarkName').textContent = b.name || '-';
+
+        statsContainer.classList.remove('hidden');
+        statusEl.textContent = `RAPL calibration complete. Created/updated benchmark '${b.name}'.`;
+
+        // Refresh benchmark lists and auto-select the new calibrated benchmark
+        await loadBenchmarks();
+        await loadBenchmarkSwitcher(b.name);
+        if (energyBenchmark) energyBenchmark.value = b.name;
+      } catch (e) {
+        console.error('RAPL calibration failed:', e);
+        alert(`RAPL calibration failed: ${e.message}`);
+        statusEl.textContent = 'RAPL calibration failed.';
+      } finally {
+        runRaplCalibration.disabled = false;
+      }
+    }
+
+    // Build payload from current UI (system prompt + conversation context + query + injections + settings)
+    function buildEnergyPayload(forceRapl = false) {
+      const userQuery = userPrompt.value.trim();
+      if (!userQuery) {
+        throw new Error('Please enter a user query');
+      }
+
+      // Get raw components
+      const baseSystem = systemPromptText.value.trim();
+      const convoContext = conversationContextText ? conversationContextText.value.trim() : '';
+
+      // Get structured injections
+      const userInjections = getInjections().map(inj => ({
+        description: inj.description,
+        content: inj.content
+      }));
+
+      const payload = {
+        // New structured fields for backend composition
+        system_prompt: baseSystem,
+        user_prompt: userQuery,
+        conversation_context: convoContext,
+        injections: userInjections,
+
+        // Legacy fields (optional, but good to keep for now)
+        system: baseSystem,
+        user: userQuery,
+
+        model_name: modelSelect.value,
+        strategy_name: 'custom_injection',
+        energy_benchmark: benchmarkSwitcher.value || 'conservative_estimate',
+        injection_type: userInjections.length > 0 ? 'user_defined' : 'none',
+
+        temp: parseFloat(temperature.value),
+        max_tokens: parseInt(maxTokens.value),
+        seed: document.getElementById('seedInput').value ? parseInt(document.getElementById('seedInput').value) : null,
+        enable_live_power_monitoring: forceRapl ? true : (document.getElementById('enableLivePower')?.checked === true)
+      };
+
+      return payload;
+    }
+
     function updateSessionWithRecalculatedData(recalculatedData) {
       // Update session summary display
       sessionEnergy.textContent = `${recalculatedData.total_energy_wh.toFixed(4)} Wh`;
       sessionCarbon.textContent = `${recalculatedData.total_carbon_gco2.toFixed(2)} gCO2`;
       sessionEfficiency.textContent = `${recalculatedData.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
       sessionTokens.textContent = recalculatedData.total_tokens;
-      sessionRaplEnergy.textContent = `${recalculatedData.session_summary.rapl_session.toFixed(6)} Wh`;
+      if (sessionRaplEnergy && recalculatedData.session_summary?.rapl_session) {
+        sessionRaplEnergy.textContent = `${recalculatedData.session_summary.rapl_session.toFixed(6)} Wh`;
+      }
 
       // If we have current test results, update the energy display for the current test
       if (currentTestResults) {
@@ -836,88 +1341,65 @@
     // Add event listener for add button
     document.getElementById('addInjectionBtn').addEventListener('click', () => addInjection());
 
-    // Add default system prompt injection
-    addInjection('system_prompt', 'You are a helpful assistant.');
+    // Note: no default injections; system prompt is controlled by the fixed field above.
 
-    // ===== RUN TEST (UPDATED FOR NEW INJECTION SYSTEM) =====
+    // ===== RUN TEST (UPDATED FOR NEW INJECTION SYSTEM & BATCH TRIGGER) =====
     async function runEnergyTest() {
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         alert('WebSocket not connected. Please refresh the page.');
         return;
       }
 
-      const userQuery = userPrompt.value.trim();
-      if (!userQuery) {
-        alert('Please enter a user query');
+      if (!modelSelect.value || /No models/i.test(modelSelect.value)) {
+        alert('No valid model selected. Start Ollama and pick a model.');
+        return;
+      }
+
+      // Check for Batch Mode
+      const liveChecked = document.getElementById('enableLivePower')?.checked === true;
+      const batchRuns = parseInt(document.getElementById('raplBatchRuns').value) || 1;
+
+      if (liveChecked && batchRuns > 1) {
+        // Trigger Batch Handler instead
+        await runRaplBatchHandler();
         return;
       }
 
       responseOutput.textContent = '';
       currentTestResults = null;
       if (cliLog) cliLog.innerHTML = '';
-      const liveChecked = document.getElementById('enableLivePower').checked;
+
       if (liveChecked) openCliModal();
 
-      // Get all injections
-      const userInjections = getInjections();
-
-      // Build system prompt from injections
-      let systemPrompt = '';
-      let injectionDetails = [];
-      let injectionMetadata = {};
-
-      for (const inj of userInjections) {
-        if (systemPrompt) systemPrompt += '\n\n---\n\n';
-        systemPrompt += `[${inj.description}]\n${inj.content}`;
-
-        const tokens = Math.ceil(inj.content.length / 4);  // Approximate
-        injectionDetails.push({
-          type: inj.description,
-          tokens: tokens
-        });
-
-        // Track tokens per injection type
-        if (!injectionMetadata[inj.description]) {
-          injectionMetadata[inj.description] = { count: 0, tokens: 0 };
-        }
-        injectionMetadata[inj.description].count++;
-        injectionMetadata[inj.description].tokens += tokens;
+      let payload;
+      try {
+        payload = buildEnergyPayload(false);
+      } catch (e) {
+        alert(e.message);
+        return;
       }
 
-      console.log('📋 Built system prompt from injections:', systemPrompt);
-      console.log('📊 Injection details:', injectionDetails);
-      console.log('📈 Injection metadata:', injectionMetadata);
-
-      // Prepare payload - send injection metadata for proper tracking
-      const payload = {
-        system: systemPrompt,
-        user: userQuery,
-        model_name: modelSelect.value,
-        strategy_name: 'custom_injection',
-        energy_benchmark: benchmarkSwitcher.value,
-        injection_type: userInjections.length > 0 ? 'user_defined' : 'none',
-        injection_params: {
-          injections: injectionDetails,
-          metadata: injectionMetadata
-        },
-        temp: parseFloat(temperature.value),
-        max_tokens: parseInt(maxTokens.value),
-        enable_live_power_monitoring: document.getElementById('enableLivePower').checked
-      };
+      // Brief CLI log to confirm injections
+      const sysPreview = (payload.system || '').slice(0, 200).replace(/\n/g, ' ');
+      appendCliLog(`🔧 System prompt set (${payload.system?.length || 0} chars): ${sysPreview}${(payload.system && payload.system.length > 200) ? '…' : ''}`);
+      appendCliLog(`🧩 Injections meta: ${JSON.stringify(payload.injection_params?.metadata || {})}`);
+      if (payload.seed) appendCliLog(`🎲 Seed: ${payload.seed}`);
 
       console.log('📤 Sending payload:', payload);
 
       ws.send(JSON.stringify(payload));
       runTest.disabled = true;
-      runTest.textContent = 'Running...';
+      runTest.innerHTML = '<span class="animate-spin mr-2">↻</span> Running...';
       stopTest.disabled = false;
+      stopTest.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      stopTest.classList.add('btn-danger', 'hover:bg-red-700');
     }
-
     function stopEnergyTest() {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ command: 'cancel' }));
+        batchStopRequested = true;
         stopTest.disabled = true;
         stopTest.textContent = 'Stopping...';
+        ws.send(JSON.stringify({ command: 'cancel' }));
       }
     }
 
@@ -932,48 +1414,267 @@
         return;
       }
 
-      currentTestResults = data;
+      // In batch mode, just stash the latest result and let the batch handler
+      // decide when to update the main UI (only once at the end).
+      if (batchRunning) {
+        _raplLastBatchResult = data;
+      } else {
+        currentTestResults = data;
 
-      // Update energy display
-      updateEnergyDisplay(data.energy_metrics);
+        // Update energy display
+        updateEnergyDisplay(data.energy_metrics);
 
-      // Update results display
-      updateResultsDisplay(data);
+        // Update results display
+        updateResultsDisplay(data);
 
-      // Update chart
-      updateEnergyChart(data.energy_metrics.watt_hours_consumed);
+        // Update chart
+        updateEnergyChart(
+          data.energy_metrics.watt_hours_consumed,
+          data.energy_metrics.energy_efficiency_score
+        );
 
-      // Update session summary
-      await updateSessionSummary();
+        // Update session summary
+        await updateSessionSummary();
 
-      const usedBenchmark = data.energy_metrics.benchmark_used;
-      if (usedBenchmark && usedBenchmark !== benchmarkSwitcher.value) {
-        await loadBenchmarkSwitcher(usedBenchmark);
-        await loadBenchmarks();
-        const opt = Array.from(energyBenchmark.options).find(o => o.value === usedBenchmark);
-        if (opt) energyBenchmark.value = usedBenchmark;
-        const infoEl = document.getElementById('currentBenchmarkInfo');
-        if (infoEl) infoEl.textContent = `${usedBenchmark} - Click info button for details`;
+        const usedBenchmark = data.energy_metrics.benchmark_used;
+        if (usedBenchmark && usedBenchmark !== benchmarkSwitcher.value) {
+          await loadBenchmarkSwitcher(usedBenchmark);
+          await loadBenchmarks();
+          if (energyBenchmark) {
+            const opt = Array.from(energyBenchmark.options).find(o => o.value === usedBenchmark);
+            if (opt) energyBenchmark.value = usedBenchmark;
+          }
+          const infoEl = document.getElementById('currentBenchmarkInfo');
+          if (infoEl) infoEl.textContent = `${usedBenchmark} - Click info button for details`;
+        }
+
+        // Analyze modification impact
+        analyzeModificationImpact(data);
+
+        // If this was a single RAPL-enabled run with a valid measurement, record it into the RAPL table
+        if (!batchRunning && data.live_power_metrics && data.live_power_metrics.measured_wh_per_1000_tokens != null) {
+          const now = new Date();
+          const ts = now.toLocaleTimeString();
+          const raplWhPer1k = data.live_power_metrics.measured_wh_per_1000_tokens;
+          const inTok = data.basic_metrics?.prompt_tokens ?? null;
+          const outTok = data.basic_metrics?.completion_tokens ?? null;
+          raplBatchSummaries.push({
+            id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            time: ts,
+            runs: 1,
+            meanWhPer1k: raplWhPer1k,
+            medianWhPer1k: raplWhPer1k,
+            stdWhPer1k: 0,
+            p5WhPer1k: raplWhPer1k,
+            p95WhPer1k: raplWhPer1k,
+            cv: 0,
+            meanInputTokens: inTok,
+            medianInputTokens: inTok,
+            meanOutputTokens: outTok,
+            medianOutputTokens: outTok,
+          });
+          renderRaplBatchTable();
+        }
       }
 
-      // Analyze modification impact
-      analyzeModificationImpact(data);
+      // Resolve any pending batch run
+      if (batchRunning && typeof window._raplBatchResolve === 'function') {
+        const resolve = window._raplBatchResolve;
+        window._raplBatchResolve = null;
+        resolve(data);
+      }
+    }
+
+    async function runRaplBatchHandler() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('WebSocket not connected. Please refresh the page.');
+        return;
+      }
+
+      const runsInput = document.getElementById('raplBatchRuns');
+      const totalRuns = parseInt(runsInput.value, 10) || 1;
+
+      // Prepare CLI terminal
+      if (cliLog) cliLog.innerHTML = '';
+      openCliModal();
+      appendCliLog(`📊 Starting RAPL batch: ${totalRuns} run(s) with current query + injections`);
+
+      batchRunning = true;
+      batchStopRequested = false;
+      let completed = 0;
+      const raplValues = [];
+      const inputTokensArr = [];
+      const outputTokensArr = [];
+      _raplBatchFirstDuration = null;
+
+      for (let i = 0; i < totalRuns; i++) {
+        if (batchStopRequested) {
+          appendCliLog(`⏹ Batch stop requested after ${completed} run(s).`);
+          break;
+        }
+
+        appendCliLog(`\n===== Batch Run ${i + 1}/${totalRuns} =====`);
+
+        // Log current prompt and injections for this run
+        const currentQuery = userPrompt.value.trim();
+        appendCliLog(`📝 User query: ${currentQuery || '(empty)'}`);
+        const injList = getInjections();
+        if (injList.length > 0) {
+          appendCliLog('🔧 Injections:');
+          injList.forEach((inj, idx) => {
+            appendCliLog(`  [${idx + 1}] ${inj.description || 'Unnamed'}: ${inj.content.substring(0, 200)}${inj.content.length > 200 ? '…' : ''}`);
+          });
+        } else {
+          appendCliLog('🔧 Injections: (none)');
+        }
+
+        let payload;
+        try {
+          payload = buildEnergyPayload(true);
+        } catch (e) {
+          appendCliLog(`❌ Skipping run: ${e.message}`);
+          break;
+        }
+
+        ws.send(JSON.stringify(payload));
+
+        const data = await new Promise(resolve => {
+          window._raplBatchResolve = resolve;
+        });
+
+        if (data && data.basic_metrics) {
+          completed++;
+          const totalTokens = data.basic_metrics.total_tokens;
+          const promptTokens = data.basic_metrics.prompt_tokens ?? null;
+          const completionTokens = data.basic_metrics.completion_tokens ?? null;
+          const latency = data.basic_metrics.latency;
+          const energyWh = data.energy_metrics.watt_hours_consumed;
+          const raplWhPer1k = data.live_power_metrics && data.live_power_metrics.measured_wh_per_1000_tokens;
+
+          if (raplWhPer1k != null) raplValues.push(raplWhPer1k);
+          if (promptTokens != null) inputTokensArr.push(promptTokens);
+          if (completionTokens != null) outputTokensArr.push(completionTokens);
+
+          // Record first-run duration for ETA
+          if (_raplBatchFirstDuration === null && latency && latency > 0) {
+            _raplBatchFirstDuration = latency;
+          }
+
+          appendCliLog(
+            `Run ${completed}: input=${promptTokens ?? 'n/a'} tok, output=${completionTokens ?? 'n/a'} tok, total=${totalTokens}, ` +
+            `latency=${latency.toFixed(2)}s, energy=${energyWh.toFixed(3)} Wh, ` +
+            `RAPL Wh/1K=${raplWhPer1k != null ? raplWhPer1k.toFixed(3) : 'n/a'}`
+          );
+
+          // Estimated remaining time based on first run
+          if (_raplBatchFirstDuration !== null && completed < totalRuns) {
+            const remainingRuns = totalRuns - completed;
+            const etaSeconds = remainingRuns * _raplBatchFirstDuration;
+            const minutes = Math.floor(etaSeconds / 60);
+            const seconds = Math.round(etaSeconds % 60);
+            appendCliLog(
+              `  Approx. time remaining: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s for ${remainingRuns} run(s)`
+            );
+          }
+        } else {
+          appendCliLog('⚠️ Run returned no basic metrics; skipping from stats.');
+        }
+      }
+
+      batchRunning = false;
+      batchStopRequested = false;
+
+      if (raplValues.length > 0) {
+        const sorted = [...raplValues].sort((a, b) => a - b);
+        const n = sorted.length;
+        const mean = sorted.reduce((s, x) => s + x, 0) / n;
+        const median = n % 2 === 1 ? sorted[(n - 1) / 2] : 0.5 * (sorted[n / 2 - 1] + sorted[n / 2]);
+        const varVal = sorted.reduce((s, x) => s + (x - mean) * (x - mean), 0) / n;
+        const std = Math.sqrt(varVal);
+        const p5 = sorted[Math.max(Math.floor(n * 0.05) - 1, 0)];
+        const p95 = sorted[Math.min(Math.floor(n * 0.95), n - 1)];
+        const cv = std / mean;
+
+        // Compute token statistics
+        const meanIn = inputTokensArr.length ? (inputTokensArr.reduce((s, x) => s + x, 0) / inputTokensArr.length) : null;
+        const meanOut = outputTokensArr.length ? (outputTokensArr.reduce((s, x) => s + x, 0) / outputTokensArr.length) : null;
+        const medIn = inputTokensArr.length ? (() => {
+          const t = [...inputTokensArr].sort((a,b)=>a-b); const n2 = t.length; return n2 % 2 ? t[(n2-1)/2] : 0.5*(t[n2/2-1]+t[n2/2]);
+        })() : null;
+        const medOut = outputTokensArr.length ? (() => {
+          const t = [...outputTokensArr].sort((a,b)=>a-b); const n2 = t.length; return n2 % 2 ? t[(n2-1)/2] : 0.5*(t[n2/2-1]+t[n2/2]);
+        })() : null;
+
+        // Calculate injected tokens from the last result (assuming constant for batch)
+        let injectedTokensVal = 0;
+        if (_raplLastBatchResult && _raplLastBatchResult.token_metrics && _raplLastBatchResult.token_metrics.breakdown) {
+          injectedTokensVal = _raplLastBatchResult.token_metrics.breakdown.injected?.total_injection_tokens || 0;
+        }
+
+        appendCliLog('\n📈 RAPL Batch Summary (UI prompt + injections)');
+        appendCliLog(`  Successful runs: ${n}`);
+        appendCliLog(`  Mean:   ${mean.toFixed(3)} Wh/1K`);
+        appendCliLog(`  Median: ${median.toFixed(3)} Wh/1K`);
+        appendCliLog(`  Std:    ${std.toFixed(3)} Wh/1K`);
+        appendCliLog(`  5–95%:  ${p5.toFixed(3)} – ${p95.toFixed(3)} Wh/1K`);
+        appendCliLog(`  CV:     ${cv.toFixed(3)}`);
+        if (meanIn != null || meanOut != null) {
+          appendCliLog(`  Input tokens μ: ${meanIn != null ? meanIn.toFixed(0) : 'n/a'}`);
+          appendCliLog(`  Output tokens μ: ${meanOut != null ? meanOut.toFixed(0) : 'n/a'}`);
+        }
+        if (injectedTokensVal > 0) {
+          appendCliLog(`  Injected tokens: ${injectedTokensVal}`);
+        }
+
+        // Store a simple summary row for the batch table
+        const now = new Date();
+        const ts = now.toLocaleTimeString();
+        raplBatchSummaries.push({
+          id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          time: ts,
+          runs: n,
+          injectedTokens: injectedTokensVal,
+          meanWhPer1k: mean,
+          medianWhPer1k: median,
+          stdWhPer1k: std,
+          p5WhPer1k: p5,
+          p95WhPer1k: p95,
+          cv,
+          meanInputTokens: meanIn,
+          medianInputTokens: medIn,
+          meanOutputTokens: meanOut,
+          medianOutputTokens: medOut,
+        });
+        renderRaplBatchTable();
+      } else {
+        appendCliLog('\n⚠️ No valid RAPL Wh/1K values collected in batch.');
+      }
+
+      // After batch completes, if we have a last successful result, apply it
+      // to the main single-run UI so you can inspect one concrete run.
+      if (_raplLastBatchResult) {
+        currentTestResults = _raplLastBatchResult;
+        updateEnergyDisplay(_raplLastBatchResult.energy_metrics);
+        updateResultsDisplay(_raplLastBatchResult);
+        updateEnergyChart(_raplLastBatchResult.energy_metrics.watt_hours_consumed, _raplLastBatchResult.energy_metrics.energy_efficiency_score);
+        await updateSessionSummary();
+        analyzeModificationImpact(_raplLastBatchResult);
+      }
     }
 
     function updateEnergyDisplay(energyMetrics) {
       const energy = energyMetrics.watt_hours_consumed;
       const carbon = energyMetrics.carbon_grams_co2;
 
+      testEnergy.textContent = `${energy.toFixed(3)} Wh`;
       testEnergy.textContent = `${energy.toFixed(4)} Wh`;
       carbonImpact.textContent = `${carbon.toFixed(2)} gCO2`;
       // Per-run RAPL metrics (if available on this response)
       if (currentTestResults && currentTestResults.live_power_metrics && currentTestResults.live_power_metrics.measured_wh) {
-        raplEnergy.textContent = `${currentTestResults.live_power_metrics.measured_wh.toFixed(6)} Wh`;
         if (currentTestResults.live_power_metrics.measured_wh_per_1000_tokens) {
           raplEfficiency.textContent = `${currentTestResults.live_power_metrics.measured_wh_per_1000_tokens.toFixed(4)} Wh/1K`;
         }
       } else {
-        raplEnergy.textContent = '0.000000 Wh';
         raplEfficiency.textContent = '0.00';
       }
 
@@ -988,6 +1689,8 @@
       testEnergyBar.className = `energy-bar energy-${energyLevel} h-4 rounded-full`;
     }
 
+    let tokenChart = null;
+
     function updateResultsDisplay(data) {
       resultStrategy.textContent = data.strategy;
       resultTokens.textContent = data.basic_metrics.total_tokens;
@@ -995,26 +1698,96 @@
       resultTokensPerSec.textContent = data.basic_metrics.tokens_per_second.toFixed(1);
 
       // Update token breakdown display
-      if (data.token_metrics) {
+      if (data.token_metrics && data.token_metrics.breakdown) {
         const breakdown = data.token_metrics.breakdown;
-        inputTokens.textContent = breakdown.original.total_original_tokens;
-        outputTokens.textContent = breakdown.generation.direct_output_tokens;
-        injectionTokens.textContent = breakdown.injected.total_injection_tokens;
-        toolTokens.textContent = breakdown.tool_integration.tool_integration_overhead;
+        const original = breakdown.original || {};
+        const generation = breakdown.generation || {};
+        const injected = breakdown.injected || {};
 
-        // Show token analysis notes
-        tokenAnalysisNotes.textContent = breakdown.analysis_notes.join('. ') + '.';
+        const userTokens = original.total_original_tokens ?? 0;
+        const outputTokens = generation.direct_output_tokens ?? 0;
+        const injectionOverhead = injected.total_injection_tokens ?? 0;
+
+        // Update summary text
+        document.getElementById('inputTokensVal').textContent = userTokens;
+        document.getElementById('overheadTokensVal').textContent = injectionOverhead;
+        document.getElementById('outputTokensVal').textContent = outputTokens;
+
+        if (Array.isArray(breakdown.analysis_notes) && breakdown.analysis_notes.length > 0) {
+          tokenAnalysisNotes.textContent = breakdown.analysis_notes.join('. ') + '.';
+        }
+
+        // Update Chart
+        const ctx = document.getElementById('tokenBreakdownChart').getContext('2d');
+
+        if (tokenChart) {
+          tokenChart.destroy();
+        }
+
+        tokenChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Token Distribution'],
+            datasets: [
+              {
+                label: 'User Input',
+                data: [userTokens],
+                backgroundColor: '#10b981', // Green
+                barThickness: 40
+              },
+              {
+                label: 'Injection Overhead',
+                data: [injectionOverhead],
+                backgroundColor: '#f59e0b', // Yellow
+                barThickness: 40
+              },
+              {
+                label: 'Model Output',
+                data: [outputTokens],
+                backgroundColor: '#3b82f6', // Blue
+                barThickness: 40
+              }
+            ]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: true, title: { display: true, text: 'Tokens' } },
+              y: { stacked: true, display: false }
+            },
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    let label = context.dataset.label || '';
+                    if (label) {
+                      label += ': ';
+                    }
+                    if (context.parsed.x !== null) {
+                      label += context.parsed.x + ' tokens';
+                    }
+                    return label;
+                  }
+                }
+              }
+            }
+          }
+        });
       }
 
       efficiencyScore.textContent = data.energy_metrics.energy_efficiency_score.toFixed(4);
     }
 
-    function updateEnergyChart(energyConsumption) {
-      energyHistory.push(energyConsumption);
+    function updateEnergyChart(energyConsumption, intensity) {
+      energyHistory.push({ energy: energyConsumption, intensity: intensity || 0 });
       if (energyHistory.length > 20) energyHistory.shift();
 
       energyChart.data.labels = energyHistory.map((_, i) => `Test ${i + 1}`);
-      energyChart.data.datasets[0].data = energyHistory;
+      energyChart.data.datasets[0].data = energyHistory.map(h => h.energy);
+      energyChart.data.datasets[1].data = energyHistory.map(h => h.intensity);
       energyChart.update();
     }
 
@@ -1047,7 +1820,9 @@
         impactText = 'No significant modifications detected.';
       }
 
-      modificationImpact.textContent = impactText;
+      if (modificationImpact) {
+        modificationImpact.textContent = impactText;
+      }
     }
 
     async function updateSessionSummary() {
@@ -1079,13 +1854,15 @@
       resultTokensPerSec.textContent = '-';
 
       // Clear token breakdown
-      inputTokens.textContent = '-';
-      outputTokens.textContent = '-';
-      injectionTokens.textContent = '-';
-      toolTokens.textContent = '-';
+      if (inputTokens) inputTokens.textContent = '-';
+      if (outputTokens) outputTokens.textContent = '-';
+      if (injectionTokens) injectionTokens.textContent = '-';
+      if (toolTokens) toolTokens.textContent = '-';
       tokenAnalysisNotes.textContent = 'Run a test to see detailed token breakdown.';
 
-      modificationImpact.textContent = 'Run a test to see energy impact analysis.';
+      if (modificationImpact) {
+        modificationImpact.textContent = 'Run a test to see energy impact analysis.';
+      }
 
       // Clear chart
       energyHistory = [];
@@ -1111,6 +1888,7 @@
         alert('Export error: ' + e.message);
       }
     }
+
     function openCliModal() {
       if (cliModal) cliModal.classList.remove('hidden');
     }
@@ -1126,6 +1904,31 @@
       cliLog.appendChild(div);
       cliLog.scrollTop = cliLog.scrollHeight;
     }
+
+    async function init() {
+      // Load all data
+      await loadModels();
+      await loadBenchmarks();
+      await loadBenchmarkSwitcher();
+      await loadSystemPrompts();
+      await updateCurrentBenchmarkInfo();
+      await updateSessionSummary();
+
+      // Setup UI
+      setupWebSocket();
+      setupEventListeners();
+      initChart();
+      renderRaplBatchTable();
+
+      // Check connection
+      if (ws && ws.readyState === WebSocket.OPEN && connectionStatus) {
+        connectionStatus.textContent = 'Connected';
+        connectionStatus.className = 'px-4 py-2 rounded-full bg-green-100 text-green-700';
+      }
+    }
+
+    // Call init to start everything
+    init();
   </script>
 </body>
 

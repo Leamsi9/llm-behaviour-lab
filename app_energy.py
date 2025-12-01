@@ -47,19 +47,31 @@ except ImportError:
 @dataclass
 class EnergyPayload:
     """Payload for energy testing"""
-    system: str = ""
-    user: str = ""
+    # Raw components for backend composition
+    system_prompt: str = ""  # Base system prompt
+    user_prompt: str = ""    # Base user query
+    conversation_context: str = "" # Context to inject
+    injections: List[Dict[str, Any]] = field(default_factory=list) # List of injection objects
+    
+    # Legacy/Compatibility fields (optional)
+    system: str = "" # Deprecated, used if system_prompt empty
+    user: str = ""   # Deprecated, used if user_prompt empty
+    
     model_name: str = DEFAULT_MODEL
     strategy_name: str = "baseline"
     energy_benchmark: str = "conservative_estimate"
-    test_type: str = "energy"  # Added to match UI payload
-    injection_type: str = "none"
+    test_type: str = "energy"
+    
+    # Advanced config
+    injection_type: str = "none" # For tracking metadata
     injection_params: Dict[str, Any] = field(default_factory=dict)
     tool_integration_method: str = "none"
     tool_config: Dict[str, Any] = field(default_factory=dict)
+    
     temp: float = 0.7
     max_tokens: int = 100
-    enable_live_power_monitoring: bool = False  # Enable real-time RAPL measurement
+    seed: Optional[int] = None
+    enable_live_power_monitoring: bool = False
 
 # ---------- Ollama Client ----------
 # (Now imported from ollama_client.py)
@@ -69,32 +81,71 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
     print("🔋 [ENERGY APP] Running energy test - STANDALONE APP")
     await websocket.send_json({"log": "🔋 [ENERGY APP] Running energy test - STANDALONE APP"})
     try:
-        # ===== PHASE 1: PREPARE ORIGINAL MESSAGES =====
-        original_messages = []
-        if payload.system:
-            original_messages.append({"role": "system", "content": payload.system})
-        original_messages.append({"role": "user", "content": payload.user})
+        # ===== PHASE 1: PROMPT COMPOSITION (BACKEND) =====
+        # Use new fields if available, fallback to legacy
+        base_system = payload.system_prompt if payload.system_prompt else payload.system
+        base_user = payload.user_prompt if payload.user_prompt else payload.user
         
-        # Copy for middleware tracking
-        messages = original_messages.copy()
+        # 1. Construct System Prompt (Base + Context + Injections)
+        final_system_prompt = base_system
+        
+        # Add Conversation Context
+        if payload.conversation_context:
+            if final_system_prompt:
+                final_system_prompt += "\n\n"
+            
+            # Check if tags already exist (simple heuristic)
+            if "<conversation_context>" in payload.conversation_context:
+                final_system_prompt += payload.conversation_context
+            else:
+                final_system_prompt += f"<conversation_context>\n{payload.conversation_context}\n</conversation_context>"
+        
+        # Add Injections
+        injection_metadata_list = []
+        for inj in payload.injections:
+            desc = inj.get("description", "Unknown Injection")
+            content = inj.get("content", "")
+            
+            if final_system_prompt:
+                final_system_prompt += "\n\n---\n\n"
+            final_system_prompt += f"[{desc}]\n{content}"
+            
+            injection_metadata_list.append({
+                "type": desc,
+                "tokens": len(content) // 4 # Approximate
+            })
 
-        # ===== PHASE 2: TRACK INJECTION METADATA (NO RE-INJECTION) =====
-        # Injections are already applied in the system field by the frontend
-        # We just track the metadata for token breakdown
-        injection_result = {"injection_metadata": {}}
-        messages_after_injection = messages.copy()
+        # 2. Construct Messages
+        original_messages = [] # "Original" means just the user query + base system (optional definition)
+        # Ideally "Original" is what the user *intended* to send before hidden overhead.
+        # Let's define "Original" as Base System + Base User.
+        if base_system:
+            original_messages.append({"role": "system", "content": base_system})
+        original_messages.append({"role": "user", "content": base_user})
         
-        if payload.injection_type != "none" and payload.injection_params:
-            # Store injection metadata for tracking
-            injection_result = {
-                "injection_metadata": {
-                    "injection_type": payload.injection_type,
-                    "injections": payload.injection_params.get("injections", []),
-                    "metadata": payload.injection_params.get("metadata", {})
-                }
+        # Messages AFTER Injection
+        messages_after_injection = []
+        if final_system_prompt:
+            messages_after_injection.append({"role": "system", "content": final_system_prompt})
+        messages_after_injection.append({"role": "user", "content": base_user}) # User prompt usually unchanged by system injections
+        
+        messages = messages_after_injection.copy()
+        try:
+            await websocket.send_json({
+                "log": f"🧩 Applied context ({len(payload.conversation_context)} chars) and {len(payload.injections)} injection(s); final system length: {len(final_system_prompt)} chars"
+            })
+        except Exception:
+            pass
+
+        # Update injection result for tracking
+        injection_result = {
+            "injection_metadata": {
+                "injection_type": "backend_composite",
+                "injections": injection_metadata_list,
+                "metadata": {"count": len(payload.injections)}
             }
-            print(f"📊 Injection metadata tracked: {injection_result['injection_metadata']}")
-        messages_after_injection = messages.copy()
+        }
+        print(f"📊 Backend Composition: Base System={len(base_system)} chars, Final System={len(final_system_prompt)} chars")
 
         # ===== PHASE 3: APPLY TOOL INTEGRATION (TRACK TOKENS) =====
         tool_integration_result = {"integration_metadata": {}}
@@ -141,6 +192,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         power_before = None
         power_after = None
         rapl_measured_wh = 0.0
+        sampler_task = None
         live_power_enabled = payload.enable_live_power_monitoring and POWER_MONITORING_AVAILABLE
         print(f"🔌 Live Power Monitoring: Requested={payload.enable_live_power_monitoring}, Available={POWER_MONITORING_AVAILABLE}, Enabled={live_power_enabled}")
         if payload.enable_live_power_monitoring and not POWER_MONITORING_AVAILABLE:
@@ -185,6 +237,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         prompt_tokens = 0
         completion_tokens = 0
         generation_done = False
+        had_error = False
 
         # Continuous RAPL sampling task (integrated Wh)
         async def rapl_sampler():
@@ -208,6 +261,11 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         if live_power_enabled:
             await websocket.send_json({"log": "Running LLM inference with power monitoring..."})
             sampler_task = asyncio.create_task(rapl_sampler())
+        
+        print(f"📤 Sending to Ollama - Model: {payload.model_name}")  # DEBUG
+        print(f"📤 Messages array: {json.dumps(messages, indent=2)}")  # DEBUG
+        print(f"📤 Options: temp={payload.temp}, num_predict={safe_max_tokens}, seed={payload.seed}")  # DEBUG
+        
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             async with client.stream(
                 "POST",
@@ -218,7 +276,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     "stream": True,
                     "options": {
                         "temperature": payload.temp,
-                        "num_predict": safe_max_tokens  # Use validated max_tokens
+                        "num_predict": safe_max_tokens,  # Use validated max_tokens
+                        "seed": payload.seed if payload.seed is not None else None
                     }
                 }
             ) as response:
@@ -239,23 +298,30 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
 
                     try:
                         chunk = json.loads(line)
+                        print(f"🔍 Ollama chunk received: {chunk}")  # DEBUG
                     except json.JSONDecodeError:
                         continue
 
-                    if "message" in chunk and "content" in chunk["message"]:
-                        text = chunk["message"]["content"]
-                        full_response += text
+                    if "message" in chunk:
+                        # Support both regular models (content) and reasoning models (thinking)
+                        msg = chunk["message"] or {}
+                        text = msg.get("content") or msg.get("thinking") or ""
 
-                        await websocket.send_json({
-                            "token": text,
-                            "model": payload.model_name,
-                            "strategy": payload.strategy_name,
-                            "done": False,
-                        })
+                        if text:  # Only send if we have actual text
+                            print(f"📝 Extracted text: '{text}' (length: {len(text)})")  # DEBUG
+                            full_response += text
+
+                            await websocket.send_json({
+                                "token": text,
+                                "model": payload.model_name,
+                                "strategy": payload.strategy_name,
+                                "done": False,
+                            })
 
                     if chunk.get("done", False):
                         prompt_tokens = chunk.get("prompt_eval_count", 0)
                         completion_tokens = chunk.get("eval_count", 0)
+                        print(f"✅ Generation complete. Tokens: prompt={prompt_tokens}, completion={completion_tokens}")  # DEBUG
                         break
                 
                 # Always close the response stream properly
@@ -264,8 +330,10 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         generation_done = True
         if live_power_enabled:
             # Ensure sampler has finished
-            with contextlib.suppress(Exception):
-                await sampler_task
+            if sampler_task:
+                sampler_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await sampler_task
 
         if cancel_event.is_set():
             await websocket.send_json({
@@ -277,6 +345,21 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             })
             return
 
+    except Exception as e:
+        print(f"❌ Error in run_energy_test: {str(e)}")
+        had_error = True
+        await websocket.send_json({"error": str(e), "done": True})
+    finally:
+        generation_done = True
+        if live_power_enabled and sampler_task and not sampler_task.done():
+            sampler_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await sampler_task
+
+        # If an error occurred or the request was cancelled, skip emitting final results
+        if had_error or (cancel_event and cancel_event.is_set()):
+            return
+
         # Calculate timing
         end_time = asyncio.get_event_loop().time()
         latency = end_time - start_time
@@ -285,6 +368,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             await websocket.send_json({"log": f"⏱ Duration: {latency:.2f}s"})
 
         # ===== PHASE 6.5: FINALIZE RAPL MEASUREMENT (IF ENABLED) =====
+        # NOTE: All Wh/1000 calculations here are defined per 1000 *output* tokens
+        # (completion tokens), not total (prompt + completion).
         measured_wh_per_1000_tokens = None
         if live_power_enabled and rapl_measured_wh > 0:
             try:
@@ -297,9 +382,9 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                         "power_after": power_after.total_watts
                     })
 
-                total_tokens = prompt_tokens + completion_tokens
-                if total_tokens > 0:
-                    measured_wh_per_1000_tokens = (rapl_measured_wh / total_tokens) * 1000
+                # Use output tokens only for Wh/1000 calculation
+                if completion_tokens > 0:
+                    measured_wh_per_1000_tokens = (rapl_measured_wh / completion_tokens) * 1000
 
                 await websocket.send_json({
                     "log": f"🎯 Integrated RAPL: {rapl_measured_wh:.6f} Wh total",
@@ -308,7 +393,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens
                 })
 
-                # Record into session-level RAPL tracker
+                # Record into session-level RAPL tracker (keep total tokens for session rollups)
+                total_tokens = prompt_tokens + completion_tokens
                 if total_tokens > 0:
                     energy_tracker.record_rapl_measurement(rapl_measured_wh, total_tokens)
 
@@ -392,11 +478,13 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             },
 
             # Energy metrics
+            # NOTE: energy_efficiency_score is defined per 1000 *output* tokens
+            # (completion_tokens) to match UI semantics of "Wh/1000 e-tokens".
             "energy_metrics": {
                 "benchmark_used": energy_reading.benchmark_used,
                 "watt_hours_consumed": energy_reading.watt_hours_consumed,
                 "carbon_grams_co2": energy_reading.carbon_grams_co2,
-                "energy_efficiency_score": energy_reading.watt_hours_consumed / max(energy_reading.total_tokens / 1000, 0.001),
+                "energy_efficiency_score": energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001),
             },
 
             # Live power monitoring data (if enabled)
@@ -406,9 +494,10 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "before_watts": power_before.total_watts if power_before else None,
                 "after_watts": power_after.total_watts if power_after else None,
                 "active_watts": ((power_before.total_watts + power_after.total_watts) / 2 - power_baseline.total_watts) if (power_before and power_after and power_baseline) else None,
+                # Per-1000 metrics are expressed per 1000 *output* tokens
                 "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens,
-                "benchmark_wh_per_1000_tokens": energy_reading.watt_hours_consumed / max(energy_reading.total_tokens / 1000, 0.001),
-                "accuracy_percent": ((measured_wh_per_1000_tokens / (energy_reading.watt_hours_consumed / max(energy_reading.total_tokens / 1000, 0.001))) * 100) if measured_wh_per_1000_tokens else None
+                "benchmark_wh_per_1000_tokens": energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001),
+                "accuracy_percent": ((measured_wh_per_1000_tokens / (energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001))) * 100) if measured_wh_per_1000_tokens else None
             },
 
             # Modification tracking (IMPROVED with actual token counts)
@@ -425,26 +514,6 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             # Session summary
             "session_summary": energy_tracker.get_session_summary(),
         })
-
-    except httpx.ConnectError:
-        await websocket.send_json({
-            "error": "Cannot connect to Ollama. Make sure it's running: ollama serve",
-            "done": True,
-        })
-    except Exception as exc:
-        if isinstance(exc, asyncio.CancelledError):
-            await websocket.send_json({
-                "token": "[CANCELLED]",
-                "model": payload.model_name,
-                "strategy": payload.strategy_name,
-                "done": True,
-                "cancelled": True,
-            })
-        else:
-            await websocket.send_json({
-                "error": f"Test error: {str(exc)}",
-                "done": True,
-            })
 
 # ---------- FastAPI App ----------
 
@@ -544,6 +613,8 @@ async def add_custom_benchmark(request: dict):
         name = request.get("name")
         description = request.get("description")
         watt_hours = request.get("watt_hours_per_1000_tokens")
+        input_wh = request.get("input_wh_per_1000_tokens", 0.0)
+        output_wh = request.get("output_wh_per_1000_tokens", 0.0)
         source = request.get("source", "Custom")
         hardware_specs = request.get("hardware_specs", "User defined")
 
@@ -554,6 +625,8 @@ async def add_custom_benchmark(request: dict):
             name=name,
             description=description,
             watt_hours_per_1000_tokens=float(watt_hours),
+            input_wh_per_1000_tokens=float(input_wh),
+            output_wh_per_1000_tokens=float(output_wh),
             source=source,
             hardware_specs=hardware_specs
         )

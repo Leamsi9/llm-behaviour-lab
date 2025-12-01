@@ -1,0 +1,88 @@
+{
+  "benchmark": {
+    "name": "NVIDIA A100",
+    "watt_hours_per_1000_tokens": 0.8,
+    "description": "NVIDIA A100 GPU (40GB)",
+    "source": "Estimated based on typical LLM inference",
+    "hardware_specs": {
+      "gpu": "A100",
+      "memory": "40GB",
+      "tdp": "400W"
+    }
+  },
+  "session_start": "2025-11-28T08:55:10.476571",
+  "readings": [
+    {
+      "timestamp": "2025-11-28T08:56:04.116853",
+      "prompt_tokens": 39,
+      "completion_tokens": 512,
+      "total_tokens": 551,
+      "benchmark_used": "NVIDIA A100",
+      "watt_hours_consumed": 0.4408000000000001,
+      "carbon_grams_co2": 0.17632000000000003,
+      "latency_seconds": 11.275000000000091,
+      "model_name": "qwen3:0.6b",
+      "strategy_name": "with_injections"
+    },
+    {
+      "timestamp": "2025-11-28T08:56:55.745118",
+      "prompt_tokens": 46,
+      "completion_tokens": 512,
+      "total_tokens": 558,
+      "benchmark_used": "NVIDIA A100",
+      "watt_hours_consumed": 0.4464000000000001,
+      "carbon_grams_co2": 0.17856000000000005,
+      "latency_seconds": 9.535999999999603,
+      "model_name": "qwen3:0.6b",
+      "strategy_name": "with_injections"
+    },
+    {
+      "timestamp": "2025-11-28T08:58:01.837419",
+      "prompt_tokens": 50,
+      "completion_tokens": 478,
+      "total_tokens": 528,
+      "benchmark_used": "NVIDIA A100",
+      "watt_hours_consumed": 0.42240000000000005,
+      "carbon_grams_co2": 0.16896000000000003,
+      "latency_seconds": 8.813000000000102,
+      "model_name": "qwen3:0.6b",
+      "strategy_name": "with_injections"
+    },
+    {
+      "timestamp": "2025-11-28T09:00:10.874930",
+      "prompt_tokens": 51,
+      "completion_tokens": 695,
+      "total_tokens": 746,
+      "benchmark_used": "NVIDIA A100",
+      "watt_hours_consumed": 0.5968,
+      "carbon_grams_co2": 0.23872000000000002,
+      "latency_seconds": 12.663000000000011,
+      "model_name": "qwen3:0.6b",
+      "strategy_name": "with_injections"
+    },
+    {
+      "timestamp": "2025-11-28T09:01:46.990147",
+      "prompt_tokens": 51,
+      "completion_tokens": 473,
+      "total_tokens": 524,
+      "benchmark_used": "NVIDIA A100",
+      "watt_hours_consumed": 0.4192,
+      "carbon_grams_co2": 0.16768000000000002,
+      "latency_seconds": 8.5649999999996,
+      "model_name": "qwen3:0.6b",
+      "strategy_name": "with_injections"
+    },
+    {
+      "timestamp": "2025-11-28T09:02:12.033960",
+      "prompt_tokens": 42,
+      "completion_tokens": 416,
+      "total_tokens": 458,
+      "benchmark_used": "NVIDIA A100",
+      "watt_hours_consumed": 0.36640000000000006,
+      "carbon_grams_co2": 0.14656000000000002,
+      "latency_seconds": 7.76299999999992,
+      "model_name": "qwen3:0.6b",
+      "strategy_name": "with_injections"
+    }
+  ]
+}

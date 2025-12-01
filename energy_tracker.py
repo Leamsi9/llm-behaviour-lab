@@ -17,17 +17,31 @@ import os
 class EnergyBenchmark:
     """Energy consumption benchmark configuration."""
     name: str
-    watt_hours_per_1000_tokens: float
+    watt_hours_per_1000_tokens: float  # Legacy/Combined metric (for backward compatibility or simple view)
     description: str
+    input_wh_per_1000_tokens: float = 0.0  # Energy cost for prefill (prompt processing)
+    output_wh_per_1000_tokens: float = 0.0  # Energy cost for decode (generation)
     source: str = ""
     hardware_specs: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self):
+        # If split values aren't provided, estimate them from the combined value
+        # Typically input processing is cheaper per token than generation, but highly parallel.
+        # For simplicity in migration, if 0, we'll derive them.
+        # A common heuristic: Input is ~10-20% of Output cost per token in low-batch settings,
+        # but let's default to a 50/50 split if unknown, or use the provided total.
+        if self.input_wh_per_1000_tokens == 0 and self.output_wh_per_1000_tokens == 0:
+             self.output_wh_per_1000_tokens = self.watt_hours_per_1000_tokens
+             self.input_wh_per_1000_tokens = self.watt_hours_per_1000_tokens * 0.25 # Estimate input as 25% of output cost
 
 
 # Predefined energy benchmarks
 ENERGY_BENCHMARKS = {
     "nvidia_a100": EnergyBenchmark(
         name="NVIDIA A100",
-        watt_hours_per_1000_tokens=0.8,  # Conservative estimate
+        watt_hours_per_1000_tokens=0.8,
+        input_wh_per_1000_tokens=0.2,
+        output_wh_per_1000_tokens=0.8,
         description="NVIDIA A100 GPU (40GB)",
         source="Estimated based on typical LLM inference",
         hardware_specs={"gpu": "A100", "memory": "40GB", "tdp": "400W"}
@@ -35,7 +49,9 @@ ENERGY_BENCHMARKS = {
 
     "nvidia_rtx4090": EnergyBenchmark(
         name="NVIDIA RTX 4090",
-        watt_hours_per_1000_tokens=1.2,  # Higher due to gaming-optimized design
+        watt_hours_per_1000_tokens=1.2,
+        input_wh_per_1000_tokens=0.3,
+        output_wh_per_1000_tokens=1.2,
         description="NVIDIA RTX 4090 GPU",
         source="Measured consumer GPU performance",
         hardware_specs={"gpu": "RTX 4090", "memory": "24GB", "tdp": "450W"}
@@ -44,6 +60,8 @@ ENERGY_BENCHMARKS = {
     "nvidia_rtx3080": EnergyBenchmark(
         name="NVIDIA RTX 3080",
         watt_hours_per_1000_tokens=1.5,
+        input_wh_per_1000_tokens=0.4,
+        output_wh_per_1000_tokens=1.5,
         description="NVIDIA RTX 3080 GPU",
         source="Typical consumer GPU benchmarks",
         hardware_specs={"gpu": "RTX 3080", "memory": "10GB", "tdp": "320W"}
@@ -51,7 +69,9 @@ ENERGY_BENCHMARKS = {
 
     "cpu_baseline": EnergyBenchmark(
         name="CPU Baseline",
-        watt_hours_per_1000_tokens=5.0,  # Much higher energy cost
+        watt_hours_per_1000_tokens=5.0,
+        input_wh_per_1000_tokens=2.0,
+        output_wh_per_1000_tokens=5.0,
         description="CPU-only inference",
         source="Estimated CPU vs GPU comparison",
         hardware_specs={"cpu": "Intel i9/AMD Ryzen 9", "no_gpu": True}
@@ -60,6 +80,8 @@ ENERGY_BENCHMARKS = {
     "conservative_estimate": EnergyBenchmark(
         name="Conservative Estimate",
         watt_hours_per_1000_tokens=1.0,
+        input_wh_per_1000_tokens=0.25,
+        output_wh_per_1000_tokens=1.0,
         description="General conservative estimate",
         source="User specified baseline"
     ),
@@ -67,6 +89,8 @@ ENERGY_BENCHMARKS = {
     "hp_255_g10_measured": EnergyBenchmark(
         name="HP 255 G10 (Measured)",
         watt_hours_per_1000_tokens=0.0311,
+        input_wh_per_1000_tokens=0.01, # Estimated
+        output_wh_per_1000_tokens=0.0311,
         description="HP 255 G10, Ryzen 7 7730U - Real RAPL measurement",
         source="Direct RAPL measurement during inference",
         hardware_specs={"cpu": "AMD Ryzen 7 7730U", "tdp": "15W", "measured_tokens_per_sec": "60"}
@@ -117,7 +141,12 @@ class EnergyTracker:
         """Record a single energy consumption measurement."""
 
         total_tokens = prompt_tokens + completion_tokens
-        watt_hours = (total_tokens / 1000) * self.benchmark.watt_hours_per_1000_tokens
+        
+        # Calculate energy using split coefficients: Input Energy + Output Energy
+        input_energy = (prompt_tokens / 1000) * self.benchmark.input_wh_per_1000_tokens
+        output_energy = (completion_tokens / 1000) * self.benchmark.output_wh_per_1000_tokens
+        
+        watt_hours = input_energy + output_energy
         carbon_grams = watt_hours * (self.carbon_intensity_gco2_per_kwh / 1000)
 
         reading = EnergyReading(
@@ -142,11 +171,13 @@ class EnergyTracker:
             return {"error": "No readings recorded"}
 
         total_tokens = sum(r.total_tokens for r in self.readings)
+        total_output_tokens = sum(r.completion_tokens for r in self.readings)
         total_energy = sum(r.watt_hours_consumed for r in self.readings)
         total_carbon = sum(r.carbon_grams_co2 for r in self.readings)
         total_latency = sum(r.latency_seconds for r in self.readings)
 
-        avg_energy_per_1000_tokens = total_energy / (total_tokens / 1000) if total_tokens > 0 else 0
+        # Average energy is reported per 1000 *output* tokens
+        avg_energy_per_1000_tokens = total_energy / (total_output_tokens / 1000) if total_output_tokens > 0 else 0
         avg_latency_per_token = total_latency / total_tokens if total_tokens > 0 else 0
 
         # Convert readings to dicts with datetime objects converted to strings
@@ -214,8 +245,11 @@ class EnergyTracker:
         # Recalculate each reading
         recalculated_readings = []
         for reading in self.readings:
-            # Recalculate energy consumption with new benchmark
-            watt_hours = (reading.total_tokens / 1000) * new_benchmark.watt_hours_per_1000_tokens
+            # Recalculate energy consumption with new benchmark using split coefficients
+            input_energy = (reading.prompt_tokens / 1000) * new_benchmark.input_wh_per_1000_tokens
+            output_energy = (reading.completion_tokens / 1000) * new_benchmark.output_wh_per_1000_tokens
+            
+            watt_hours = input_energy + output_energy
             carbon_grams = watt_hours * (self.carbon_intensity_gco2_per_kwh / 1000)
 
             recalculated_reading = reading.__dict__.copy()
@@ -228,11 +262,12 @@ class EnergyTracker:
 
         # Calculate new session summary
         total_tokens = sum(r["total_tokens"] for r in recalculated_readings)
+        total_output_tokens = sum(r["completion_tokens"] for r in recalculated_readings)
         total_energy = sum(r["watt_hours_consumed"] for r in recalculated_readings)
         total_carbon = sum(r["carbon_grams_co2"] for r in recalculated_readings)
         total_latency = sum(r["latency_seconds"] for r in recalculated_readings)
 
-        avg_energy_per_1000_tokens = total_energy / (total_tokens / 1000) if total_tokens > 0 else 0
+        avg_energy_per_1000_tokens = total_energy / (total_output_tokens / 1000) if total_output_tokens > 0 else 0
         avg_latency_per_token = total_latency / total_tokens if total_tokens > 0 else 0
 
         return {
@@ -247,15 +282,23 @@ class EnergyTracker:
         }
 
     def add_custom_benchmark(self, name: str, description: str, watt_hours_per_1000_tokens: float,
+                           input_wh_per_1000_tokens: float = 0.0, output_wh_per_1000_tokens: float = 0.0,
                            source: str = "Custom", hardware_specs: str = "User defined", force_update: bool = False) -> bool:
         """Add or update a custom energy benchmark."""
         if name in ENERGY_BENCHMARKS and not force_update:
             return False  # Benchmark already exists and no update requested
 
+        # Auto-estimate if split not provided
+        if input_wh_per_1000_tokens == 0 and output_wh_per_1000_tokens == 0:
+            output_wh_per_1000_tokens = watt_hours_per_1000_tokens
+            input_wh_per_1000_tokens = watt_hours_per_1000_tokens * 0.25
+
         ENERGY_BENCHMARKS[name] = EnergyBenchmark(
             name=name,
             description=description,
             watt_hours_per_1000_tokens=watt_hours_per_1000_tokens,
+            input_wh_per_1000_tokens=input_wh_per_1000_tokens,
+            output_wh_per_1000_tokens=output_wh_per_1000_tokens,
             source=source,
             hardware_specs=hardware_specs
         )
@@ -281,7 +324,15 @@ def estimate_energy_impact(tokens: int, benchmark_name: str = "conservative_esti
         benchmark_name = "conservative_estimate"
 
     benchmark = ENERGY_BENCHMARKS[benchmark_name]
-    watt_hours = (tokens / 1000) * benchmark.watt_hours_per_1000_tokens
+    
+    # Simple estimation assuming 1:1 input/output ratio if only total tokens provided
+    # Or just use output cost as a conservative upper bound for everything?
+    # Better: Assume a typical ratio if we don't know the split.
+    # But this function takes 'tokens' as a single int.
+    # Let's assume these are output tokens for consistency with old behavior, 
+    # OR assume a 50/50 split. 
+    # Actually, for "impact of X tokens", we should probably use the output cost as it's the dominant factor usually.
+    watt_hours = (tokens / 1000) * benchmark.output_wh_per_1000_tokens
     carbon_grams = watt_hours * (400 / 1000)  # Global average carbon intensity
 
     return {
@@ -289,7 +340,7 @@ def estimate_energy_impact(tokens: int, benchmark_name: str = "conservative_esti
         "benchmark": benchmark_name,
         "watt_hours": round(watt_hours, 4),
         "carbon_grams_co2": round(carbon_grams, 2),
-        "energy_per_1000_tokens": benchmark.watt_hours_per_1000_tokens
+        "energy_per_1000_tokens": benchmark.output_wh_per_1000_tokens
     }
 
 
@@ -300,6 +351,8 @@ def get_available_benchmarks() -> List[Dict[str, Any]]:
             "name": name,
             "description": benchmark.description,
             "watt_hours_per_1000_tokens": benchmark.watt_hours_per_1000_tokens,
+            "input_wh_per_1000_tokens": benchmark.input_wh_per_1000_tokens,
+            "output_wh_per_1000_tokens": benchmark.output_wh_per_1000_tokens,
             "source": benchmark.source,
             "hardware_specs": benchmark.hardware_specs
         }

@@ -90,6 +90,9 @@ def track_middleware_tokens(
     after_tools = count_tokens_approximate(messages_after_tools)
     
     # Calculate deltas (ensure non-negative)
+    # Note: original_messages now only contains Base System + Base User
+    # messages_after_injection contains Final System (Base+Context+Injections) + Base User
+    
     injection_delta = max(0, after_injection - original)
     tools_delta = max(0, after_tools - after_injection)
     
