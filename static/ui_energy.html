@@ -8,55 +8,153 @@
   <script src="/static/tailwind.min.js"></script>
   <script src="/static/chart.min.js"></script>
   <style>
-    /* Modern UI Polish */
+    /* Modern Dark Dashboard Theme */
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #8b5cf6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-dark: #0f172a;
+      --bg-darker: #020617;
+      --bg-card: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #334155;
+    }
+
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background-color: #f8fafc;
+      background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
     }
 
-    .card {
-      background: white;
+    .dashboard-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .dashboard-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      border-color: var(--primary);
+    }
+
+    .nav-button {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(10px);
+      border: 2px solid transparent;
+      border-radius: 16px;
+      padding: 1rem 1.5rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-button::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      background: linear-gradient(45deg, #6366f1, #8b5cf6, #ec4899, #f59e0b);
+      background-size: 300% 300%;
+      border-radius: 16px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: -1;
+    }
+
+    .nav-button::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
+      transition: left 0.5s;
+    }
+
+    .nav-button:hover::after {
+      left: 100%;
+    }
+
+    .nav-button:hover {
+      color: var(--text-primary);
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    }
+
+    .nav-button.active {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+      color: white;
+      box-shadow: 0 8px 30px rgba(99, 102, 241, 0.6), 0 0 40px rgba(99, 102, 241, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    }
+
+    .nav-button.active::before {
+      opacity: 1;
+      animation: borderGlow 3s linear infinite;
+    }
+
+    @keyframes borderGlow {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .metric-card {
+      background: linear-gradient(135deg, var(--bg-card) 0%, #2d3748 100%);
       border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
     }
 
-    .card:hover {
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    .metric-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
     }
 
-    .model-output {
-      white-space: pre-wrap;
-      font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
-      font-size: 0.9rem;
-      line-height: 1.5;
-    }
-
-    .energy-bar {
-      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .energy-high {
-      background: linear-gradient(90deg, #ef4444, #b91c1c);
-    }
-
-    .energy-medium {
-      background: linear-gradient(90deg, #f59e0b, #d97706);
-    }
-
-    .energy-low {
-      background: linear-gradient(90deg, #10b981, #059669);
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       color: white;
-      transition: all 0.2s;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     }
 
     .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.5);
     }
 
     .btn-danger {
@@ -64,610 +162,582 @@
       color: white;
     }
 
-    input[type="range"] {
-      accent-color: #4f46e5;
+    .section-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .section-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .glow {
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+    }
+
+    input,
+    textarea,
+    select {
+      background: var(--bg-darker) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text-primary) !important;
+      border-radius: 8px;
+      padding: 0.75rem;
+      transition: all 0.3s ease;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      background: var(--bg-dark) !important;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+
+    /* Ensure select options are also dark */
+    select option {
+      background: var(--bg-darker);
+      color: var(--text-primary);
+    }
+
+    /* Fix for number input spinners */
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      opacity: 0.5;
+    }
+
+    /* Checkbox styling for dark mode */
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid var(--border) !important;
+      border-radius: 4px;
+      background: var(--bg-darker) !important;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    input[type="checkbox"]:hover {
+      border-color: var(--primary) !important;
+      background: var(--bg-dark) !important;
+    }
+
+    input[type="checkbox"]:checked {
+      background: var(--primary) !important;
+      border-color: var(--primary) !important;
+    }
+
+    input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 5px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    input[type="checkbox"]:focus {
+      outline: none;
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-darker);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
     }
   </style>
 </head>
 
-<body class="bg-gray-50 p-4">
-  <div class="max-w-7xl mx-auto space-y-6">
+<body class="p-6">
+  <div class="max-w-7xl mx-auto">
 
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow p-6">
-      <div class="container mx-auto px-4 py-8 max-w-7xl">
-        <!-- Header & Methodology -->
-        <div class="flex justify-between items-center mb-8">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">LLM Energy Testing Lab</h1>
-            <p class="text-gray-600 mt-1">Measure real-world energy consumption and carbon footprint of LLM
-              interactions.</p>
-          </div>
+    <div class="mb-8">
+      <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+        ⚡ LLM Energy Testing Lab
+      </h1>
+      <p class="text-slate-400">Measure real-world energy consumption and carbon footprint of LLM interactions</p>
+    </div>
 
-          <button onclick="document.getElementById('methodologyModal').classList.remove('hidden')"
-            class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center">
-            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            Methodology & Metrics
-          </button>
-        </div>
-
-        <!-- Methodology Modal -->
-        <div id="methodologyModal"
-          class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-          <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-900">Methodology & Metrics</h3>
-              <button onclick="document.getElementById('methodologyModal').classList.add('hidden')"
-                class="text-gray-500 hover:text-gray-700">✕</button>
-            </div>
-            <div class="prose prose-sm max-w-none text-gray-600">
-              <h4 class="font-bold text-gray-900">Energy Measurement</h4>
-              <p>We use two methods to track energy:</p>
-              <ul class="list-disc pl-5 mb-2">
-                <li><strong>Live (RAPL):</strong> Direct hardware measurement using Intel/AMD RAPL interface. Measures
-                  CPU/DRAM energy during inference. Accurate but requires local execution.</li>
-                <li><strong>Estimated:</strong> Uses benchmark coefficients (Wh/1000 tokens) derived from hardware
-                  specs. Good for approximation when live monitoring isn't available.</li>
-              </ul>
-
-              <h4 class="font-bold text-gray-900 mt-4">Metrics Explained</h4>
-              <ul class="list-disc pl-5 mb-2">
-                <li><strong>Wh/1000 Output Tokens:</strong> Energy intensity metric. Amortizes the total energy (Input +
-                  Output) over the generated output tokens. Useful for comparing "cost of production".</li>
-                <li><strong>Input/Output Split:</strong> Separate energy costs for processing prompt (prefill) and
-                  generating tokens (decode). Used for more accurate estimation.</li>
-                <li><strong>Injection Overhead:</strong> Extra tokens added by system prompts, tools, or context that
-                  the user doesn't see but pays for in energy.</li>
-              </ul>
-            </div>
-            <div class="mt-6 text-right">
-              <button onclick="document.getElementById('methodologyModal').classList.add('hidden')"
-                class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Close</button>
-            </div>
-          </div>
-        </div>
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">Energy Testing Lab</h1>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- RAPL Crossover Results -->
-      <div class="mb-6">
-        <h4 class="font-medium text-gray-900 mb-2">RAPL Prefill/Decode Crossover</h4>
-        <p class="text-xs text-gray-600 mb-2">Sequential runs increasing input length until Prefill Wh > Decode Wh. Records actual prompt tokens and energies.</p>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-xs text-left border">
-            <thead class="bg-gray-100">
-              <tr>
-                <th class="px-2 py-1 border">Run</th>
-                <th class="px-2 py-1 border">Prompt Tokens (actual)</th>
-                <th class="px-2 py-1 border">Prefill Wh</th>
-                <th class="px-2 py-1 border">Decode Wh</th>
-                <th class="px-2 py-1 border">Total Wh</th>
-                <th class="px-2 py-1 border">Wh/1K Output</th>
-                <th class="px-2 py-1 border">Stop?</th>
-              </tr>
-            </thead>
-            <tbody id="raplCrossoverTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Test Configuration -->
-      <div class="bg-white rounded-lg shadow p-6 space-y-6">
-
-        <!-- Model and Benchmark Selection -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Model Selection</label>
-            <select id="modelSelect" class="w-full p-2 border rounded">
-              <option>Loading models…</option>
-            </select>
-          </div>
-          <div class="flex items-end">
-            <label class="flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" id="includeThinking" class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
-              <span class="text-sm font-medium text-gray-700">Include Thinking (reasoning)</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Prompt Configuration -->
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">User Query</label>
-            <textarea id="userPrompt" class="w-full p-2 border rounded h-24"
-              placeholder="Explain quantum computing in simple terms."></textarea>
-            <div class="text-xs text-gray-500 mt-1">This is your actual query - the only \"original\" tokens</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Middleware Injections (separate card) -->
-      <div class="card p-6 mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Middleware Injections</h3>
-        <div class="text-sm text-gray-600 mb-3">
-          Add any prompt injections below. Each one adds middleware overhead to your query. Common examples:
-          • System prompts (5,000-7,000 tokens in commercial LLMs)
-          • Tool results (web searches, database queries)
-          • Memory/personalization context
-          • Chain-of-thought instructions
-        </div>
-
-        <!-- Fixed System Prompt and Conversation Context as middleware -->
-        <div class="space-y-3">
-          <!-- System Prompt (fixed field with presets) -->
-          <div>
-            <h4 class="font-medium text-gray-900 mb-2">System Prompt (optional)</h4>
-            <div class="flex flex-col md:flex-row md:items-center md:space-x-2 space-y-2 md:space-y-0 mb-2">
-              <select id="systemPromptSelect" class="w-full md:w-1/3 p-2 border rounded">
-                <option value="">Custom / empty</option>
-              </select>
-              <button id="clearSystemPromptBtn"
-                class="px-3 py-1 bg-gray-200 text-gray-800 rounded text-xs hover:bg-gray-300">
-                Clear System Prompt
-              </button>
-            </div>
-            <p class="text-xs text-gray-500 mb-2">source: https://github.com/elder-plinius/CL4R1T4S</p>
-            <textarea id="systemPromptText" class="w-full p-2 border rounded h-24"
-              placeholder="Optional system prompt or middleware instructions (empty by default)"></textarea>
-          </div>
-
-          <!-- Conversation Context -->
-          <div>
-            <h4 class="font-medium text-gray-900 mb-2">Conversation Context</h4>
-            <p class="text-xs text-gray-600 mb-2">
-              Use this to accumulate relevant turns from the conversation that should be included as context.
-              The latest user query and response can be injected below.
-            </p>
-            <div class="flex items-center mb-2">
-              <button id="injectConversationBtn"
-                class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
-                Inject conversation
-              </button>
-            </div>
-            <textarea id="conversationContextText" class="w-full p-2 border rounded h-24"
-              placeholder="Conversation context will be wrapped in &lt;conversation_context&gt; tags when sent."></textarea>
-          </div>
-        </div>
-
-        <!-- Container for injections -->
-        <div id="injectionsContainer" class="space-y-3">
-          <!-- Injections will be added here -->
-        </div>
-
-        <!-- Add injection button -->
-        <button id="addInjectionBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
-          + Add Prompt Injection
+    <!-- Navigation Dashboard (Sticky) -->
+    <div class="sticky top-0 z-40 bg-gradient-to-b from-slate-950 to-transparent pb-4 mb-8">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <button class="nav-button active" onclick="toggleSection('prompt-model')" data-section="prompt-model">
+          <div class="text-2xl mb-2">🎯</div>
+          <div class="text-sm">Prompt Model</div>
+        </button>
+        <button class="nav-button" onclick="toggleSection('middleware')" data-section="middleware">
+          <div class="text-2xl mb-2">🧩</div>
+          <div class="text-sm">Middleware</div>
+        </button>
+        <button class="nav-button" onclick="toggleSection('live-power')" data-section="live-power">
+          <div class="text-2xl mb-2">⚙️</div>
+          <div class="text-sm">Live Power</div>
+        </button>
+        <button class="nav-button" onclick="toggleSection('estimated')" data-section="estimated">
+          <div class="text-2xl mb-2">📊</div>
+          <div class="text-sm">Estimated</div>
+        </button>
+        <button class="nav-button" onclick="toggleSection('response')" data-section="response">
+          <div class="text-2xl mb-2">💬</div>
+          <div class="text-sm">Response</div>
+        </button>
+        <button class="nav-button" onclick="toggleSection('results')" data-section="results">
+          <div class="text-2xl mb-2">📈</div>
+          <div class="text-sm">Results</div>
         </button>
       </div>
-
-      <!-- Test Controls moved to separate card below -->
     </div>
 
-    <!-- Results Display: Live vs Estimated hardware tests -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-
-      <!-- Live Hardware Tests (RAPL) -->
-      <div class="card p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-medium text-gray-900 flex items-center">
-            <span class="mr-2">🔌</span> Live Hardware Tests (RAPL)
-            <span class="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Linux Only</span>
-          </h3>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Batch Config -->
-          <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-3">Batch Testing</h4>
-            <div class="flex items-center gap-3">
-              <div class="flex-1">
-                <label class="block text-xs text-gray-500 mb-1">Number of Runs</label>
-                <input type="number" id="raplBatchRuns" value="1" min="1" max="100"
-                  class="w-full p-2 border rounded text-sm">
-              </div>
-              <div class="flex-1 pt-5">
-                <p class="text-xs text-gray-500">Enable "Live Power" and click "Run Energy Test" to start batch.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Calibration -->
-          <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-1">Calibration</h4>
-            <p class="text-xs text-gray-500 mb-2" id="raplCalibrationStatus">Not run yet.</p>
-            <div class="flex items-center gap-3">
-              <div class="flex-1">
-                <label class="block text-xs text-gray-500 mb-1">Calibration Runs</label>
-                <input type="number" id="raplCalibrationRuns" value="5" min="3" max="20"
-                  class="w-full p-2 border rounded text-sm">
-              </div>
-              <div class="flex-1">
-                <label class="block text-xs text-gray-500 mb-1">Target Words</label>
-                <input type="number" id="raplCalibrationWords" value="120" min="10" max="1000"
-                  class="w-full p-2 border rounded text-sm">
-              </div>
-              <button id="runRaplCalibration"
-                class="mt-4 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded text-sm transition-colors">
-                Calibrate
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Crossover Finder -->
-        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-6">
-          <h4 class="text-sm font-medium text-gray-700 mb-3">Prefill/Decode Crossover Finder</h4>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Start Input Tokens</label>
-              <input type="number" id="crossoverStartTokens" value="100" min="1" class="w-full p-2 border rounded text-sm">
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Step Tokens</label>
-              <input type="number" id="crossoverStepTokens" value="200" min="1" class="w-full p-2 border rounded text-sm">
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Max Steps</label>
-              <input type="number" id="crossoverMaxSteps" value="10" min="1" class="w-full p-2 border rounded text-sm">
-            </div>
-          </div>
-          <div class="mt-3 flex items-center gap-3">
-            <button id="runRaplCrossover" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded text-sm transition-colors">Run Crossover</button>
-            <div class="text-xs text-gray-500">Increases input length until Prefill Wh exceeds Decode Wh; records the stop point.</div>
-          </div>
-        </div>
-
-        
-      </div> <!-- RAPL Batch Results moved to Test Results card -->
-
-      <!-- Estimated Hardware Tests -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-xl font-semibold text-gray-900 mb-4">Estimated Hardware Tests</h3>
-        <div class="space-y-4">
-          <!-- Current Benchmark Info -->
-          <div class="p-4 bg-blue-50 rounded">
-            <div class="flex justify-between items-center">
-              <div>
-                <h4 class="font-medium text-blue-900">Current Benchmark</h4>
-                <p class="text-sm text-blue-700" id="currentBenchmarkInfo">Loading...</p>
-              </div>
-              <button id="benchmarkInfoBtn" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                ℹ️ Info
-              </button>
-            </div>
-          </div>
-
-          <!-- Benchmark Switching -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Switch Benchmark</label>
-            <select id="benchmarkSwitcher" class="w-full p-2 border rounded">
-              <option>Loading benchmarks...</option>
-            </select>
-            <button id="switchBenchmarkBtn"
-              class="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50" disabled>
-              Recalculate with Selected Benchmark
-            </button>
-          </div>
-
-          <!-- Add Custom Benchmark -->
-          <div class="border-t pt-4">
-            <h4 class="font-medium text-gray-900 mb-2">Add Custom Benchmark</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm text-gray-600 mb-1">Name</label>
-                <input type="text" id="customBenchmarkName" placeholder="e.g., RTX 3080"
-                  class="w-full p-2 border rounded">
-              </div>
-              <div>
-                <label class="block text-sm text-gray-600 mb-1">Wh/1000 tokens</label>
-                <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="0.50"
-                  class="w-full p-2 border rounded">
-              </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-              <div>
-                <label class="block text-sm text-gray-600 mb-1">Description</label>
-                <input type="text" id="customBenchmarkDesc" placeholder="NVIDIA RTX 3080 GPU"
-                  class="w-full p-2 border rounded">
-              </div>
-              <div>
-                <label class="block text-sm text-gray-600 mb-1">Hardware Specs</label>
-                <input type="text" id="customBenchmarkSpecs" placeholder="12GB GDDR6X"
-                  class="w-full p-2 border rounded">
-              </div>
-            </div>
-            <button id="addCustomBenchmarkBtn"
-              class="mt-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
-              Add Custom Benchmark
-            </button>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-    <!-- Response Output -->
-    <div class="card p-6 mb-6">
-      <h3 class="text-lg font-medium text-gray-900 mb-3">Response Output</h3>
-      <!-- Response Output moved to main results area -->
-    </div>
-
-    <!-- Controls & Settings -->
-    <div class="card p-6 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
-          <div class="flex items-center space-x-2">
-            <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7"
-              class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-            <span id="tempValue" class="text-sm text-gray-600 w-8">0.7</span>
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
-          <input type="number" id="maxTokens" value="100"
-            class="w-full p-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Seed (Optional)</label>
-          <input type="number" id="seedInput" placeholder="Random"
-            class="w-full p-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-      </div>
-
+    <!-- Test Controls (Always Visible) -->
+    <div class="dashboard-card p-4 mb-6 sticky top-4 z-30">
       <div class="flex flex-wrap items-center gap-4">
-        <button id="runTest" class="btn-primary px-6 py-2.5 rounded-lg font-medium shadow-sm flex items-center">
-          <span class="mr-2">⚡</span> Run Energy Test
+        <button id="runTest" class="btn-primary flex items-center gap-2">
+          <span class="text-lg">⚡</span> Run Energy Test
         </button>
-        <button id="stopTest" disabled
-          class="bg-gray-100 text-gray-400 px-6 py-2.5 rounded-lg font-medium cursor-not-allowed">
+
+        <button id="stopTest" disabled class="btn bg-slate-700 text-slate-400 px-4 py-2 rounded-lg cursor-not-allowed">
           Stop
         </button>
-        <div class="border-l pl-4 flex items-center gap-4">
-          <label class="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" id="enableLivePower" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
-            <span class="text-sm font-medium text-gray-700">Enable Live Power (RAPL)</span>
-          </label>
-          <button id="showLogs" class="text-gray-500 hover:text-gray-700 text-sm underline flex items-center">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-              </path>
-            </svg>
-            Logs
+
+        <div class="h-8 w-px bg-slate-600"></div>
+
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="enableLivePower" class="w-4 h-4 text-indigo-600 rounded">
+          <span class="text-sm font-medium">Enable Live Power (RAPL)</span>
+        </label>
+
+        <div class="ml-auto flex gap-2">
+          <button id="showLogs" class="text-slate-400 hover:text-white text-sm">📋 Logs</button>
+          <button id="clearResults" class="text-slate-400 hover:text-red-400 text-sm">🗑️ Clear</button>
+          <button id="exportData" class="text-slate-400 hover:text-indigo-400 text-sm">💾 Export</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Prompt Model -->
+    <div id="section-prompt-model" class="section-content active">
+      <div class="dashboard-card p-6 space-y-6">
+        <h2 class="text-2xl font-bold flex items-center gap-2">
+          <span>🎯</span> Prompt Model
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Model Selection</label>
+            <select id="modelSelect" class="w-full">
+              <option>Loading models…</option>
+            </select>
+            <div id="modelInfo" class="mt-2 text-xs text-slate-400 hidden">
+              <div class="flex items-center gap-2">
+                <span>📊 Context Length:</span>
+                <span id="modelContextLength" class="font-mono text-indigo-400">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold mb-2">User Query</label>
+          <textarea id="userPrompt" class="w-full h-32 resize-y font-mono text-sm"
+            placeholder="Explain quantum computing in simple terms."></textarea>
+          <div class="text-xs text-slate-500 mt-2 flex items-center">
+            💡 This is your actual query - the only "original" tokens
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Middleware -->
+    <div id="section-middleware" class="section-content">
+      <div class="dashboard-card p-6 space-y-6">
+        <h2 class="text-2xl font-bold flex items-center gap-2">
+          <span>🧩</span> Hidden Middleware
+        </h2>
+
+        <div class="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4 text-sm">
+          <strong>⚠️ Middleware Overhead:</strong> Each injection adds hidden tokens to your query
+        </div>
+
+        <!-- System Prompt -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold border-b border-slate-700 pb-2">Inputs (Prefill Stage)</h3>
+
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-sm font-semibold">System Prompt</label>
+              <div class="flex gap-2">
+                <select id="systemPromptSelect" class="text-xs p-1.5">
+                  <option value="">Custom / empty</option>
+                </select>
+                <button id="clearSystemPromptBtn" class="text-xs text-red-400 hover:text-red-300 px-2">Clear</button>
+              </div>
+            </div>
+            <textarea id="systemPromptText" class="w-full h-24 text-sm font-mono"
+              placeholder="Optional system prompt or middleware instructions"></textarea>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-sm font-semibold">Conversation Context</label>
+              <button id="injectConversationBtn" class="text-xs bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded">
+                Inject Last Turn
+              </button>
+            </div>
+            <textarea id="conversationContextText" class="w-full h-24 text-sm font-mono"
+              placeholder="Conversation context will be wrapped in <conversation_context> tags."></textarea>
+          </div>
+
+          <div id="injectionsContainer" class="space-y-3"></div>
+          <button id="addInjectionBtn"
+            class="w-full py-2 border-2 border-dashed border-slate-600 rounded-lg hover:border-indigo-500 transition-all flex items-center justify-center gap-2">
+            <span>➕</span> Add Prompt Injection
           </button>
         </div>
-        <div class="flex-grow"></div>
-        <button id="clearResults"
-          class="text-gray-600 hover:text-gray-900 px-4 py-2 text-sm font-medium flex items-center">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-            </path>
-          </svg>
-          Clear
-        </button>
-        <button id="exportData"
-          class="text-indigo-600 hover:text-indigo-800 px-4 py-2 text-sm font-medium flex items-center">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-          </svg>
-          Export
-        </button>
-      </div>
-    </div>
 
-    <!-- Test Results -->
-    <div class="bg-white rounded-lg shadow p-6">
-      <h3 class="text-xl font-semibold text-gray-900 mb-4">Test Results</h3>
+        <!-- Outputs -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold border-b border-slate-700 pb-2">Outputs (Decode Stage)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" id="includeThinking" class="w-5 h-5">
+              <span class="text-sm font-medium">Include Thinking</span>
+            </label>
 
-      <!-- Token Breakdown Chart -->
-      <div class="mb-6">
-        <h4 class="font-medium text-gray-900 mb-3">Token Analysis</h4>
-        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-          <canvas id="tokenBreakdownChart" width="400" height="120"></canvas>
-        </div>
-        <div class="mt-3 text-xs text-gray-600 flex justify-between">
-          <span id="tokenAnalysisNotes">Run a test to see detailed token breakdown.</span>
-          <div class="space-x-4">
-            <span class="font-bold text-green-700">Input: <span id="inputTokensVal">-</span></span>
-            <span class="font-bold text-yellow-700">Overhead: <span id="overheadTokensVal">-</span></span>
-            <span class="font-bold text-purple-700">Thinking: <span id="thinkingTokensVal">-</span></span>
-            <span class="font-bold text-blue-700">Output: <span id="outputTokensVal">-</span></span>
-            <span class="font-bold text-gray-700">Prefill: <span id="prefillPer1kIn">-</span></span>
-            <span class="font-bold text-gray-700">Decode: <span id="decodePer1kOut">-</span></span>
-            <span class="font-bold text-gray-700">E-Weighted: <span id="ewOutPer1k">-</span></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="space-y-3">
-        <div class="flex justify-between">
-          <span class="text-gray-600">Strategy:</span>
-          <span id="resultStrategy" class="font-medium">-</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-600">Total Tokens:</span>
-          <span id="resultTokens" class="font-medium">-</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-600">Latency:</span>
-          <span id="resultLatency" class="font-medium">-</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-600">Tokens/Second:</span>
-          <span id="resultTokensPerSec" class="font-medium">-</span>
-        </div>
-      </div>
-      <!-- RAPL Batch Results full-width (moved here) -->
-      <div class="mb-6">
-        <h4 class="font-medium text-gray-900 mb-2">RAPL Batch Results (UI Prompt + Injections)</h4>
-        <p class="text-xs text-gray-600 mb-2">
-          Each row represents one completed batch of RAPL runs using the current UI configuration. These
-          are not stored as benchmarks but as experimental results. You can remove rows individually.
-        </p>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-xs text-left border">
-            <thead class="bg-gray-100">
-              <tr>
-                <th class="px-2 py-1 border">Time</th>
-                <th class="px-2 py-1 border">Runs</th>
-                <th class="px-2 py-1 border">Mean Wh/1000 e-tokens</th>
-                <th class="px-2 py-1 border">Median Wh/1000 e-tokens</th>
-                <th class="px-2 py-1 border">Std Wh/1000 e-tokens</th>
-                <th class="px-2 py-1 border">5–95% Wh/1000 e-tokens</th>
-                <th class="px-2 py-1 border">CV</th>
-                <th class="px-2 py-1 border">Query/Input Tokens (μ/med)</th>
-                <th class="px-2 py-1 border">Output Tokens (μ/med)</th>
-                <th class="px-2 py-1 border">Mean Total Wh</th>
-                <th class="px-2 py-1 border">Median Total Wh</th>
-                <th class="px-2 py-1 border">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="raplBatchTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Energy Consumption & Live Power -->
-      <div class="mb-6 space-y-4">
-        <h4 class="font-medium text-gray-900 mb-3">Energy Consumption</h4>
-
-        <!-- Current Test Energy -->
-        <div>
-          <div class="flex justify-between text-sm mb-1">
-            <span>Test Energy</span>
-            <span id="testEnergy">0.00 Wh</span>
-          </div>
-          <div class="w-full bg-gray-200 rounded-full h-4">
-            <div id="testEnergyBar" class="energy-bar energy-low h-4 rounded-full" style="width: 0%"></div>
-          </div>
-        </div>
-
-        <!-- Efficiency Comparison -->
-        <div class="grid grid-cols-2 gap-4">
-          <div class="text-center p-3 bg-gray-50 rounded">
-            <div class="text-2xl font-bold text-blue-600" id="efficiencyScore">0.00</div>
-            <div class="text-sm text-gray-600">Wh/1000 e-tokens (net i/o energy-weighted output tokens)</div>
-          </div>
-          <div class="text-center p-3 bg-gray-50 rounded">
-            <div class="text-2xl font-bold text-green-600" id="carbonImpact">0.00</div>
-            <div class="text-sm text-gray-600">gCO2</div>
-          </div>
-          <div class="text-center p-3 bg-gray-50 rounded">
-            <div class="text-2xl font-bold text-gray-600" id="raplEfficiency">0.00</div>
-            <div class="text-sm text-gray-600">RAPL Measured Wh/1K</div>
-          </div>
-        </div>
-
-        <!-- Prefill / Decode breakdown (RAPL counters) -->
-        <div class="grid grid-cols-2 gap-4 mt-2">
-          <div class="text-center p-3 bg-gray-50 rounded">
-            <div class="text-gray-500">Prefill Energy (Input Tokens)</div>
-            <div class="font-bold" id="prefillEnergy">-</div>
-          </div>
-          <div class="text-center p-3 bg-gray-50 rounded">
-            <div class="text-gray-500">Decode Energy (Output Tokens)</div>
-            <div class="font-bold" id="decodeEnergy">-</div>
-          </div>
-        </div>
-
-        <!-- Live Power Metrics (Hidden by default) -->
-        <div id="livePowerSection" class="mt-2 hidden">
-          <h4 class="font-medium text-gray-900 mb-2">Live Power Measurements (RAPL)</h4>
-          <div class="grid grid-cols-3 gap-2 text-center text-sm">
-            <div class="bg-gray-50 p-2 rounded">
-              <div class="text-gray-500">Baseline</div>
-              <div class="font-bold" id="powerBaseline">-</div>
+            <div>
+              <div class="flex justify-between mb-2">
+                <label class="text-sm font-medium">Temperature</label>
+                <span id="tempValue" class="text-sm font-mono text-indigo-400">0.7</span>
+              </div>
+              <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7" class="w-full">
             </div>
-            <div class="bg-gray-50 p-2 rounded">
-              <div class="text-gray-500">Active</div>
-              <div class="font-bold text-blue-600" id="powerActive">-</div>
-            </div>
-            <div class="bg-gray-50 p-2 rounded">
-              <div class="text-gray-500">Measured Wh/1K</div>
-              <div class="font-bold text-green-600" id="powerMeasured">-</div>
+
+            <div>
+              <label class="block text-sm font-medium mb-2">Max Tokens</label>
+              <input type="number" id="maxTokens" value="1000" class="w-full">
             </div>
           </div>
-          <div class="mt-2 text-xs text-gray-500 text-center" id="powerAccuracy"></div>
-        </div>
-
-        <!-- Energy Chart -->
-        <div class="mt-2">
-          <canvas id="energyChart" width="400" height="200"></canvas>
-        </div>
-        <!-- Prefill vs Decode Chart (Wh per run) -->
-        <div class="mt-4">
-          <h5 class="text-sm font-medium text-gray-900 mb-2">Prefill vs Decode (Wh per run)</h5>
-          <canvas id="prefillDecodeChart" width="400" height="180"></canvas>
         </div>
       </div>
     </div>
 
-  </div>
+    <!-- Section: Live Power -->
+    <div id="section-live-power" class="section-content">
+      <div class="dashboard-card p-6 space-y-6">
+        <h2 class="text-2xl font-bold flex items-center gap-2">
+          <span>⚙️</span> Configure Live Power Tests
+          <span class="text-xs bg-green-600 px-2 py-1 rounded-full">Linux Only</span>
+        </h2>
 
-  <!-- Response Output -->
-  <div class="bg-white rounded-lg shadow p-6">
-    <h3 class="text-xl font-semibold text-gray-900 mb-4">Response Output</h3>
-    <div id="responseOutput" class="model-output bg-gray-50 p-4 rounded min-h-32 border">
-      Run a test to see the model response here.
-    </div>
-  </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="metric-card">
+            <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
+              <span>🔄</span> Batch Testing
+            </h4>
+            <label class="block text-xs text-slate-400 mb-2">Number of Runs</label>
+            <input type="number" id="raplBatchRuns" value="1" min="1" max="100" class="w-full">
+          </div>
 
-  <!-- Session Energy Summary -->
-  <div class="max-w-7xl mx-auto mt-6">
-    <div class="bg-white rounded-lg shadow p-6">
-      <h3 class="text-xl font-semibold text-gray-900 mb-4">Cummulative Session Summary</h3>
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div class="bg-blue-50 p-4 rounded-lg">
-          <div class="text-sm text-blue-600 font-medium">Total Energy</div>
-          <div id="sessionEnergy" class="text-2xl font-bold text-blue-900">0.00 Wh</div>
-        </div>
-        <div class="bg-green-50 p-4 rounded-lg">
-          <div class="text-sm text-green-600 font-medium">Carbon Footprint</div>
-          <div id="sessionCarbon" class="text-2xl font-bold text-green-900">0.00 gCO2</div>
-        </div>
-        <div class="bg-purple-50 p-4 rounded-lg">
-          <div class="text-sm text-purple-600 font-medium">Energy Weight</div>
-          <div id="sessionEfficiency" class="text-2xl font-bold text-purple-900">0.00 Wh/1000 e-tokens</div>
-        </div>
-        <div class="bg-orange-50 p-4 rounded-lg">
-          <div class="text-sm text-orange-600 font-medium">Total Tokens</div>
-          <div id="sessionTokens" class="text-2xl font-bold text-orange-900">0</div>
-        </div>
-        <div class="bg-gray-50 p-4 rounded-lg">
-          <div class="text-sm text-gray-600 font-medium">RAPL Measured Energy</div>
-          <div id="sessionRaplEnergy" class="text-2xl font-bold text-gray-900">0.000000 Wh</div>
+          <div class="metric-card">
+            <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
+              <span>🎲</span> Reproducibility
+            </h4>
+            <label class="block text-xs text-slate-400 mb-2">Seed (Optional)</label>
+            <input type="number" id="seedInput" placeholder="Random" class="w-full">
+
+            <div class="mt-4 pt-4 border-t border-slate-700">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1">Calibration</label>
+                  <p class="text-[10px] text-slate-500" id="raplCalibrationStatus">Not run yet.</p>
+                </div>
+                <button id="runRaplCalibration" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded">
+                  Run Calibration
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div id="cliModal" class="fixed inset-0 hidden z-50">
-    <div class="w-full h-full flex items-center justify-center bg-black bg-opacity-50">
-      <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-2xl p-4">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-lg font-semibold">Live Measurement Logs</h3>
-          <button id="closeCliModalBtn" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300">Close</button>
+    <!-- Section: Estimated Power -->
+    <div id="section-estimated" class="section-content">
+      <div class="dashboard-card p-6 space-y-6">
+        <h2 class="text-2xl font-bold flex items-center gap-2">
+          <span>📊</span> Configure Estimated Power Tests
+        </h2>
+
+        <div class="bg-indigo-900/30 border border-indigo-700/50 rounded-xl p-4 flex justify-between items-center">
+          <div>
+            <h4 class="text-sm font-bold mb-1">Current Benchmark</h4>
+            <p id="currentBenchmarkInfo" class="text-xs text-indigo-300 font-mono">-</p>
+          </div>
+          <button id="benchmarkInfoBtn" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">View
+            Details</button>
         </div>
-        <div id="cliLog" class="bg-gray-900 text-green-200 p-3 rounded h-80 overflow-auto text-sm font-mono"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Switch Benchmark</label>
+            <div class="flex gap-2">
+              <select id="benchmarkSwitcher" class="flex-1">
+                <option>Loading benchmarks...</option>
+              </select>
+              <button id="switchBenchmarkBtn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded" disabled>
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-700 pt-6">
+          <h4 class="text-sm font-bold mb-4">Add Custom Benchmark</h4>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input type="text" id="customBenchmarkName" placeholder="Name (e.g. RTX 3080)" class="w-full">
+            <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="Wh/1k tokens" class="w-full">
+            <input type="text" id="customBenchmarkDesc" placeholder="Description" class="w-full">
+            <button id="addCustomBenchmarkBtn"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded whitespace-nowrap">
+              Add
+            </button>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Section: Response -->
+    <div id="section-response" class="section-content">
+      <div class="dashboard-card p-6">
+        <h2 class="text-2xl font-bold flex items-center gap-2 mb-4">
+          <span>💬</span> Response Output
+        </h2>
+        <div id="responseOutput"
+          class="bg-slate-900 p-6 rounded-xl border border-slate-700 min-h-[200px] font-mono text-sm whitespace-pre-wrap">
+          Run a test to see the model response here.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Results -->
+    <div id="section-results" class="section-content">
+      <div class="space-y-6">
+
+        <!-- Token Analysis -->
+        <div class="dashboard-card p-6">
+          <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
+            <span>📊</span> Token Analysis
+          </h2>
+
+          <div style="height: 120px; position: relative; margin-bottom: 2rem;">
+            <canvas id="tokenBreakdownChart"></canvas>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="metric-card text-center">
+              <div class="text-xs text-slate-400 mb-1">Input</div>
+              <div id="inputTokensVal" class="metric-value">-</div>
+            </div>
+            <div class="metric-card text-center">
+              <div class="text-xs text-slate-400 mb-1">Overhead</div>
+              <div id="overheadTokensVal" class="metric-value"
+                style="background: linear-gradient(135deg, #f59e0b, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                -</div>
+            </div>
+            <div class="metric-card text-center">
+              <div class="text-xs text-slate-400 mb-1">Thinking</div>
+              <div id="thinkingTokensVal" class="metric-value"
+                style="background: linear-gradient(135deg, #a855f7, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                -</div>
+            </div>
+            <div class="metric-card text-center">
+              <div class="text-xs text-slate-400 mb-1">Output</div>
+              <div id="outputTokensVal" class="metric-value"
+                style="background: linear-gradient(135deg, #3b82f6, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                -</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div class="metric-card">
+              <div class="text-xs text-slate-400">Strategy</div>
+              <div id="resultStrategy" class="font-medium truncate">-</div>
+            </div>
+            <div class="metric-card">
+              <div class="text-xs text-slate-400">Total Tokens</div>
+              <div id="resultTokens" class="font-medium">-</div>
+            </div>
+            <div class="metric-card">
+              <div class="text-xs text-slate-400">Latency</div>
+              <div id="resultLatency" class="font-medium">-</div>
+            </div>
+            <div class="metric-card">
+              <div class="text-xs text-slate-400">Tokens/Sec</div>
+              <div id="resultTokensPerSec" class="font-medium">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RAPL Results Dashboard -->
+        <div class="dashboard-card p-6">
+          <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
+            <span>⚡</span> Live Power RAPL Results
+          </h2>
+
+          <div id="raplResultsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- RAPL results will be populated here as metric cards -->
+          </div>
+        </div>
+
+        <!-- Results Overview -->
+        <div class="dashboard-card p-6">
+          <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
+            <span>📈</span> Results Overview
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="metric-card text-center">
+              <div class="metric-value text-4xl" id="efficiencyScore">0.00</div>
+              <div class="text-xs font-bold text-slate-400 mt-2">Wh/1000 e-tokens</div>
+              <div class="text-[10px] text-slate-500 mt-1">Energy Efficiency Score</div>
+            </div>
+
+            <div class="metric-card text-center">
+              <div class="metric-value text-4xl" id="carbonImpact"
+                style="background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                0.00</div>
+              <div class="text-xs font-bold text-slate-400 mt-2">gCO2</div>
+              <div class="text-[10px] text-slate-500 mt-1">Carbon Footprint</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="flex justify-between text-sm mb-2 font-medium">
+                <span>Test Energy</span>
+                <span id="testEnergy">0.00 Wh</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+                <div id="testEnergyBar" class="h-full rounded-full transition-all duration-1000"
+                  style="width: 0%; background: linear-gradient(90deg, #10b981, #059669);"></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="height: 200px; position: relative;">
+            <canvas id="energyChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CLI Modal -->
+    <div id="cliModal" class="fixed inset-0 hidden z-50">
+      <div class="w-full h-full flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div
+          class="bg-slate-900 rounded-xl shadow-2xl w-full max-w-4xl border border-slate-700 flex flex-col max-h-[80vh]">
+          <div class="flex items-center justify-between p-4 border-b border-slate-700">
+            <h3 class="text-lg font-mono font-bold text-green-400 flex items-center gap-2">
+              <span class="animate-pulse">_</span> Live Measurement Logs
+            </h3>
+            <button id="closeCliModalBtn" class="text-slate-400 hover:text-white">✕</button>
+          </div>
+          <div id="cliLog" class="p-4 overflow-auto font-mono text-xs text-slate-300 space-y-1 flex-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden elements for JS compatibility -->
+    <div class="hidden">
+      <div id="modificationImpact"></div>
+      <div id="connectionStatus"></div>
+      <div id="energyBenchmark"></div>
+      <div id="injectionTokens"></div>
+      <div id="toolTokens"></div>
+      <div id="inputTokens"></div>
+      <div id="outputTokens"></div>
+      <div id="tokenAnalysisNotes"></div>
+      <div id="prefillPer1kIn"></div>
+      <div id="decodePer1kOut"></div>
+      <div id="ewOutPer1k"></div>
+      <div id="raplEfficiency"></div>
+      <div id="powerBaseline"></div>
+      <div id="powerActive"></div>
+      <div id="powerMeasured"></div>
+      <div id="prefillEnergy"></div>
+      <div id="decodeEnergy"></div>
+      <div id="sessionEnergy"></div>
+      <div id="sessionCarbon"></div>
+      <div id="sessionEfficiency"></div>
+      <div id="sessionTokens"></div>
+      <div id="sessionRaplEnergy"></div>
+      <input type="number" id="raplCalibrationRuns" value="5" class="hidden">
+      <input type="number" id="raplCalibrationWords" value="120" class="hidden">
+      <input type="text" id="customBenchmarkSpecs" class="hidden">
+    </div>
+
   </div>
 
   <script>
+    // Section Navigation - Toggle multiple sections
+    function toggleSection(sectionId) {
+      const section = document.getElementById(`section-${sectionId}`);
+      const button = document.querySelector(`[data-section="${sectionId}"]`);
+
+      // Toggle section visibility
+      section.classList.toggle('active');
+
+      // Toggle button active state
+      button.classList.toggle('active');
+    }
+  </script>
+  <script>
     // DOM references
     const modelSelect = document.getElementById('modelSelect');
-    const energyBenchmark = document.getElementById('energyBenchmark');
+
     const systemPromptSelect = document.getElementById('systemPromptSelect');
     const systemPromptText = document.getElementById('systemPromptText');
     const conversationContextText = document.getElementById('conversationContextText');
@@ -746,49 +816,69 @@
     let answerStarted = false;
 
     function renderRaplBatchTable() {
-      if (!raplBatchTableBody) return;
-      raplBatchTableBody.innerHTML = '';
+      const container = document.getElementById('raplResultsContainer');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      if (raplBatchSummaries.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center text-slate-400 py-8">
+            <div class="text-4xl mb-2">📊</div>
+            <div>No RAPL measurements yet. Run a test with Live Power enabled.</div>
+          </div>
+        `;
+        return;
+      }
 
       const sorted = raplBatchSummaries.slice().reverse();
       sorted.forEach(s => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-50';
-        tr.innerHTML = `
-            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${s.time}</td>
-            <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-900">${s.runs}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-indigo-700 font-bold">${(s.meanWhPer1k ?? 0).toFixed(3)}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-indigo-600">${(s.medianWhPer1k ?? 0).toFixed(3)}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${(s.stdWhPer1k ?? 0).toFixed(3)}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${(s.p5WhPer1k != null && s.p95WhPer1k != null) ? `${s.p5WhPer1k.toFixed(3)} – ${s.p95WhPer1k.toFixed(3)}` : 'n/a'}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-gray-500">${(s.cv ?? 0).toFixed(3)}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-green-700">${(s.meanInputTokens != null ? s.meanInputTokens.toFixed(0) : 'n/a')} / ${(s.medianInputTokens != null ? s.medianInputTokens.toFixed(0) : 'n/a')}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-blue-700">${(s.meanOutputTokens != null ? s.meanOutputTokens.toFixed(0) : 'n/a')} / ${(s.medianOutputTokens != null ? s.medianOutputTokens.toFixed(0) : 'n/a')}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-gray-900">${(s.meanTotalWh != null ? s.meanTotalWh.toFixed(6) : 'n/a')}</td>
-            <td class="px-3 py-2 whitespace-nowrap text-gray-900">${(s.medianTotalWh != null ? s.medianTotalWh.toFixed(6) : 'n/a')}</td>
-            <td class="px-3 py-2 whitespace-nowrap">
-              <button data-id="${s.id}" class="text-red-600 hover:text-red-800 text-xs">Remove</button>
-            </td>
-          `;
-        raplBatchTableBody.appendChild(tr);
-
-        // Secondary details row
-        const tr2 = document.createElement('tr');
-        tr2.className = 'bg-gray-50';
-        tr2.innerHTML = `
-          <td class="px-3 py-2 text-gray-600" colspan="2">Injected: ${s.injectedTokens != null ? s.injectedTokens : 'n/a'}</td>
-          <td class="px-3 py-2 text-gray-700" colspan="2">Thinking tok μ/med: ${(s.meanThinkingTokens != null ? s.meanThinkingTokens.toFixed(0) : 'n/a')} / ${(s.medianThinkingTokens != null ? s.medianThinkingTokens.toFixed(0) : 'n/a')}</td>
-          <td class="px-3 py-2 text-gray-700" colspan="2">TTFT μ/med: ${(s.meanTTFT != null ? s.meanTTFT.toFixed(3) : 'n/a')}s / ${(s.medianTTFT != null ? s.medianTTFT.toFixed(3) : 'n/a')}s</td>
-          <td class="px-3 py-2 text-gray-700" colspan="2">Decode μ/med: ${(s.meanDecode != null ? s.meanDecode.toFixed(3) : 'n/a')}s / ${(s.medianDecode != null ? s.medianDecode.toFixed(3) : 'n/a')}s</td>
-          <td class="px-3 py-2 text-gray-700" colspan="2">Run μ/med: ${(s.meanRunDur != null ? s.meanRunDur.toFixed(3) : 'n/a')}s / ${(s.medianRunDur != null ? s.medianRunDur.toFixed(3) : 'n/a')}s</td>
-          <td></td><td></td>
+        const card = document.createElement('div');
+        card.className = 'metric-card';
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-3">
+            <div class="text-xs text-slate-400">${s.time}</div>
+            <button data-id="${s.id}" class="text-red-400 hover:text-red-300 text-xs">✕</button>
+          </div>
+          <div class="space-y-2">
+            <div>
+              <div class="text-xs text-slate-500">Runs</div>
+              <div class="text-lg font-bold">${s.runs}</div>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500">Mean Wh/1k e-tokens</div>
+              <div class="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                ${(s.meanWhPer1k ?? 0).toFixed(3)}
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <div class="text-slate-500">Median</div>
+                <div class="font-semibold">${(s.medianWhPer1k ?? 0).toFixed(3)}</div>
+              </div>
+              <div>
+                <div class="text-slate-500">Std Dev</div>
+                <div class="font-semibold">${(s.stdWhPer1k ?? 0).toFixed(3)}</div>
+              </div>
+              <div>
+                <div class="text-slate-500">CV</div>
+                <div class="font-semibold">${(s.cv ?? 0).toFixed(3)}</div>
+              </div>
+              <div>
+                <div class="text-slate-500">Total Wh</div>
+                <div class="font-semibold">${(s.meanTotalWh != null ? s.meanTotalWh.toFixed(6) : 'n/a')}</div>
+              </div>
+            </div>
+          </div>
         `;
-        raplBatchTableBody.appendChild(tr2);
+        container.appendChild(card);
       });
 
-      raplBatchTableBody.querySelectorAll('button[data-id]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.getAttribute('data-id');
-          raplBatchSummaries = raplBatchSummaries.filter(r => String(r.id) !== String(id));
+      // Re-attach listeners
+      container.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.getAttribute('data-id');
+          raplBatchSummaries = raplBatchSummaries.filter(x => x.id !== id);
           renderRaplBatchTable();
         });
       });
@@ -828,6 +918,8 @@
           } else if (modelSelect.options.length > 0) {
             modelSelect.selectedIndex = 0;
           }
+          // Load info for the selected model
+          await loadModelInfo(modelSelect.value);
         } else {
           modelSelect.innerHTML = '<option>No models available</option>';
           console.log('⚠️ No models found in API response');
@@ -837,6 +929,35 @@
         modelSelect.innerHTML = '<option>Error loading models (JS error)</option>';
       }
     }
+
+    async function loadModelInfo(modelName) {
+      if (!modelName || modelName.includes('Loading') || modelName.includes('Error') || modelName.includes('No models')) {
+        document.getElementById('modelInfo').classList.add('hidden');
+        return;
+      }
+
+      try {
+        const r = await fetch(`/api/model-info/${encodeURIComponent(modelName)}`);
+        if (r.ok) {
+          const info = await r.json();
+          const contextLength = info.context_length || 4096;
+          document.getElementById('modelContextLength').textContent = contextLength.toLocaleString();
+          document.getElementById('modelInfo').classList.remove('hidden');
+          console.log(`✓ Model ${modelName} context length: ${contextLength}`);
+        } else {
+          document.getElementById('modelInfo').classList.add('hidden');
+          console.warn(`⚠️ Could not fetch info for model ${modelName}`);
+        }
+      } catch (e) {
+        console.error(`❌ Error fetching model info for ${modelName}:`, e);
+        document.getElementById('modelInfo').classList.add('hidden');
+      }
+    }
+
+    // Update model info when model selection changes
+    modelSelect.addEventListener('change', () => {
+      loadModelInfo(modelSelect.value);
+    });
 
     async function loadSystemPrompts() {
       try {
@@ -862,104 +983,64 @@
       console.log('🔄 Attempting to load benchmarks...');
       try {
         const r = await fetch('/api/energy-benchmarks');
-        console.log('📡 Benchmarks API response status:', r.status);
-        if (!r.ok) {
-          const errorText = await r.text();
-          console.error('❌ Benchmarks API request failed:', r.status, errorText);
-          if (energyBenchmark) energyBenchmark.innerHTML = '<option>Error loading (API fail)</option>';
-          return;
-        }
-        const d = await r.json();
-        console.log('✓ Benchmarks API response data:', d);
-        if (energyBenchmark) {
-          energyBenchmark.innerHTML = '';
-          if (d.benchmarks && d.benchmarks.length > 0) {
-            d.benchmarks.forEach(benchmark => {
-              const opt = document.createElement('option');
-              opt.value = benchmark.name;
-              const isRapl =
-                (benchmark.source && benchmark.source.toLowerCase().includes('rapl')) ||
-                benchmark.name.toLowerCase().startsWith('rapl_');
-              const labelPrefix = isRapl ? '[RAPL] ' : '';
-              opt.textContent = `${labelPrefix}${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh / 1000 tokens)`;
-              energyBenchmark.appendChild(opt);
-            });
-            console.log('✓ Benchmarks dropdown populated with', d.benchmarks.length, 'benchmarks');
-          } else {
-            energyBenchmark.innerHTML = '<option>No benchmarks available</option>';
-            console.log('⚠️ No benchmarks found in API response');
-          }
-        } else {
-          console.log('ℹ️ energyBenchmark element not found, skipping population');
-        }
-      } catch (e) {
-        console.error('❌ Failed to load benchmarks (JS error):', e);
-        if (energyBenchmark) energyBenchmark.innerHTML = '<option>Error loading (JS error)</option>';
-      }
-    }
+        if (!r.ok) throw new Error(`API Error: ${r.status}`);
 
-    async function loadBenchmarkSwitcher(valueToSelect = null) {
-      try {
-        const currentValue = benchmarkSwitcher.value;
-        const r = await fetch('/api/energy-benchmarks');
         const d = await r.json();
-        benchmarkSwitcher.innerHTML = '';
+        console.log('✓ Benchmarks loaded:', d);
 
-        let found = false;
-        if (d.benchmarks && d.benchmarks.length > 0) {
-          d.benchmarks.forEach(benchmark => {
+        if (benchmarkSwitcher) {
+          benchmarkSwitcher.innerHTML = '';
+          // Handle both array format and object with benchmarks property
+          const benchmarks = Array.isArray(d) ? d : (d.benchmarks || []);
+
+          benchmarks.forEach(b => {
             const opt = document.createElement('option');
-            opt.value = benchmark.name;
-            const isRapl =
-              (benchmark.source && benchmark.source.toLowerCase().includes('rapl')) ||
-              benchmark.name.toLowerCase().startsWith('rapl_');
-            const labelPrefix = isRapl ? '[RAPL] ' : '';
-            opt.textContent = `${labelPrefix}${benchmark.name} (${benchmark.watt_hours_per_1000_tokens} Wh / 1000 tokens)`;
+            opt.value = b.name;
+            opt.textContent = `${b.name} (${b.wh_per_1000_tokens || b.watt_hours_per_1000_tokens} Wh/1k)`;
+            opt.dataset.desc = b.description || '';
+            opt.dataset.wh = b.wh_per_1000_tokens || b.watt_hours_per_1000_tokens;
             benchmarkSwitcher.appendChild(opt);
-
-            if (valueToSelect && benchmark.name === valueToSelect) {
-              found = true;
-            } else if (!valueToSelect && benchmark.name === currentValue) {
-              found = true;
-            } else if (!valueToSelect && !currentValue && benchmark.name === 'conservative_estimate') {
-              // Default to conservative_estimate
-              found = true;
-            }
           });
 
-          // Set the value
-          if (valueToSelect) {
-            benchmarkSwitcher.value = valueToSelect;
-          } else if (found && currentValue) {
-            benchmarkSwitcher.value = currentValue;
-          } else {
-            // Default to conservative_estimate
-            benchmarkSwitcher.value = 'conservative_estimate';
-          }
+          // Set initial info
+          updateBenchmarkInfo();
         }
-
-        switchBenchmarkBtn.disabled = false;
       } catch (e) {
-        console.error('Failed to load benchmark switcher:', e);
-        benchmarkSwitcher.innerHTML = '<option>Error loading benchmarks</option>';
+        console.error('❌ Failed to load benchmarks:', e);
+        if (benchmarkSwitcher) benchmarkSwitcher.innerHTML = '<option>Error loading benchmarks</option>';
       }
     }
 
-    async function updateCurrentBenchmarkInfo() {
-      try {
-        const r = await fetch('/api/session-summary');
-        const summary = await r.json();
-        if (!summary.error && summary.benchmark_used) {
-          const benchmarkName = summary.benchmark_used;
-          currentBenchmarkInfo.textContent = `${benchmarkName} - Click info button for details`;
-        } else {
-          currentBenchmarkInfo.textContent = 'No benchmark selected';
-        }
-      } catch (e) {
-        console.error('Failed to update current benchmark info:', e);
-        currentBenchmarkInfo.textContent = 'Error loading benchmark info';
+    function updateBenchmarkInfo() {
+      if (!benchmarkSwitcher || !currentBenchmarkInfo) return;
+      const selected = benchmarkSwitcher.options[benchmarkSwitcher.selectedIndex];
+      if (selected) {
+        currentBenchmarkInfo.textContent = `${selected.value}: ${selected.dataset.desc || ''}`;
       }
     }
+
+    // Event Listeners for Benchmark Switching
+    if (switchBenchmarkBtn) {
+      switchBenchmarkBtn.addEventListener('click', () => {
+        updateBenchmarkInfo();
+        // Visual feedback
+        const originalText = switchBenchmarkBtn.textContent;
+        switchBenchmarkBtn.textContent = 'Applied!';
+        switchBenchmarkBtn.classList.add('bg-green-600');
+        setTimeout(() => {
+          switchBenchmarkBtn.textContent = originalText;
+          switchBenchmarkBtn.classList.remove('bg-green-600');
+        }, 1000);
+      });
+    }
+
+    if (benchmarkSwitcher) {
+      benchmarkSwitcher.addEventListener('change', () => {
+        if (switchBenchmarkBtn) switchBenchmarkBtn.disabled = false;
+      });
+    }
+
+
 
     function setupWebSocket() {
       const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -992,7 +1073,6 @@
           if (isThinking) {
             if (!inThinking) {
               responseOutput.textContent += (responseOutput.textContent.endsWith('\n') ? '' : '\n') + 'Thinking:\n';
-              responseOutput.textContent += '<thinking>';
               inThinking = true;
             }
           } else {
@@ -1262,7 +1342,7 @@
           const result = await r.json();
           // Update the UI with recalculated values
           updateSessionWithRecalculatedData(result);
-          await updateCurrentBenchmarkInfo();
+
           alert(`Successfully switched to ${result.benchmark_used} benchmark`);
         } else {
           const error = await r.json();
@@ -1314,7 +1394,9 @@
           customBenchmarkSpecs.value = '';
 
           await loadBenchmarks();
-          await loadBenchmarkSwitcher(name); // Select the new benchmark
+          await loadBenchmarks(); // Refresh benchmarks
+          benchmarkSwitcher.value = name; // Select the new benchmark
+          updateBenchmarkInfo();
         } else {
           const error = await r.json();
           alert(`Error adding benchmark: ${error.detail || 'Unknown error'}`);
@@ -1394,7 +1476,9 @@
 
         // Refresh benchmark lists and auto-select the new calibrated benchmark
         await loadBenchmarks();
-        await loadBenchmarkSwitcher(b.name);
+        await loadBenchmarks();
+        benchmarkSwitcher.value = b.name;
+        updateBenchmarkInfo();
         if (energyBenchmark) energyBenchmark.value = b.name;
       } catch (e) {
         console.error('RAPL calibration failed:', e);
@@ -1633,15 +1717,16 @@
         await updateSessionSummary();
 
         const usedBenchmark = data.energy_metrics.benchmark_used;
-        if (usedBenchmark && usedBenchmark !== benchmarkSwitcher.value) {
-          await loadBenchmarkSwitcher(usedBenchmark);
+        if (usedBenchmark && benchmarkSwitcher && usedBenchmark !== benchmarkSwitcher.value) {
+          // Refresh benchmarks to ensure we have the latest
           await loadBenchmarks();
-          if (energyBenchmark) {
-            const opt = Array.from(energyBenchmark.options).find(o => o.value === usedBenchmark);
-            if (opt) energyBenchmark.value = usedBenchmark;
+
+          // Select the benchmark
+          const opt = Array.from(benchmarkSwitcher.options).find(o => o.value === usedBenchmark);
+          if (opt) {
+            benchmarkSwitcher.value = usedBenchmark;
+            updateBenchmarkInfo();
           }
-          const infoEl = document.getElementById('currentBenchmarkInfo');
-          if (infoEl) infoEl.textContent = `${usedBenchmark} - Click info button for details`;
         }
 
         // Analyze modification impact
@@ -1781,8 +1866,8 @@
           appendCliLog(
             `Run ${completed}: input=${promptTokens ?? 'n/a'} tok, output=${completionTokens ?? 'n/a'} tok, total=${totalTokens}, ` +
             `latency=${latency.toFixed(2)}s, energy=${energyWh.toFixed(4)} Wh, ` +
-            `TTFT=${(typeof ttft==='number') ? ttft.toFixed(3) : 'n/a'}s, ` +
-            `Decode=${(typeof decDur==='number') ? decDur.toFixed(3) : 'n/a'}s, ` +
+            `TTFT=${(typeof ttft === 'number') ? ttft.toFixed(3) : 'n/a'}s, ` +
+            `Decode=${(typeof decDur === 'number') ? decDur.toFixed(3) : 'n/a'}s, ` +
             `RAPL Total Wh=${raplTotalWh != null ? raplTotalWh.toFixed(6) : 'n/a'}, ` +
             `RAPL Wh/1K=${raplWhPer1k != null ? raplWhPer1k.toFixed(4) : 'n/a'}`
           );
@@ -1807,7 +1892,7 @@
 
       if (raplValues.length > 0) {
         const meanOf = arr => arr.reduce((s, x) => s + x, 0) / arr.length;
-        const medianOf = arr => { const a = [...arr].sort((a,b)=>a-b); const n=a.length; return n%2? a[(n-1)/2] : 0.5*(a[n/2-1]+a[n/2]); };
+        const medianOf = arr => { const a = [...arr].sort((a, b) => a - b); const n = a.length; return n % 2 ? a[(n - 1) / 2] : 0.5 * (a[n / 2 - 1] + a[n / 2]); };
         const sorted = [...raplValues].sort((a, b) => a - b);
         const n = sorted.length;
         const mean = sorted.reduce((s, x) => s + x, 0) / n;
@@ -1842,10 +1927,10 @@
         const meanIn = inputTokensArr.length ? (inputTokensArr.reduce((s, x) => s + x, 0) / inputTokensArr.length) : null;
         const meanOut = outputTokensArr.length ? (outputTokensArr.reduce((s, x) => s + x, 0) / outputTokensArr.length) : null;
         const medIn = inputTokensArr.length ? (() => {
-          const t = [...inputTokensArr].sort((a,b)=>a-b); const n2 = t.length; return n2 % 2 ? t[(n2-1)/2] : 0.5*(t[n2/2-1]+t[n2/2]);
+          const t = [...inputTokensArr].sort((a, b) => a - b); const n2 = t.length; return n2 % 2 ? t[(n2 - 1) / 2] : 0.5 * (t[n2 / 2 - 1] + t[n2 / 2]);
         })() : null;
         const medOut = outputTokensArr.length ? (() => {
-          const t = [...outputTokensArr].sort((a,b)=>a-b); const n2 = t.length; return n2 % 2 ? t[(n2-1)/2] : 0.5*(t[n2/2-1]+t[n2/2]);
+          const t = [...outputTokensArr].sort((a, b) => a - b); const n2 = t.length; return n2 % 2 ? t[(n2 - 1) / 2] : 0.5 * (t[n2 / 2 - 1] + t[n2 / 2]);
         })() : null;
 
         // Calculate injected tokens from the last result (assuming constant for batch)
@@ -2313,7 +2398,7 @@
         cliLog.appendChild(_genProgressEl);
         cliLog.scrollTop = cliLog.scrollHeight;
       }
-      const spins = ['|','/','-','\\'];
+      const spins = ['|', '/', '-', '\\'];
       _genTimer = setInterval(() => {
         const elapsed = Date.now() - _genStartMs;
         const s = Math.floor(elapsed / 1000);
@@ -2346,9 +2431,9 @@
       // Load all data
       await loadModels();
       await loadBenchmarks();
-      await loadBenchmarkSwitcher();
+      await loadBenchmarks();
       await loadSystemPrompts();
-      await updateCurrentBenchmarkInfo();
+
       await updateSessionSummary();
 
       // Setup UI

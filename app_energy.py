@@ -29,12 +29,13 @@ from ollama_client import (
     check_ollama_connection,
     list_ollama_models,
     get_models_with_defaults,
+    get_model_info,
     print_startup_info,
     OLLAMA_BASE_URL,
     DEFAULT_MODEL,
     DEFAULT_BASE_MODEL,
     REQUEST_TIMEOUT,
-    MAX_OUTPUT_TOKENS
+    DEFAULT_MAX_OUTPUT_TOKENS
 )
 
 # Import token tracking (Phase 1 - CRITICAL FIX)
@@ -47,6 +48,29 @@ try:
 except ImportError:
     POWER_MONITORING_AVAILABLE = False
     power_monitor = None
+
+# Dynamic model context length cache (populated from ollama_client.get_model_info)
+MODEL_CONTEXT_CACHE: Dict[str, int] = {}
+
+async def fetch_model_context_limit(model_name: str) -> Optional[int]:
+    """Fetch context length for a model via shared ollama_client.get_model_info"""
+    try:
+        info = await get_model_info(model_name)
+        if info and isinstance(info, dict):
+            ctx = info.get("context_length")
+            if isinstance(ctx, int) and ctx > 0:
+                return ctx
+    except Exception:
+        pass
+    return None
+
+def get_model_context_limit(model_name: str) -> Optional[int]:
+    """Get context length limit for a model (cached only)"""
+    # Check cache first
+    if model_name in MODEL_CONTEXT_CACHE:
+        return MODEL_CONTEXT_CACHE[model_name]
+    # If not cached yet, caller should invoke fetch_model_context_limit
+    return None
 
 @dataclass
 class EnergyPayload:
@@ -190,92 +214,104 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
               f"Total={middleware_tokens['final_total']}")
 
         # ===== PHASE 5: VALIDATE MAX_TOKENS (FIX FROM CODE REVIEW) =====
-        safe_max_tokens = min(payload.max_tokens, MAX_OUTPUT_TOKENS)
+        # Note: This is a soft limit - UI should allow override based on model capabilities
+        safe_max_tokens = min(payload.max_tokens, DEFAULT_MAX_OUTPUT_TOKENS) if payload.max_tokens > DEFAULT_MAX_OUTPUT_TOKENS else payload.max_tokens
         if safe_max_tokens != payload.max_tokens:
             print(f"⚠️ Capping max_tokens from {payload.max_tokens} to {safe_max_tokens}")
         
-        # ===== PHASE 5.25: PREFLIGHT TOKENIZATION (NO ENERGY MEASUREMENT) =====
-        # 1) Attempt a fast Ollama preflight (num_predict=0, no stream) to get prompt_eval_count
-        # 2) Optionally try HF Qwen tokenizer on ChatML-rendered prompt if available
-        preflight_hf_tokens = None
-        preflight_ollama_tokens = None
-        chatml_text = None
-
-        # Build a ChatML rendering for Qwen-like templates to feed HF tokenizer if present
+        # ===== PHASE 5.1: ESTIMATE CONTEXT WINDOW SIZE =====
+        # Estimate context need to avoid truncation of large injections
         try:
-            def build_chatml(msgs: List[Dict[str, str]]) -> str:
-                parts = []
-                for m in msgs:
-                    role = m.get("role", "user")
-                    content = m.get("content", "")
-                    parts.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
-                # Assistant preamble as many chat templates do
-                parts.append("<|im_start|>assistant\n")
-                return "".join(parts)
-
-            chatml_text = build_chatml(messages)
+            estimated_prompt_tokens_guess = int(middleware_tokens.get("final_total", 0))
         except Exception:
-            chatml_text = None
+            estimated_prompt_tokens_guess = 0
+        # Heuristic: desired ctx = estimated prompt + planned output + small slack
+        desired_ctx = estimated_prompt_tokens_guess + safe_max_tokens + 256
+        # Clip to a generous maximum (most modern small models support large ctx; engine will cap safely)
+        desired_ctx = max(2048, min(desired_ctx, 40960))
 
-        # HF tokenizer (optional)
-        if AutoTokenizer is not None and chatml_text:
+        # ===== PHASE 4: PRE-RAPL TOKENIZATION VALIDATION =====
+        # Tokenize composed prompt before energy measurement to prevent truncation
+        max_context_length = get_model_context_limit(payload.model_name)
+        if max_context_length is None:
+            # Fetch dynamically from Ollama and cache
             try:
-                # Try Qwen3 first, then fallback to Qwen2.5 instruct variants
-                model_ids = [
-                    "Qwen/Qwen2.5-0.5B-Instruct",
-                    "Qwen/Qwen2.5-1.8B-Instruct",
-                    "Qwen/Qwen2.5-0.5B",
-                ]
-                tok = None
-                for mid in model_ids:
-                    try:
-                        tok = AutoTokenizer.from_pretrained(mid, trust_remote_code=True, local_files_only=True)
-                        break
-                    except Exception:
-                        continue
-                if tok is not None:
-                    preflight_hf_tokens = len(tok.encode(chatml_text))
-            except Exception:
-                preflight_hf_tokens = None
-
-        # Ollama preflight
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client_pf:
-                r = await client_pf.post(
-                    f"{OLLAMA_BASE_URL}/api/chat",
-                    json={
-                        "model": payload.model_name,
-                        "messages": messages,
-                        "stream": False,
-                        "think": bool(getattr(payload, "include_thinking", False)),
-                        "options": {
-                            "temperature": payload.temp,
-                            "num_predict": 0,
-                            "seed": payload.seed if payload.seed is not None else None,
-                            "num_ctx": desired_ctx
-                        }
-                    }
-                )
-                if r.status_code == 200:
-                    j = r.json()
-                    preflight_ollama_tokens = int(j.get("prompt_eval_count", 0))
-        except Exception as e:
-            preflight_ollama_tokens = None
-            try:
-                await websocket.send_json({"log": f"⏭️ Preflight token count skipped: {str(e)}"})
+                await websocket.send_json({"log": f"🔍 Fetching context limit for model '{payload.model_name}' from Ollama..."})
             except Exception:
                 pass
+            fetched_ctx = await fetch_model_context_limit(payload.model_name)
+            if fetched_ctx is not None and fetched_ctx > 0:
+                MODEL_CONTEXT_CACHE[payload.model_name] = int(fetched_ctx)
+                max_context_length = int(fetched_ctx)
+                try:
+                    await websocket.send_json({"log": f"✅ Model context limit set to {max_context_length:,} tokens (from ollama show)"})
+                except Exception:
+                    pass
+            else:
+                try:
+                    await websocket.send_json({"log": f"⚠️ Could not determine context limit for model '{payload.model_name}', skipping validation"})
+                except Exception:
+                    pass
+                max_context_length = None
 
-        try:
-            await websocket.send_json({
-                "log": (
-                    f"🔎 Preflight tokens → estimated≈{middleware_tokens.get('final_total', 0)}, "
-                    f"ollama≈{preflight_ollama_tokens if preflight_ollama_tokens is not None else 'n/a'}, "
-                    f"hf≈{preflight_hf_tokens if preflight_hf_tokens is not None else 'n/a'}, num_ctx={desired_ctx}"
-                )
-            })
-        except Exception:
-            pass
+        if max_context_length:
+            try:
+                # Build ChatML representation for accurate tokenization
+                def build_chatml(msgs: List[Dict[str, str]]) -> str:
+                    parts = []
+                    for m in msgs:
+                        role = m.get("role", "user")
+                        content = m.get("content", "")
+                        parts.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
+                    parts.append("<|im_start|>assistant\n")
+                    return "".join(parts)
+
+                chatml_text = build_chatml(messages)
+
+                # Use available tokenizer for accurate count
+                if AutoTokenizer is not None:
+                    try:
+                        # Try Qwen instruct variants that understand ChatML locally
+                        model_ids = [
+                            "Qwen/Qwen2.5-0.5B-Instruct",
+                            "Qwen/Qwen2.5-1.8B-Instruct",
+                            "Qwen/Qwen2.5-0.5B",
+                        ]
+                        tokenizer = None
+                        for mid in model_ids:
+                            try:
+                                tokenizer = AutoTokenizer.from_pretrained(mid, trust_remote_code=True, local_files_only=True)
+                                break
+                            except Exception:
+                                continue
+
+                        if tokenizer is not None:
+                            estimated_tokens = len(tokenizer.encode(chatml_text))
+                            safety_margin = 0.9  # 90% of context limit
+                            max_allowed = int(max_context_length * safety_margin)
+
+                            if estimated_tokens > max_allowed:
+                                await websocket.send_json({
+                                    "error": f"Context overflow: {estimated_tokens:,} tokens > {max_allowed:,} (90% of {max_context_length:,})",
+                                    "suggestion": "Reduce injections, shorten prompts, or use model with larger context",
+                                    "done": True
+                                })
+                                return
+
+                            await websocket.send_json({
+                                "log": f"✅ Tokenization check passed: {estimated_tokens:,} tokens ≤ {max_allowed:,} limit"
+                            })
+                        else:
+                            await websocket.send_json({"log": "⚠️ No tokenizer available, skipping tokenization check"})
+                    except Exception as e:
+                        await websocket.send_json({"log": f"⚠️ Tokenization check failed: {str(e)}"})
+                else:
+                    await websocket.send_json({"log": "⚠️ Tokenizer not available, skipping tokenization check"})
+
+            except Exception as e:
+                await websocket.send_json({"log": f"⚠️ Tokenization validation error: {str(e)}"})
+        else:
+            await websocket.send_json({"log": f"⚠️ Unknown context limit for model '{payload.model_name}', skipping validation"})
 
         # ===== PHASE 5.5: MEASURE BASELINE POWER (IF ENABLED) =====
         power_baseline = None
@@ -363,15 +399,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             except Exception as e:
                 await websocket.send_json({"log": f"⚠️ RAPL snapshot start (pre-request) error: {str(e)}"})
 
-        # Estimate context need to avoid truncation of large injections
-        try:
-            estimated_prompt_tokens_guess = int(middleware_tokens.get("final_total", 0))
-        except Exception:
-            estimated_prompt_tokens_guess = 0
-        # Heuristic: desired ctx = estimated prompt + planned output + small slack
-        desired_ctx = estimated_prompt_tokens_guess + safe_max_tokens + 256
-        # Clip to a generous maximum (most modern small models support large ctx; engine will cap safely)
-        desired_ctx = max(2048, min(desired_ctx, 40960))
+        # Log the context window setting (calculation done earlier in Phase 5.1)
         try:
             await websocket.send_json({"log": f"🧮 Setting num_ctx={desired_ctx} (estimated prompt≈{estimated_prompt_tokens_guess}, max_out={safe_max_tokens})"})
         except Exception:
@@ -818,9 +846,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             # Debug helpers for truncation/tokenization sanity check
             "debug_metrics": {
                 "estimated_prompt_tokens": middleware_tokens.get("final_total", 0),
-                "preflight_ollama_prompt_tokens": preflight_ollama_tokens,
-                "preflight_hf_qwen_prompt_tokens": preflight_hf_tokens,
-                "num_ctx_used": desired_ctx
+                "num_ctx_used": desired_ctx,
+                "context_validation_performed": max_context_length is not None
             }
         })
 
@@ -863,6 +890,15 @@ async def get_available_models():
     """List available Ollama models with defaults"""
     return await get_models_with_defaults()
 
+@app.get("/api/model-info/{model_name:path}")
+async def get_model_information(model_name: str):
+    """Get detailed information about a specific model including context length"""
+    info = await get_model_info(model_name)
+    if info:
+        return info
+    else:
+        raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found or info unavailable")
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
@@ -896,6 +932,37 @@ async def get_tool_methods():
 async def get_session_summary():
     """Get current session energy summary"""
     return energy_tracker.get_session_summary()
+
+@app.get("/api/model-info/{model_name}")
+async def get_model_info_route(model_name: str):
+    """Get model information including context length (via shared ollama_client.get_model_info)."""
+    try:
+        info = await get_model_info(model_name)
+        if info and isinstance(info, dict):
+            ctx = info.get("context_length") or 40960
+            details = info.get("details", {}) or {}
+            return {
+                "model_name": info.get("name", model_name),
+                "context_length": ctx,
+                "architecture": details.get("architecture", "unknown"),
+                "source": "ollama_client.get_model_info"
+            }
+        # Fallback if info is None or malformed
+        return {
+            "model_name": model_name,
+            "context_length": 40960,
+            "architecture": "unknown",
+            "source": "fallback_estimate"
+        }
+    except Exception as e:
+        # Return fallback on any error
+        return {
+            "model_name": model_name,
+            "context_length": 40960,
+            "architecture": "unknown",
+            "source": "error_fallback",
+            "error": str(e)
+        }
 
 @app.post("/api/export-session")
 async def export_session(filepath: str = "energy_session.json"):

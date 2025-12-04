@@ -5,17 +5,16 @@ Provides common functions for connecting to and querying Ollama
 
 import os
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # ---------- Configuration ----------
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.1:8b")
 DEFAULT_BASE_MODEL = os.getenv("OLLAMA_DEFAULT_BASE_MODEL", "")
 
-# Stability limits
-MAX_INPUT_LENGTH = int(os.getenv("MAX_INPUT_LENGTH", "8000"))
-MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", "4096"))
-MAX_OUTPUT_TOKENS = int(os.getenv("MAX_OUTPUT_TOKENS", "2048"))
+# Default limits (UI should query model-specific limits and allow user override)
+# These are fallback values only - actual limits come from model metadata
+DEFAULT_MAX_OUTPUT_TOKENS = int(os.getenv("MAX_OUTPUT_TOKENS", "1000"))
 REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "180.0"))
 
 
@@ -40,6 +39,55 @@ async def list_ollama_models() -> List[str]:
     except Exception:
         pass
     return []
+
+
+async def get_model_info(model_name: str) -> Optional[Dict[str, Any]]:
+    """Get detailed information about a specific model including context length"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{OLLAMA_BASE_URL}/api/show",
+                json={"name": model_name}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                # Extract context length from modelfile or model info
+                context_length = None
+                
+                # Try to get from model_info first
+                if "model_info" in data:
+                    for key, value in data["model_info"].items():
+                        if "context" in key.lower() or "ctx" in key.lower():
+                            try:
+                                context_length = int(value)
+                                break
+                            except (ValueError, TypeError):
+                                pass
+                
+                # Fallback: parse modelfile for num_ctx parameter
+                if context_length is None and "modelfile" in data:
+                    modelfile = data["modelfile"]
+                    for line in modelfile.split("\n"):
+                        if "num_ctx" in line.lower():
+                            try:
+                                # Extract number from line like "PARAMETER num_ctx 40960"
+                                parts = line.split()
+                                for i, part in enumerate(parts):
+                                    if "num_ctx" in part.lower() and i + 1 < len(parts):
+                                        context_length = int(parts[i + 1])
+                                        break
+                            except (ValueError, IndexError):
+                                pass
+                
+                return {
+                    "name": model_name,
+                    "context_length": context_length or 40960,  # Default fallback
+                    "details": data.get("details", {}),
+                    "modelfile": data.get("modelfile", "")
+                }
+    except Exception as e:
+        print(f"Error getting model info for {model_name}: {e}")
+    return None
 
 
 async def get_models_with_defaults() -> Dict[str, Any]:

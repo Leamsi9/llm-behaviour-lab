@@ -109,7 +109,8 @@ def create_token_breakdown(
     original_messages: List[Dict],
     middleware_tracking: Dict[str, int],
     ollama_prompt_tokens: int,
-    ollama_completion_tokens: int
+    ollama_completion_tokens: int,
+    final_system_tokens_approx: int = 0,
 ) -> Dict[str, Any]:
     """
     Create comprehensive token breakdown for UI display.
@@ -128,17 +129,15 @@ def create_token_breakdown(
     Returns:
         Comprehensive breakdown dict ready for JSON serialization to UI
     """
-    # CRITICAL FIX: Only user messages are "original"
-    # System prompts are injection overhead!
+    # CRITICAL FIX: Only user messages are "original". System prompts are overhead.
     user_tokens = 0
-    system_tokens = 0
-    
+    base_system_tokens = 0
     for msg in original_messages:
         tokens = count_tokens_approximate([msg])
         if msg.get("role") == "user":
             user_tokens += tokens
         elif msg.get("role") == "system":
-            system_tokens += tokens  # This is middleware overhead!
+            base_system_tokens += tokens
     
     # Calculate estimation accuracy
     estimated_prompt = middleware_tracking["final_total"]
@@ -149,27 +148,34 @@ def create_token_breakdown(
     else:
         accuracy = 0.0
     
-    # Calculate middleware multiplier (how much bigger than original)
-    # Original = ONLY user query, everything else is overhead
+    # Compute overhead strictly from middleware components we control, not model template/serialization
+    # System prompt overhead: from original base system (estimated tokens)
+    sys_part = max(0, base_system_tokens)
+    # Additional middleware: deltas introduced by our injections and tools
+    inj_part = max(0, int(middleware_tracking.get("injection_added", 0)))
+    tools_part = max(0, int(middleware_tracking.get("tools_added", 0)))
+
+    total_injection = sys_part + inj_part + tools_part
+
+    # Calculate middleware multiplier relative to original (user only)
     original_user_only = user_tokens
-    total_injection = system_tokens + middleware_tracking["total_middleware"]
+    middleware_multiplier = (total_injection / original_user_only * 100) if original_user_only > 0 else 0
     
-    if original_user_only > 0:
-        middleware_multiplier = (total_injection / original_user_only) * 100
-    else:
-        middleware_multiplier = 0
-    
+    # Derive user-visible tokens from actual prompt minus middleware overhead
+    actual_prompt = max(0, int(ollama_prompt_tokens or 0))
+    user_tokens_est = max(0, actual_prompt - total_injection)
+
     # Build comprehensive breakdown
     return {
         "original": {
-            "user_tokens": user_tokens,  # Only the user query
-            "total_original_tokens": user_tokens  # Only user input
+            "user_tokens": user_tokens_est,  # User-visible portion of the prompt
+            "total_original_tokens": user_tokens_est
         },
         "injected": {
-            "system_prompt_tokens": system_tokens,  # System prompt is overhead!
-            "injection_overhead": middleware_tracking["injection_added"],
-            "tool_integration_overhead": middleware_tracking["tools_added"],
-            "total_injection_tokens": system_tokens + middleware_tracking["total_middleware"]
+            "system_prompt_tokens": sys_part,
+            "injection_overhead": inj_part,
+            "tool_integration_overhead": tools_part,
+            "total_injection_tokens": total_injection
         },
         "generation": {
             "direct_output_tokens": ollama_completion_tokens
@@ -178,6 +184,7 @@ def create_token_breakdown(
             "estimated_prompt_tokens": estimated_prompt,
             "ollama_actual_prompt_tokens": actual_prompt,
             "delta": actual_prompt - estimated_prompt,
+            "template_overhead_tokens": max(0, actual_prompt - estimated_prompt),
             "accuracy_percent": round(accuracy, 1)
         },
         "totals": {
@@ -187,8 +194,8 @@ def create_token_breakdown(
         },
         "analysis_notes": [
             f"User query: {user_tokens} tokens (the only 'original' input)",
-            f"System prompt: {system_tokens} tokens (middleware overhead)",
-            f"Additional middleware: {middleware_tracking['total_middleware']} tokens",
+            f"System prompt: {sys_part} tokens (middleware overhead)",
+            f"Additional middleware: {inj_part + tools_part} tokens",
             f"Total overhead: {total_injection} tokens (+{middleware_multiplier:.0f}% vs user query)",
             f"Output generated: {ollama_completion_tokens} tokens",
             f"Grand total: {actual_prompt + ollama_completion_tokens} tokens"

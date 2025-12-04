@@ -1,28 +1,19 @@
-#### Prefill/Decode Crossover Finder
-- In Energy UI → Live Hardware Tests → “Prefill/Decode Crossover Finder”
-- Configure Start Input Tokens, Step Tokens, Max Steps, then Run Crossover
-- The app performs successive RAPL runs, increasing input length until Prefill Wh > Decode Wh (stop point)
-- Results table shows per-run actual prompt tokens, Prefill/Decode/Total energy, Wh/1K output, and stop flag.
-
-### Thinking Toggle and Stream Presentation
-- The UI includes an “Include Thinking (reasoning)” checkbox next to Model Selection.
-- When disabled, the backend sets `think: false` for Ollama chat and injects a brief no-CoT instruction.
-- Streaming includes a `thinking` flag per token; the UI wraps reasoning in `<thinking>…</thinking>` and displays “Thinking:” and “Answer:” headings.
 # LLM Behaviour Lab
+ 
+LLM Behaviour Lab is an experimental environment for systematically probing how **human-controlled, deterministic parameters** interact with the **intrinsic, probabilistic behaviour** of Large Language Models.
+ 
+It focuses on three related labs, all exposed through a FastAPI backend:
+ 
+- **Energy Testing Lab (primary)**: Measure energy consumption per 1000 output tokens ("Wh/1000 e-tokens"), run live hardware tests via RAPL, and benchmark or compare energy profiles across models, prompts, and prompt-injection strategies.
 
-A FastAPI-based lab for analyzing LLM behavior with two primary experiences:
+- **Model Comparison Lab (secondary)**: Side-by-side model comparison UI for studying output quality, variability, and behaviour across models and temperatures.
 
-- **Energy Testing Lab (primary)**: Measure energy consumption per 1000 output tokens ("Wh/1000 e-tokens"), run live hardware tests via RAPL, and benchmark/compare energy profiles across models and prompts.
-- **Model Comparison (secondary)**: Side-by-side model comparison UI.
-
-Alignment Testing Lab is available in the integrated app (see /alignment).
-
-
-
+- **Alignment Testing Lab (WIP)**: Explore goal adherence and behavioural alignment under different prompt-injection and tool-integration configurations. Not yet functional.
 
 
 ## Table of Contents
 
+- [Conceptual Overview](#conceptual-overview)
 - [Methodology & Metrics](#methodology--metrics)
 - [Basic Workflow](#basic-workflow)
 - [Quick Start](#quick-start)
@@ -40,9 +31,21 @@ Alignment Testing Lab is available in the integrated app (see /alignment).
 - [Acknowledgments](#acknowledgments)
 
 
-At its core, the LLM Behaviour Lab enables systematic exploration of how **deterministic, interpretable and corrigible human-defined parameters extrinsic to the model** interact with the **intrinsic, probabilistic model outputs**. These deterministic parameters include both the direct inference time configuration and code scaffolds (e.g. system/user prompts, temperature, token limits), and the post training inputs (e.g. Q&A, instructions, preferences, reinforcements).
-
-## Methodology & Metrics
+ ## Conceptual Overview
+ 
+ At its core, the LLM Behaviour Lab enables systematic exploration of how **deterministic, interpretable and corrigible human-defined parameters extrinsic to the model** interact with the **intrinsic, probabilistic model outputs**. These deterministic parameters include both the direct inference time configuration and code scaffolds (e.g. system/user prompts, temperature, token limits), and the post training inputs (e.g. Q&A, instructions, preferences, reinforcements).
+ 
+ High-level data flow:
+ 
+ - **Browser UIs** (`/energy`, `/alignment`, `/comparison`, plus the main lab selector) collect prompts, temperatures, injection strategies, tool settings, and energy benchmark choices.
+ - **FastAPI apps** (`app_llm_behaviour_lab.py` and the standalone apps) compose final system/user prompts, apply prompt injections and tool integrations, and stream tokens over WebSockets.
+ - **Ollama** performs inference for the selected model(s) and reports prompt/completion token counts and timing.
+ - **Energy and alignment modules** wrap inference to:
+   - measure or estimate Wh/1000 output tokens and derived CO2 (RAPL or benchmarks), and
+   - analyse alignment/goal adherence and token breakdown (original vs injected vs tool-related vs thinking tokens).
+ - **Results** are aggregated into session metrics (energy, carbon, tokens, variability) and surfaced back to the UIs and export endpoints.
+ 
+ ## Methodology & Metrics
 
 ### Energy Measurement
 - **Live (RAPL)**: Direct hardware measurement using Intel/AMD RAPL interface. Measures CPU/DRAM energy during inference. Accurate but requires local execution on Linux with RAPL available.
@@ -104,19 +107,18 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Configure Stability Limits (Optional)
-Edit `.env` file with your system specs:
-```bash
-# For 32GB RAM systems (default)
-MAX_INPUT_LENGTH=12000
-MAX_CONTEXT_TOKENS=8192
-MAX_OUTPUT_TOKENS=4096
+### 4. Configure Application (Optional)
+The application automatically detects model capabilities from Ollama. Most configuration is optional, but you can set defaults in `.env`:
 
-# For 16GB RAM systems
-MAX_INPUT_LENGTH=8000
-MAX_CONTEXT_TOKENS=4096
-MAX_OUTPUT_TOKENS=2048
+```bash
+# Optional: Override default max output tokens (default: 1000)
+MAX_OUTPUT_TOKENS=1000
+
+# Optional: Request timeout in seconds (default: 180)
+REQUEST_TIMEOUT=180.0
 ```
+
+**Note**: The app uses model metadata from Ollama instead of hardcoded `MAX_INPUT_LENGTH` or `MAX_CONTEXT_TOKENS`. It dynamically fetches each model's actual context length from Ollama (e.g., qwen3:0.6b reports 40,960 tokens).
 
 ### 5. Run the Application (Integrated Lab)
 ```bash
@@ -160,6 +162,8 @@ Layout & ordering (top to bottom):
 - **Header**
 - **Test Configuration**
   - Model & Energy Benchmark selection
+    - Model selection shows actual context length from Ollama
+    - Max tokens defaults to 1000 (can be overridden)
   - User Query
   - Temperature / Max Tokens
   - Middleware Injections:
@@ -188,8 +192,29 @@ Layout & ordering (top to bottom):
 Notes:
 
 - RAPL toggle controls live power monitoring for single runs. When enabled, logs modal opens automatically.
-- Energy Weight equals average Wh/1000 e‑tokens (per output tokens only).
+- Energy Weight equals average Wh/1000 e-tokens (per output tokens only).
 - System prompt presets are served by `/api/system-prompts`; conversation context injection is wrapped in `<conversation_context>` tags.
+- Model context limits are fetched dynamically from Ollama's `/api/show` endpoint.
+
+#### Prefill/Decode Crossover Finder
+
+The Energy UI exposes a **Prefill/Decode Crossover Finder** under **Live Hardware Tests**. This tool helps identify the point at which processing the prompt (prefill) becomes more energy-intensive than generating tokens (decode).
+
+- Configure **Start Input Tokens**, **Step Tokens**, and **Max Steps**, then select **Run Crossover**.
+- The app performs successive RAPL runs, increasing input length step by step until **Prefill Wh > Decode Wh** (the crossover point).
+- The results table shows, for each run:
+  - Actual prompt tokens
+  - Prefill / Decode / Total energy
+  - Wh/1000 output tokens
+  - A flag indicating whether the crossover condition was reached.
+
+#### Thinking Toggle and Stream Presentation
+
+Reasoning tokens can be explicitly tracked and visualised in the Energy UI.
+
+- The UI includes an **Include Thinking (reasoning)** checkbox next to model selection.
+- When disabled, the backend sets `think: false` for Ollama chat and injects a brief instruction to avoid chain-of-thought style reasoning.
+- Streaming responses include a `thinking` flag per token; the UI wraps reasoning segments in `<thinking>...</thinking>` and presents them separately from the final answer (e.g. "Thinking:" and "Answer:" sections).
 
 ### RAPL Workflow
 
@@ -299,15 +324,17 @@ Each pane can have a custom alias (displayed in brackets):
 
 ## Stability Features
 
-### Input Validation
-- **Character limits**: `MAX_INPUT_LENGTH` prevents memory exhaustion
-- **Token capping**: `MAX_OUTPUT_TOKENS` limits generation length
-- **Context windows**: `MAX_CONTEXT_TOKENS` prevents overflow
+### Dynamic Model Limits
+- **Automatic detection**: Context limits are fetched from Ollama's `/api/show` endpoint for each model
+- **Model-aware limits**: Context limits are derived from model metadata instead of arbitrary constants
+- **User visibility**: UI displays actual model context length (e.g., "40,960" for qwen3:0.6b)
+- **Flexible defaults**: Max tokens defaults to 1000 but can be overridden by user
 
 ### System Protection
-- **Thread limiting**: Caps CPU usage to 4 threads
-- **Request timeouts**: `REQUEST_TIMEOUT` prevents infinite hangs
+- **Thread limiting**: Caps CPU usage to 4 threads (configurable via OLLAMA_NUM_THREADS)
+- **Request timeouts**: `REQUEST_TIMEOUT` prevents infinite hangs (default: 180s)
 - **HTTP cleanup**: Properly closes connections on cancellation
+- **Error handling**: Errors properly close WebSockets and exit loading states
 
 ### Emergency Recovery
 If you experience freezes:
@@ -316,14 +343,12 @@ If you experience freezes:
 pkill -9 ollama
 pkill -9 python
 
-# Reduce limits in .env
-MAX_INPUT_LENGTH=4000
-MAX_CONTEXT_TOKENS=2048
-
-# Restart
+# Restart with sensible defaults
 ollama serve
 uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
 ```
+
+Note: The app uses model-specific limits from Ollama, so manual limit adjustments are rarely needed.
 
 ## API Endpoints
 
@@ -378,6 +403,20 @@ Returns available Ollama models.
 }
 ```
 
+### GET `/api/model-info/{model_name}`
+Returns model-specific information including context length.
+
+**Response:**
+```json
+{
+  "model_name": "qwen3:0.6b",
+  "context_length": 40960,
+  "modelfile_info": {
+    "num_ctx": 40960
+  }
+}
+```
+
 ### GET `/api/health`
 Health check endpoint.
 
@@ -426,21 +465,31 @@ Additional endpoints used by the Energy UI:
 Create a `.env` file in the project root from the `.env-example` file:
 
 ```bash
-# Stability limits
-MAX_INPUT_LENGTH=8000          # Character limit for prompts
-MAX_CONTEXT_TOKENS=4096        # Ollama context window
-MAX_OUTPUT_TOKENS=2048         # Maximum generation length
-REQUEST_TIMEOUT=180.0          # Seconds before timeout
+# Optional: Override default max output tokens (default: 1000)
+MAX_OUTPUT_TOKENS=1000
+
+# Optional: Request timeout in seconds (default: 180)
+REQUEST_TIMEOUT=180.0
 ```
+
+**Note**: Model limits are fetched dynamically from Ollama instead of relying on hardcoded values such as `MAX_INPUT_LENGTH` or `MAX_CONTEXT_TOKENS`.
 
 ### System Recommendations
 
-| RAM | Input Length | Context Tokens | Output Tokens | Example Models |
-|-----|-------------|----------------|----------------|-------------------|
-| 8GB | 4,000 | 2,048 | 1,024 | `llama3.2:1b`, `phi3:mini` |
-| 16GB | 8,000 | 4,096 | 2,048 | `llama3.2:3b`, `mistral:7b` |
-| 32GB | 16,000 | 16,384 | 8,192 | `llama3:8b`, `mixtral:8x7b` |
-| 64GB | 32,000 | 32,768 | 16,384 | `llama3:70b`, `qwen2.5:72b` |
+The app automatically adapts to each model's capabilities. These are general guidelines for smooth operation:
+
+| RAM | Recommended Models | Notes |
+|-----|-------------------|-------|
+| 8GB | `llama3.2:1b`, `phi3:mini`, `smollm:135m` | Small models for basic testing |
+| 16GB | `llama3.2:3b`, `mistral:7b`, `qwen3:0.6b` | Good balance of speed and capability |
+| 32GB | `llama3:8b`, `mixtral:8x7b`, `qwen2.5:7b` | Larger models for serious work |
+| 64GB | `llama3:70b`, `qwen2.5:72b` | Full-featured models |
+
+**Context Lengths by Model** (automatically detected):
+- `qwen3:0.6b`: 40,960 tokens
+- `llama3.2:3b`: 128,000 tokens
+- `mistral:7b`: 32,768 tokens
+- (Check `/api/model-info/{model}` for exact values)
 
 ## Troubleshooting
 
@@ -476,10 +525,13 @@ python -m pip install -r requirements.txt
 If you must install system-wide, you can use `--break-system-packages` at your own risk. Prefer a venv to avoid conflicts.
 
 ### System Freezes
-1. **Reduce limits** in `.env`:
+1. **Check model context**:
    ```bash
-   MAX_INPUT_LENGTH=4000
-   MAX_CONTEXT_TOKENS=2048
+   # Verify model is responding
+   curl http://localhost:11434/api/tags
+   
+   # Check specific model info
+   curl http://localhost:8002/api/model-info/qwen3:0.6b
    ```
 
 2. **Use smaller models**:
@@ -528,7 +580,7 @@ llm-behaviour-lab/
 └── README.md                  # This file
 ```
 
-Alignment app: Placeholder/WIP (not yet implemented).
+Alignment Testing Lab: Integrated FastAPI app served at `/alignment`, powered by `app_alignment.py` and `alignment_analyzer`.
 
 ## Dependencies
 

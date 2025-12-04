@@ -34,13 +34,12 @@ from ollama_client import (
     check_ollama_connection,
     list_ollama_models,
     get_models_with_defaults,
+    get_model_info,
     print_startup_info,
     OLLAMA_BASE_URL,
     DEFAULT_MODEL,
     DEFAULT_BASE_MODEL,
-    MAX_INPUT_LENGTH,
-    MAX_CONTEXT_TOKENS,
-    MAX_OUTPUT_TOKENS,
+    DEFAULT_MAX_OUTPUT_TOKENS,
     REQUEST_TIMEOUT
 )
 
@@ -127,6 +126,42 @@ async def comparison_ui():
 async def get_available_models():
     """List available Ollama models with defaults"""
     return await get_models_with_defaults()
+
+
+@app.get("/api/model-info/{model_name}")
+async def get_model_info_route(model_name: str):
+    """Get model information including context length (via shared ollama_client.get_model_info).
+
+    This mirrors the endpoint in app_energy so the integrated lab on port 8001
+    exposes the same API surface as the standalone energy lab on port 8002.
+    """
+    try:
+        info = await get_model_info(model_name)
+        if info and isinstance(info, dict):
+            ctx = info.get("context_length") or 40960
+            details = info.get("details", {}) or {}
+            return {
+                "model_name": info.get("name", model_name),
+                "context_length": ctx,
+                "architecture": details.get("architecture", "unknown"),
+                "source": "ollama_client.get_model_info",
+            }
+        # Fallback if info is None or malformed
+        return {
+            "model_name": model_name,
+            "context_length": 40960,
+            "architecture": "unknown",
+            "source": "fallback_estimate",
+        }
+    except Exception as e:
+        # Return fallback on any error
+        return {
+            "model_name": model_name,
+            "context_length": 40960,
+            "architecture": "unknown",
+            "source": "error_fallback",
+            "error": str(e),
+        }
 
 @app.get("/api/health")
 async def health_check():
