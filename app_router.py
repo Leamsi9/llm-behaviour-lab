@@ -10,7 +10,6 @@ from fastapi import WebSocket
 
 # Import standalone app test functions
 from app_energy import EnergyPayload, run_energy_test
-from app_alignment import AlignmentPayload, run_alignment_test
 from app_model_comparison import Payload as ComparisonPayload, run_generation as run_comparison_generation
 
 
@@ -35,23 +34,6 @@ class AppRouter:
             cancel_event: Event to signal cancellation
         """
         await run_energy_test(payload, websocket, cancel_event)
-    
-    async def route_alignment_test(
-        self,
-        payload: AlignmentPayload,
-        websocket: WebSocket,
-        cancel_event: asyncio.Event
-    ):
-        """
-        Route alignment test to standalone alignment app logic
-        
-        Args:
-            payload: Alignment test payload
-            websocket: WebSocket connection
-            cancel_event: Event to signal cancellation
-        """
-        await run_alignment_test(payload, websocket, cancel_event)
-    
     async def route_comparison_test(
         self,
         payload: ComparisonPayload,
@@ -101,24 +83,20 @@ def determine_test_type(payload: Dict[str, Any]) -> str:
         payload: Raw payload dictionary
         
     Returns:
-        Test type: 'energy', 'alignment', or 'comparison'
+        Test type: 'energy' or 'comparison'
     """
     # Check for energy-specific fields
     if 'energy_benchmark' in payload:
         return 'energy'
-    
-    # Check for alignment-specific fields (both have injection/tool but energy has energy_benchmark)
-    if ('injection_type' in payload or 'tool_integration_method' in payload) and 'energy_benchmark' not in payload:
-        return 'alignment'
-    
+
     # Check for comparison-specific fields
     if 'use_base_model' in payload or 'template' in payload:
         return 'comparison'
-    
-    # Default to alignment if has model_name
+
+    # Default to energy if a model is specified
     if 'model_name' in payload:
-        return 'alignment'
-    
+        return 'energy'
+
     # Default fallback
     return 'comparison'
 
@@ -143,10 +121,6 @@ async def route_websocket_message(
     if test_type == 'energy':
         payload = EnergyPayload(**payload_dict)
         await test_router.route_energy_test(payload, websocket, cancel_event)
-    
-    elif test_type == 'alignment':
-        payload = AlignmentPayload(**payload_dict)
-        await test_router.route_alignment_test(payload, websocket, cancel_event)
     
     elif test_type == 'comparison':
         payload = ComparisonPayload(**payload_dict)

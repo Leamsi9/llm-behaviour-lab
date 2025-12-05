@@ -12,7 +12,6 @@
                 extend: {
                     colors: {
                         'energy-green': '#10b981',
-                        'alignment-blue': '#3b82f6',
                         'comparison-purple': '#8b5cf6',
                         'basic-gray': '#6b7280'
                     }
@@ -28,14 +27,13 @@
         <div class="text-center mb-12">
             <h1 class="text-4xl font-bold text-gray-900 mb-4">LLM Behavior Lab</h1>
             <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                Comprehensive testing environment for analyzing Large Language Model behavior across multiple
-                dimensions:
-                energy consumption, response alignment, and comparative performance.
+                Comprehensive testing environment for analyzing Large Language Model behavior across energy
+                consumption and comparative performance.
             </p>
         </div>
 
         <!-- Lab Options -->
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div class="grid md:grid-cols-2 lg:grid-cols-2 gap-6 mb-12">
 
             <!-- Energy Testing -->
             <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
@@ -58,30 +56,6 @@
                 <a href="/energy"
                     class="w-full bg-energy-green text-white py-2 px-4 rounded hover:bg-green-700 transition-colors inline-block text-center">
                     Launch Energy Lab
-                </a>
-            </div>
-
-            <!-- Alignment Testing -->
-            <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-                <div class="text-center mb-4">
-                    <div class="w-16 h-16 bg-alignment-blue rounded-full flex items-center justify-center mx-auto mb-3">
-                        <span class="text-2xl">🎯</span>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-900">Alignment Testing</h3>
-                </div>
-                <p class="text-gray-600 text-sm mb-4">
-                    Evaluate response quality and alignment with goals. Assess risks like hallucination and injection
-                    bleed.
-                </p>
-                <div class="space-y-2 text-xs text-gray-500 mb-4">
-                    <div>• Goal adherence analysis</div>
-                    <div>• Risk assessment</div>
-                    <div>• Quality metrics</div>
-                    <div>• Factual accuracy checks</div>
-                </div>
-                <a href="/alignment"
-                    class="w-full bg-alignment-blue text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors inline-block text-center">
-                    Launch Alignment Lab
                 </a>
             </div>
 
@@ -114,16 +88,12 @@
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
             <h3 class="text-lg font-semibold text-blue-900 mb-2">Standalone Applications</h3>
             <p class="text-blue-800 mb-3">
-                For specialized use cases, standalone versions of each lab are available:
+                For specialized use cases, standalone versions of each environment are available:
             </p>
-            <div class="grid md:grid-cols-3 gap-4 text-sm">
+            <div class="grid md:grid-cols-2 gap-4 text-sm">
                 <div class="bg-white p-3 rounded border">
                     <code class="text-blue-600">python3 app_energy.py</code>
                     <span class="text-gray-600 block">Port 8002 - Energy only</span>
-                </div>
-                <div class="bg-white p-3 rounded border">
-                    <code class="text-blue-600">python3 app_alignment.py</code>
-                    <span class="text-gray-600 block">Port 8003 - Alignment only</span>
                 </div>
                 <div class="bg-white p-3 rounded border">
                     <code class="text-blue-600">python3 app_comparison.py</code>

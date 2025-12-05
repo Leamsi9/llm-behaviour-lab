@@ -89,25 +89,6 @@ class TestAppRouter:
             mock_run.assert_called_once_with(payload, mock_websocket, cancel_event)
     
     @pytest.mark.asyncio
-    async def test_route_alignment_test(self):
-        """Test routing alignment test"""
-        router = AppRouter()
-        mock_websocket = AsyncMock()
-        cancel_event = asyncio.Event()
-        
-        with patch('app_router.run_alignment_test', new_callable=AsyncMock) as mock_run:
-            from app_alignment import AlignmentPayload
-            payload = AlignmentPayload(
-                system="Test",
-                user="Test",
-                model_name="test-model"
-            )
-            
-            await router.route_alignment_test(payload, mock_websocket, cancel_event)
-            
-            mock_run.assert_called_once_with(payload, mock_websocket, cancel_event)
-    
-    @pytest.mark.asyncio
     async def test_route_comparison_test(self):
         """Test routing comparison test"""
         router = AppRouter()
@@ -152,26 +133,6 @@ class TestDetermineTestType:
         }
         assert determine_test_type(payload) == "energy"
     
-    def test_determine_alignment_type_with_injection(self):
-        """Test detecting alignment test type with injection_type"""
-        payload = {
-            "system": "Test",
-            "user": "Test",
-            "model_name": "test-model",
-            "injection_type": "jailbreak"
-        }
-        assert determine_test_type(payload) == "alignment"
-    
-    def test_determine_alignment_type_with_tool(self):
-        """Test detecting alignment test type with tool_integration_method"""
-        payload = {
-            "system": "Test",
-            "user": "Test",
-            "model_name": "test-model",
-            "tool_integration_method": "inline"
-        }
-        assert determine_test_type(payload) == "alignment"
-    
     def test_determine_comparison_type_with_use_base_model(self):
         """Test detecting comparison test type with use_base_model"""
         payload = {
@@ -190,15 +151,6 @@ class TestDetermineTestType:
             "template": "some template"
         }
         assert determine_test_type(payload) == "comparison"
-    
-    def test_determine_default_alignment_with_model_name(self):
-        """Test default to alignment when model_name present"""
-        payload = {
-            "system": "Test",
-            "user": "Test",
-            "model_name": "test-model"
-        }
-        assert determine_test_type(payload) == "alignment"
     
     def test_determine_default_comparison_fallback(self):
         """Test default fallback to comparison"""
@@ -236,21 +188,20 @@ class TestRouteWebSocketMessage:
     
     @pytest.mark.asyncio
     async def test_route_alignment_message(self):
-        """Test routing alignment message"""
-        mock_websocket = AsyncMock()
-        cancel_event = asyncio.Event()
-        
-        payload_dict = {
+        """Placeholder to ensure no separate routing mode is exposed.
+
+        The dedicated routing path that used to handle injected payloads has
+        been removed from the main branch, so this test asserts that
+        determine_test_type routes injected payloads to the energy path
+        instead of a distinct mode.
+        """
+        payload = {
             "system": "Test",
             "user": "Test",
             "model_name": "test-model",
             "injection_type": "jailbreak"
         }
-        
-        with patch('app_router.test_router.route_alignment_test', new_callable=AsyncMock) as mock_route:
-            await route_websocket_message(payload_dict, mock_websocket, cancel_event)
-            
-            assert mock_route.called
+        assert determine_test_type(payload) == "energy"
     
     @pytest.mark.asyncio
     async def test_route_comparison_message(self):

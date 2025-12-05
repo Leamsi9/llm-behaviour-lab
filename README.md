@@ -1,14 +1,12 @@
 # LLM Behaviour Lab
  
-LLM Behaviour Lab is an experimental environment for systematically probing how **human-controlled, deterministic parameters** interact with the **intrinsic, probabilistic behaviour** of Large Language Models.
+LLM Behaviour Lab is an experimental environment for systematically probing how **human-controlled, deterministic parameters** interact with the **intrinsic, probabilistic behaviour** of Large Language Models via middleware.
  
-It focuses on three related labs, all exposed through a FastAPI backend:
- 
+It focuses on two related labs, both exposed through a FastAPI backend:
+
 - **Energy Testing Lab (primary)**: Measure energy consumption per 1000 output tokens ("Wh/1000 e-tokens"), run live hardware tests via RAPL, and benchmark or compare energy profiles across models, prompts, and prompt-injection strategies.
 
 - **Model Comparison Lab (secondary)**: Side-by-side model comparison UI for studying output quality, variability, and behaviour across models and temperatures.
-
-- **Alignment Testing Lab (WIP)**: Explore goal adherence and behavioural alignment under different prompt-injection and tool-integration configurations. Not yet functional.
 
 
 ## Table of Contents
@@ -37,12 +35,12 @@ It focuses on three related labs, all exposed through a FastAPI backend:
  
  High-level data flow:
  
- - **Browser UIs** (`/energy`, `/alignment`, `/comparison`, plus the main lab selector) collect prompts, temperatures, injection strategies, tool settings, and energy benchmark choices.
+ - **Browser UIs** (`/energy`, `/comparison`, plus the main lab selector) collect prompts, temperatures, injection strategies, tool settings, and energy benchmark choices.
  - **FastAPI apps** (`app_llm_behaviour_lab.py` and the standalone apps) compose final system/user prompts, apply prompt injections and tool integrations, and stream tokens over WebSockets.
  - **Ollama** performs inference for the selected model(s) and reports prompt/completion token counts and timing.
- - **Energy and alignment modules** wrap inference to:
-   - measure or estimate Wh/1000 output tokens and derived CO2 (RAPL or benchmarks), and
-   - analyse alignment/goal adherence and token breakdown (original vs injected vs tool-related vs thinking tokens).
+ - **Energy and behaviour analysis modules** wrap inference to:
+  - measure or estimate Wh/1000 output tokens and derived CO2 (RAPL or benchmarks), and
+  - analyse token breakdown (original vs injected vs tool-related vs thinking tokens).
  - **Results** are aggregated into session metrics (energy, carbon, tokens, variability) and surfaced back to the UIs and export endpoints.
  
  ## Methodology & Metrics
@@ -129,7 +127,6 @@ uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
 ### 6. Open UI
 - Energy Testing Lab: `http://localhost:8001/energy`
 - Model Comparison: `http://localhost:8001/comparison`
-- Alignment Testing Lab: `http://localhost:8001/alignment`
 
 Optional standalone Energy app (same UI/endpoints on a separate port):
 
@@ -580,7 +577,7 @@ llm-behaviour-lab/
 └── README.md                  # This file
 ```
 
-Alignment Testing Lab: Integrated FastAPI app served at `/alignment`, powered by `app_alignment.py` and `alignment_analyzer`.
+
 
 ## Dependencies
 

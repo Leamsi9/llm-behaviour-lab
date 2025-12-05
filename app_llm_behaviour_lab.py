@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Energy & Alignment Testing Lab for LLM Behavior Analysis
+Integrated Energy and Behaviour Testing Lab for LLM analysis.
 
-A focused application for testing energy consumption and alignment
+A focused application for testing energy consumption and behavioural effects
 across different prompt injection strategies and tool integrations.
 Supports 1-2 models simultaneously for detailed comparative analysis.
 """
@@ -27,7 +27,6 @@ from app_model_comparison import Payload as ComparisonPayload, run_generation as
 # Import our specialized modules
 from energy_tracker import energy_tracker, estimate_energy_impact, get_available_benchmarks, ENERGY_BENCHMARKS
 from rapl_benchmark import measure_wh_per_1000_tokens
-from alignment_analyzer import alignment_analyzer, AlignmentScore
 from prompt_injection import injection_manager, InjectionConfig, InjectionType
 from tool_integration import tool_manager, ToolIntegrationConfig, ToolIntegrationMethod, ToolCall
 from ollama_client import (
@@ -45,7 +44,6 @@ from ollama_client import (
 
 # Import payload classes and test functions from standalone apps
 from app_energy import EnergyPayload, run_energy_test
-from app_alignment import AlignmentPayload, run_alignment_test
 
 # ---------- Core Testing Logic ----------
 # Test functions are now imported from standalone apps (app_energy.py, app_alignment.py)
@@ -62,7 +60,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="LLM Behavior Lab (Integrated)",
-    description="Comprehensive testing environment for LLM behavior analysis - Energy, Alignment, and Comparison testing",
+    description="Comprehensive testing environment for LLM behavior analysis - Energy and Comparison testing",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -101,16 +99,6 @@ async def energy_ui():
         return HTMLResponse(content)
     except FileNotFoundError:
         return HTMLResponse("<h1>Energy UI not found. Please check static/ui_energy.html</h1>")
-
-@app.get("/alignment")
-async def alignment_ui():
-    """Serve the alignment testing UI"""
-    try:
-        with open("static/ui_alignment.html", "r") as f:
-            content = f.read()
-        return HTMLResponse(content)
-    except FileNotFoundError:
-        return HTMLResponse("<h1>Alignment UI not found. Please check static/ui_alignment.html</h1>")
 
 @app.get("/comparison")
 async def comparison_ui():
@@ -407,7 +395,7 @@ async def rapl_calibrate(request: dict):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for energy/alignment testing"""
+    """WebSocket endpoint for energy testing"""
     await websocket.accept()
     print("🔌 WebSocket /ws connected - waiting for messages...")
 
@@ -441,7 +429,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         await current_task
                 continue
 
-            # Convert payload - accept any dict for energy/alignment testing
+            # Convert payload - accept any dict for energy testing
             try:
                 # For flexibility, accept any payload with required fields
                 required_fields = ['system', 'user', 'model_name']
@@ -461,29 +449,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 continue
 
             cancel_event = asyncio.Event()
-            # Determine test type and call appropriate function from standalone apps
-            test_type = raw.get('test_type', 'energy')  # Default to energy for backward compatibility
+            # For the integrated lab, treat all tests as energy-style runs
+            test_type = raw.get('test_type', 'energy')  # Retained for logging only
             print(f"🧪 [INTEGRATED LAB /ws] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)")
-            print(f"🧪 [INTEGRATED LAB /ws] Creating task for payload: {raw.get('model_name')}") # DEBUG
+            print(f"🧪 [INTEGRATED LAB /ws] Creating task for payload: {raw.get('model_name')}")  # DEBUG
             await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)"})
-            if test_type == 'alignment':
-                # Create AlignmentPayload and delegate to standalone app
-                payload_obj = AlignmentPayload(
-                    system=raw.get('system', ''),
-                    user=raw.get('user', ''),
-                    model_name=raw.get('model_name', ''),
-                    strategy_name=raw.get('strategy_name', 'baseline'),
-                    injection_type=raw.get('injection_type', 'none'),
-                    injection_params=raw.get('injection_params', {}),
-                    tool_integration_method=raw.get('tool_integration_method', 'none'),
-                    tool_config=raw.get('tool_config', {}),
-                    temp=raw.get('temp', 0.7),
-                    max_tokens=raw.get('max_tokens', 512)
-                )
-                current_task = asyncio.create_task(run_alignment_test(payload_obj, websocket, cancel_event))
-            else:  # energy or default
-                # Create EnergyPayload and delegate to standalone app (include new composition fields)
-                payload_obj = EnergyPayload(
+
+            # Create EnergyPayload and delegate to the standalone energy app (include new composition fields)
+            payload_obj = EnergyPayload(
                     # New fields
                     system_prompt=raw.get('system_prompt', ''),
                     user_prompt=raw.get('user_prompt', ''),
@@ -505,8 +478,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     max_tokens=raw.get('max_tokens', 512),
                     enable_live_power_monitoring=raw.get('enable_live_power_monitoring', False),
                     include_thinking=raw.get('include_thinking', False)
-                )
-                current_task = asyncio.create_task(run_energy_test(payload_obj, websocket, cancel_event))
+            )
+            current_task = asyncio.create_task(run_energy_test(payload_obj, websocket, cancel_event))
             current_task.add_done_callback(reset_task)
 
     except WebSocketDisconnect:
@@ -604,28 +577,13 @@ async def comparison_websocket_endpoint(websocket: WebSocket):
                 continue
 
             cancel_event = asyncio.Event()
-            # Determine test type and call appropriate function from standalone apps
-            test_type = raw.get('test_type', 'energy')  # Default to energy for backward compatibility
+            # For the integrated lab, comparison WebSocket uses energy-style payloads
+            test_type = raw.get('test_type', 'energy')  # Retained for logging only
             print(f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)")
             await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)"})
-            if test_type == 'alignment':
-                # Create AlignmentPayload and delegate to standalone app
-                payload_obj = AlignmentPayload(
-                    system=raw.get('system', ''),
-                    user=raw.get('user', ''),
-                    model_name=raw.get('model_name', ''),
-                    strategy_name=raw.get('strategy_name', 'baseline'),
-                    injection_type=raw.get('injection_type', 'none'),
-                    injection_params=raw.get('injection_params', {}),
-                    tool_integration_method=raw.get('tool_integration_method', 'none'),
-                    tool_config=raw.get('tool_config', {}),
-                    temp=raw.get('temp', 0.7),
-                    max_tokens=raw.get('max_tokens', 512)
-                )
-                current_task = asyncio.create_task(run_alignment_test(payload_obj, websocket, cancel_event))
-            else:  # energy or default
-                # Create EnergyPayload and delegate to standalone app
-                payload_obj = EnergyPayload(
+
+            # Create EnergyPayload and delegate to the standalone energy app
+            payload_obj = EnergyPayload(
                     system=raw.get('system', ''),
                     user=raw.get('user', ''),
                     model_name=raw.get('model_name', ''),
@@ -638,7 +596,7 @@ async def comparison_websocket_endpoint(websocket: WebSocket):
                     temp=raw.get('temp', 0.7),
                     max_tokens=raw.get('max_tokens', 512)
                 )
-                current_task = asyncio.create_task(run_energy_test(payload_obj, websocket, cancel_event))
+            current_task = asyncio.create_task(run_energy_test(payload_obj, websocket, cancel_event))
             current_task.add_done_callback(reset_task)
 
     except WebSocketDisconnect:
@@ -752,17 +710,14 @@ if __name__ == "__main__":
     print()
     print("This lab integrates multiple specialized testing environments:")
     print("• Energy Testing Lab: http://localhost:8001/energy")
-    print("• Alignment Testing Lab: http://localhost:8001/alignment")
     print("• Model Comparison Lab: http://localhost:8001/comparison")
     print()
     print("Standalone apps also available:")
     print("• python3 app_energy.py (port 8002)")
-    print("• python3 app_alignment.py (port 8003)")
     print("• python3 app_model_comparison.py (port 8000)")
     print()
     print("Features:")
     print("• Energy consumption tracking (tokens → Wh → CO2)")
-    print("• Response alignment analysis (goal adherence, consistency)")
     print("• Model comparison (side-by-side benchmarking)")
     print("• Prompt injection effects testing")
     print("• Tool integration impact assessment")
