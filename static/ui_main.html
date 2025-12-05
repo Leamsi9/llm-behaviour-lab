@@ -19,14 +19,162 @@
             }
         };
     </script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-darker: #020617;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .dashboard-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .dashboard-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            border-color: var(--primary);
+        }
+
+        .info-card {
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.18), transparent 55%),
+                rgba(15, 23, 42, 0.9);
+        }
+
+        .info-card-green {
+            border-radius: 12px;
+            border: 1px solid rgba(16, 185, 129, 0.6);
+            background: radial-gradient(circle at top left, rgba(16, 185, 129, 0.18), transparent 55%),
+                rgba(15, 23, 42, 0.9);
+        }
+
+        .pill-icon {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+        }
+
+        .code-chip {
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 9999px;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .code-chip code {
+            color: #a5b4fc;
+        }
+
+        .bg-white {
+            background-color: var(--bg-card) !important;
+        }
+
+        .bg-gray-100 {
+            background-color: var(--bg-dark) !important;
+        }
+
+        .text-gray-900 {
+            color: var(--text-primary) !important;
+        }
+
+        .text-gray-600 {
+            color: var(--text-secondary) !important;
+        }
+
+        .text-gray-500 {
+            color: #64748b !important;
+        }
+
+        .bg-blue-50 {
+            background-color: rgba(30, 64, 175, 0.2) !important;
+        }
+
+        .border-blue-200 {
+            border-color: rgba(59, 130, 246, 0.6) !important;
+        }
+
+        .text-blue-900 {
+            color: #bfdbfe !important;
+        }
+
+        .text-blue-800 {
+            color: #93c5fd !important;
+        }
+
+        .bg-green-50 {
+            background-color: rgba(6, 95, 70, 0.2) !important;
+        }
+
+        .border-green-200 {
+            border-color: rgba(16, 185, 129, 0.6) !important;
+        }
+
+        .text-green-900 {
+            color: #bbf7d0 !important;
+        }
+
+        .text-green-800 {
+            color: #6ee7b7 !important;
+        }
+
+        .bg-green-100 {
+            background-color: rgba(22, 163, 74, 0.95) !important;
+            color: #ecfdf5 !important;
+            border: 1px solid rgba(16, 185, 129, 0.9);
+        }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.875rem;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-darker);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+    </style>
 </head>
 
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
+<body class="p-6 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-4">
         <!-- Header -->
         <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-900 mb-4">LLM Behavior Lab</h1>
-            <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+            <h1
+                class="text-4xl font-bold mb-4 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                LLM Behavior Lab
+            </h1>
+            <p class="text-xl text-slate-400 max-w-3xl mx-auto">
                 Comprehensive testing environment for analyzing Large Language Model behavior across energy
                 consumption and comparative performance.
             </p>
@@ -36,9 +184,10 @@
         <div class="grid md:grid-cols-2 lg:grid-cols-2 gap-6 mb-12">
 
             <!-- Energy Testing -->
-            <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+            <div class="dashboard-card p-6 hover:shadow-xl transition-shadow">
                 <div class="text-center mb-4">
-                    <div class="w-16 h-16 bg-energy-green rounded-full flex items-center justify-center mx-auto mb-3">
+                    <div
+                        class="w-16 h-16 bg-energy-green rounded-full flex items-center justify-center mx-auto mb-3 pill-icon">
                         <span class="text-2xl">⚡</span>
                     </div>
                     <h3 class="text-xl font-semibold text-gray-900">Energy Testing</h3>
@@ -54,16 +203,16 @@
                     <div>• Modification impact analysis</div>
                 </div>
                 <a href="/energy"
-                    class="w-full bg-energy-green text-white py-2 px-4 rounded hover:bg-green-700 transition-colors inline-block text-center">
+                    class="w-full bg-energy-green text-white py-2 px-4 rounded hover:bg-green-700 transition-colors inline-block text-center shadow-lg">
                     Launch Energy Lab
                 </a>
             </div>
 
             <!-- Model Comparison -->
-            <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+            <div class="dashboard-card p-6 hover:shadow-xl transition-shadow">
                 <div class="text-center mb-4">
                     <div
-                        class="w-16 h-16 bg-comparison-purple rounded-full flex items-center justify-center mx-auto mb-3">
+                        class="w-16 h-16 bg-comparison-purple rounded-full flex items-center justify-center mx-auto mb-3 pill-icon">
                         <span class="text-2xl">📊</span>
                     </div>
                     <h3 class="text-xl font-semibold text-gray-900">Model Comparison</h3>
@@ -78,24 +227,24 @@
                     <div>• Token counting</div>
                 </div>
                 <a href="/comparison"
-                    class="w-full bg-comparison-purple text-white py-2 px-4 rounded hover:bg-purple-700 transition-colors inline-block text-center">
+                    class="w-full bg-comparison-purple text-white py-2 px-4 rounded hover:bg-purple-700 transition-colors inline-block text-center shadow-lg">
                     Launch Model Comparison
                 </a>
             </div>
         </div>
 
         <!-- Standalone Apps Notice -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+        <div class="info-card bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
             <h3 class="text-lg font-semibold text-blue-900 mb-2">Standalone Applications</h3>
             <p class="text-blue-800 mb-3">
                 For specialized use cases, standalone versions of each environment are available:
             </p>
             <div class="grid md:grid-cols-2 gap-4 text-sm">
-                <div class="bg-white p-3 rounded border">
+                <div class="bg-white p-3 rounded border code-chip">
                     <code class="text-blue-600">python3 app_energy.py</code>
                     <span class="text-gray-600 block">Port 8002 - Energy only</span>
                 </div>
-                <div class="bg-white p-3 rounded border">
+                <div class="bg-white p-3 rounded border code-chip">
                     <code class="text-blue-600">python3 app_comparison.py</code>
                     <span class="text-gray-600 block">Port 8004 - Comparison only</span>
                 </div>
@@ -103,7 +252,7 @@
         </div>
 
         <!-- Quick Start -->
-        <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+        <div class="info-card-green bg-green-50 border border-green-200 rounded-lg p-6">
             <h3 class="text-lg font-semibold text-green-900 mb-2">Quick Start</h3>
             <div class="space-y-2 text-green-800">
                 <div>1. Make sure Ollama is running: <code class="bg-green-100 px-1 rounded">ollama serve</code></div>

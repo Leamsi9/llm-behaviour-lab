@@ -43,7 +43,7 @@ from ollama_client import (
 )
 
 # Import payload classes and test functions from standalone apps
-from app_energy import EnergyPayload, run_energy_test
+from app_energy import EnergyPayload, run_energy_test, ensure_scaphandre_ready
 
 # ---------- Core Testing Logic ----------
 # Test functions are now imported from standalone apps (app_energy.py, app_alignment.py)
@@ -53,8 +53,27 @@ from app_energy import EnergyPayload, run_energy_test
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """Check Ollama connection on startup"""
+    """Check Ollama connection and warm up Scaphandre on startup."""
     await print_startup_info("LLM Behavior Lab (Integrated)")
+
+    # Best-effort Scaphandre warm-up so the first live power run already has
+    # an exporter available for E_llm sampling. This uses a lightweight faux
+    # WebSocket that prints log messages to stdout instead of sending them
+    # over a real client connection.
+    class _StartupWebSocket:
+        async def send_json(self, msg: dict) -> None:
+            try:
+                print(json.dumps({"scaphandre_startup": msg}, ensure_ascii=False))
+            except Exception:
+                print(f"scaphandre_startup: {msg}")
+
+    try:
+        await ensure_scaphandre_ready(_StartupWebSocket())
+    except Exception:
+        # Any failure here just means we won't have per-process E_llm until
+        # Scaphandre is manually started or becomes available later.
+        pass
+
     yield
     print("Shutting down LLM Behavior Lab...")
 

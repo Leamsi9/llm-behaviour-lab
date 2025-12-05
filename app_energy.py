@@ -9,6 +9,7 @@ import asyncio
 import uvicorn
 import httpx
 import contextlib
+import time
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
@@ -49,8 +50,78 @@ except ImportError:
     POWER_MONITORING_AVAILABLE = False
     power_monitor = None
 
+# Scaphandre per-process energy (optional)
+SCAPHANDRE_URL = os.getenv("SCAPHANDRE_URL", "").strip()
+SCAPHANDRE_OLLAMA_MATCH = os.getenv("SCAPHANDRE_OLLAMA_MATCH", "ollama")
+# Autostart behavior: by default we try to start/use Scaphandre when live power is enabled.
+# Set SCAPHANDRE_AUTOSTART=0/false/no to opt out and rely purely on package-level RAPL.
+SCAPHANDRE_AUTOSTART = os.getenv("SCAPHANDRE_AUTOSTART", "1").strip().lower()
+SCAPHANDRE_CMD = os.getenv("SCAPHANDRE_CMD", "scaphandre prometheus --bind :8080").strip()
+SCAPHANDRE_DEFAULT_URL = os.getenv("SCAPHANDRE_DEFAULT_URL", "http://127.0.0.1:8080/metrics").strip()
+
 # Dynamic model context length cache (populated from ollama_client.get_model_info)
 MODEL_CONTEXT_CACHE: Dict[str, int] = {}
+
+
+async def ensure_scaphandre_ready(websocket: WebSocket) -> bool:
+    """Best-effort helper to ensure a Scaphandre Prometheus exporter is running.
+
+    Returns True if we have a usable SCAPHANDRE_URL after this call, False otherwise.
+    Respects SCAPHANDRE_AUTOSTART so users can opt out of automatic startup.
+    """
+    global SCAPHANDRE_URL
+
+    # Respect explicit opt-out
+    if SCAPHANDRE_AUTOSTART in ("0", "false", "no"):
+        return bool(SCAPHANDRE_URL)
+
+    url = SCAPHANDRE_URL or SCAPHANDRE_DEFAULT_URL
+
+    # Quick probe: is there already an exporter listening?
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                SCAPHANDRE_URL = url
+                return True
+    except Exception:
+        pass
+
+    # If we don't have a command configured, give up quietly and fall back to RAPL only.
+    if not SCAPHANDRE_CMD:
+        return False
+
+    try:
+        await websocket.send_json({"log": f"🚀 Attempting to start Scaphandre exporter: {SCAPHANDRE_CMD}"})
+    except Exception:
+        pass
+
+    # Fire-and-forget spawn; errors are logged but do not break the run.
+    try:
+        # Use a simple shell invocation so SCAPHANDRE_CMD can include flags.
+        proc = await asyncio.create_subprocess_shell(
+            SCAPHANDRE_CMD,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        # Give the exporter a short time to come up, then re-probe.
+        await asyncio.sleep(1.5)
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                SCAPHANDRE_URL = url
+                try:
+                    await websocket.send_json({"log": f"✅ Scaphandre exporter detected at {url}"})
+                except Exception:
+                    pass
+                return True
+    except Exception as e:
+        try:
+            await websocket.send_json({"log": f"⚠️ Could not start Scaphandre automatically ({e}); using package-level RAPL only."})
+        except Exception:
+            pass
+
+    return False
 
 async def fetch_model_context_limit(model_name: str) -> Optional[int]:
     """Fetch context length for a model via shared ollama_client.get_model_info"""
@@ -324,6 +395,9 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         prefill_wh = None
         decode_wh = None
         total_wh = None
+        # Scaphandre per-process energy accounting (LLM-only)
+        scaph_e_llm_wh = 0.0
+        scaph_sampler_task = None
         live_power_enabled = payload.enable_live_power_monitoring and POWER_MONITORING_AVAILABLE
         print(f"🔌 Live Power Monitoring: Requested={payload.enable_live_power_monitoring}, Available={POWER_MONITORING_AVAILABLE}, Enabled={live_power_enabled}")
         if payload.enable_live_power_monitoring and not POWER_MONITORING_AVAILABLE:
@@ -360,13 +434,25 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     "log": f"⚠️ Power monitoring error: {str(e)}"
                 })
                 live_power_enabled = False
-        
+
+        # With RAPL confirmed, best-effort Scaphandre warm-up when live power is enabled.
+        # This will try to start or detect a Scaphandre exporter but will fall back
+        # silently to package-level RAPL if it fails.
+        if live_power_enabled:
+            try:
+                await ensure_scaphandre_ready(websocket)
+            except Exception:
+                # Any failure here just means we won't have per-process E_llm this run.
+                pass
+
         # ===== PHASE 6: RUN GENERATION =====
         start_time = asyncio.get_event_loop().time()
         
         full_response = ""
         prompt_tokens = 0
         completion_tokens = 0
+        prompt_eval_duration_ns: Optional[int] = None
+        eval_duration_ns: Optional[int] = None
         thinking_chars = 0
         content_chars = 0
         generation_done = False
@@ -376,8 +462,59 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         async def rapl_sampler():
             return
 
+        # Scaphandre per-process energy sampler (LLM-only)
+        async def scaphandre_sampler():
+            nonlocal scaph_e_llm_wh
+            if not SCAPHANDRE_URL:
+                return
+            last_ts = time.time()
+            while not generation_done and not cancel_event.is_set():
+                now_ts = time.time()
+                dt = max(0.0, now_ts - last_ts)
+                last_ts = now_ts
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client_scaph:
+                        resp = await client_scaph.get(SCAPHANDRE_URL)
+                        if resp.status_code != 200:
+                            try:
+                                await websocket.send_json({"log": f"⚠️ Scaphandre HTTP {resp.status_code}, disabling for this run"})
+                            except Exception:
+                                pass
+                            break
+                        text = resp.text
+                except Exception as e_sc:
+                    try:
+                        await websocket.send_json({"log": f"⚠️ Scaphandre error: {str(e_sc)}; disabling for this run"})
+                    except Exception:
+                        pass
+                    break
+
+                total_power_watts = 0.0
+                for line in text.splitlines():
+                    if not line.startswith("scaph_process_power_consumption_microwatts"):
+                        continue
+                    if SCAPHANDRE_OLLAMA_MATCH not in line:
+                        continue
+                    try:
+                        value_str = line.strip().split()[-1]
+                        microwatts = float(value_str)
+                        total_power_watts += microwatts / 1_000_000.0
+                    except Exception:
+                        continue
+
+                if total_power_watts > 0.0 and dt > 0.0:
+                    scaph_e_llm_wh += (total_power_watts * dt) / 3600.0
+
+                await asyncio.sleep(0.5)
+
         # Make request to Ollama
         if live_power_enabled:
+            if SCAPHANDRE_URL and scaph_sampler_task is None:
+                try:
+                    scaph_sampler_task = asyncio.create_task(scaphandre_sampler())
+                    await websocket.send_json({"log": "🧪 Scaphandre per-process sampling enabled (E_llm)"})
+                except Exception:
+                    scaph_sampler_task = None
             await websocket.send_json({"log": "Running LLM inference with power monitoring..."})
         
         print(f"📤 Sending to Ollama - Model: {payload.model_name}")  # DEBUG
@@ -518,6 +655,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     if chunk.get("done", False):
                         prompt_tokens = chunk.get("prompt_eval_count", 0)
                         completion_tokens = chunk.get("eval_count", 0)
+                        prompt_eval_duration_ns = chunk.get("prompt_eval_duration")
+                        eval_duration_ns = chunk.get("eval_duration")
                         print(f"✅ Generation complete. Tokens: prompt={prompt_tokens}, completion={completion_tokens}")  # DEBUG
                         break
                 
@@ -529,6 +668,9 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                         heartbeat_task.cancel()
 
         generation_done = True
+        if scaph_sampler_task is not None:
+            with contextlib.suppress(Exception):
+                await scaph_sampler_task
         if live_power_enabled and power_monitor:
             # Take end snapshot and compute energies
             try:
@@ -615,6 +757,11 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         # ===== PHASE 6.5: FINALIZE RAPL MEASUREMENT USING CUMULATIVE ENERGY (IF ENABLED) =====
         # NOTE: All Wh/1000 calculations here are defined per 1000 *output* tokens (completion tokens).
         measured_wh_per_1000_tokens = None
+        # Per-process LLM energy (Scaphandre) and model compute efficiency
+        e_llm_wh: Optional[float] = None
+        e_llm_wh_per_1000_tokens: Optional[float] = None
+        m_eff_wh_per_1000_tokens: Optional[float] = None
+        m_eff_deviation_pct: Optional[float] = None
         # Calibration-based metrics (computed when we have total_wh and completion_tokens)
         calib_profile_used = None
         calib_baseline_per_1k_out = None
@@ -624,14 +771,68 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         calib_prefill_per_1k_in = None
         if live_power_enabled and total_wh is not None:
             try:
-                # Use output tokens only for Wh/1000 calculation
+                # Use output tokens only for Wh/1000 calculation (package-level RAPL)
                 if completion_tokens > 0:
                     measured_wh_per_1000_tokens = (total_wh / completion_tokens) * 1000
+
+                # Derive E_llm (LLM-only) from Scaphandre if available, else fall back to RAPL package energy
+                if scaph_e_llm_wh and scaph_e_llm_wh > 0.0:
+                    e_llm_wh = scaph_e_llm_wh
+                else:
+                    e_llm_wh = total_wh
+
+                if e_llm_wh is not None and completion_tokens > 0:
+                    e_llm_wh_per_1000_tokens = (e_llm_wh / completion_tokens) * 1000.0
+
+                # Model compute efficiency (active-time scaled Wh/1K) using Ollama's reported durations
+                ollama_active_seconds: Optional[float] = None
+                try:
+                    pe_ns = float(prompt_eval_duration_ns or 0)
+                    de_ns = float(eval_duration_ns or 0)
+                    total_ns = pe_ns + de_ns
+                    if total_ns > 0.0:
+                        ollama_active_seconds = total_ns / 1_000_000_000.0
+                except Exception:
+                    ollama_active_seconds = None
+
+                if (
+                    e_llm_wh_per_1000_tokens is not None
+                    and ollama_active_seconds is not None
+                    and latency is not None
+                    and latency > 0
+                ):
+                    scale = max(0.0, min(1.0, ollama_active_seconds / latency))
+                    m_eff_wh_per_1000_tokens = e_llm_wh_per_1000_tokens * scale
+                    if e_llm_wh_per_1000_tokens > 0:
+                        m_eff_deviation_pct = abs(m_eff_wh_per_1000_tokens - e_llm_wh_per_1000_tokens) / e_llm_wh_per_1000_tokens * 100.0
+
+                # Log measurement breakdown
                 await websocket.send_json({
-                    "log": f"🎯 Measured (RAPL counters): {measured_wh_per_1000_tokens:.4f} Wh/1K tokens" if measured_wh_per_1000_tokens else "🎯 Measured: (insufficient tokens)",
+                    "log": (
+                        f"🎯 Measured (RAPL counters): {measured_wh_per_1000_tokens:.4f} Wh/1K tokens"
+                        if measured_wh_per_1000_tokens
+                        else "🎯 Measured: (insufficient tokens)"
+                    ),
                     "measured_wh": total_wh,
                     "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens
                 })
+
+                if e_llm_wh_per_1000_tokens is not None:
+                    try:
+                        src = "Scaphandre (per-process)" if scaph_e_llm_wh and scaph_e_llm_wh > 0.0 else "RAPL package"
+                        await websocket.send_json({
+                            "log": f"🧮 E_llm [{src}]: {e_llm_wh_per_1000_tokens:.4f} Wh/1K output tokens"
+                        })
+                    except Exception:
+                        pass
+
+                if m_eff_wh_per_1000_tokens is not None:
+                    try:
+                        await websocket.send_json({
+                            "log": f"🧮 M_eff (active-time scaled): {m_eff_wh_per_1000_tokens:.4f} Wh/1K (Δ={m_eff_deviation_pct or 0.0:.1f}% vs E_llm)"
+                        })
+                    except Exception:
+                        pass
 
                 # === Calibration-based prefill from baselines ===
                 try:
@@ -822,6 +1023,14 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "ttft_seconds": (split_time - start_time) if ("split_time" in locals() and split_time is not None) else None,
                 "decode_duration_seconds": (end_time - split_time) if ("split_time" in locals() and split_time is not None) else None,
                 "run_duration_seconds": latency,
+                # Scaphandre per-process LLM energy metrics and active-time efficiency
+                "scaphandre_available": bool(SCAPHANDRE_URL),
+                "scaph_e_llm_wh": e_llm_wh,
+                "scaph_e_llm_wh_per_1000_tokens": e_llm_wh_per_1000_tokens,
+                "model_compute_efficiency_wh_per_1000_tokens": m_eff_wh_per_1000_tokens,
+                "m_eff_vs_e_llm_deviation_percent": m_eff_deviation_pct,
+                "ollama_prompt_eval_duration_seconds": (float(prompt_eval_duration_ns) / 1_000_000_000.0) if prompt_eval_duration_ns else None,
+                "ollama_eval_duration_seconds": (float(eval_duration_ns) / 1_000_000_000.0) if eval_duration_ns else None,
                 # Baseline-corrected active energy
                 "prefill_wh_active": active_prefill_wh if 'active_prefill_wh' in locals() else None,
                 "decode_wh_active": active_decode_wh if 'active_decode_wh' in locals() else None,

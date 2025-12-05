@@ -334,7 +334,7 @@
     </div>
 
     <!-- Test Controls (Always Visible) -->
-    <div class="dashboard-card p-4 mb-6 sticky top-4 z-30">
+    <div class="dashboard-card p-4 mb-6 sticky top-20 z-30">
       <div class="flex flex-wrap items-center gap-4">
         <button id="runTest" class="btn-primary flex items-center gap-2">
           <span class="text-lg">⚡</span> Run Energy Test
@@ -640,28 +640,35 @@
           </h2>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- Live measured metrics (RAPL / M_eff as primary) -->
             <div class="metric-card text-center">
-              <div class="metric-value text-4xl" id="efficiencyScore">0.00</div>
-              <div class="text-xs font-bold text-slate-400 mt-2">Wh/1000 e-tokens</div>
-              <div class="text-[10px] text-slate-500 mt-1">Energy Efficiency Score</div>
+              <div class="text-[11px] font-semibold text-slate-400 mb-1">Live (when RAPL enabled)</div>
+              <div class="metric-value text-4xl" id="liveEfficiencyScore">-</div>
+              <div class="text-xs font-bold text-slate-400 mt-2">Wh/1000 e-tokens (M_eff)</div>
+              <div class="text-[10px] text-slate-500 mt-1" id="mEffDeviation">Δ M_eff vs E_llm: -</div>
             </div>
 
+            <!-- Estimated benchmark metrics (always available) -->
             <div class="metric-card text-center">
-              <div class="metric-value text-4xl" id="carbonImpact"
-                style="background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                0.00</div>
-              <div class="text-xs font-bold text-slate-400 mt-2">gCO2</div>
-              <div class="text-[10px] text-slate-500 mt-1">Carbon Footprint</div>
+              <div class="text-[11px] font-semibold text-slate-400 mb-1">Estimated (benchmark)</div>
+              <div class="metric-value text-4xl" id="estimatedEfficiencyScore">0.00</div>
+              <div class="text-xs font-bold text-slate-400 mt-2">Wh/1000 e-tokens (benchmark)</div>
+              <div class="text-[10px] text-slate-500 mt-1">Uses active energy benchmark or dynamic RAPL benchmark</div>
             </div>
 
+            <!-- Carbon + total energy stay unchanged -->
             <div class="metric-card">
               <div class="flex justify-between text-sm mb-2 font-medium">
                 <span>Test Energy</span>
                 <span id="testEnergy">0.00 Wh</span>
               </div>
-              <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+              <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden mb-2">
                 <div id="testEnergyBar" class="h-full rounded-full transition-all duration-1000"
                   style="width: 0%; background: linear-gradient(90deg, #10b981, #059669);"></div>
+              </div>
+              <div class="flex items-baseline justify-between text-xs text-slate-400 mt-1">
+                <span>Carbon (from energy)</span>
+                <span id="carbonImpact" class="font-mono text-[11px]">0.00 gCO2</span>
               </div>
             </div>
           </div>
@@ -788,7 +795,8 @@
 
     const testEnergy = document.getElementById('testEnergy');
     const testEnergyBar = document.getElementById('testEnergyBar');
-    const efficiencyScore = document.getElementById('efficiencyScore');
+    const liveEfficiencyScore = document.getElementById('liveEfficiencyScore');
+    const estimatedEfficiencyScore = document.getElementById('estimatedEfficiencyScore');
     const carbonImpact = document.getElementById('carbonImpact');
     const raplEnergy = document.getElementById('raplEnergy');
     const raplEfficiency = document.getElementById('raplEfficiency');
@@ -2255,7 +2263,40 @@
         });
       }
 
-      efficiencyScore.textContent = data.energy_metrics.energy_efficiency_score.toFixed(4);
+      const lpm = data.live_power_metrics || {};
+      const estEff = data.energy_metrics && typeof data.energy_metrics.energy_efficiency_score === 'number'
+        ? data.energy_metrics.energy_efficiency_score
+        : null;
+
+      // Live M_eff (only when we have live power metrics)
+      if (liveEfficiencyScore) {
+        const liveEff = (lpm && typeof lpm.model_compute_efficiency_wh_per_1000_tokens === 'number')
+          ? lpm.model_compute_efficiency_wh_per_1000_tokens
+          : null;
+        liveEfficiencyScore.textContent = liveEff != null ? liveEff.toFixed(4) : '-';
+      }
+
+      // Estimated benchmark score (always available from energy_metrics)
+      if (estimatedEfficiencyScore) {
+        estimatedEfficiencyScore.textContent = estEff != null ? estEff.toFixed(4) : '-';
+      }
+
+      const devEl = document.getElementById('mEffDeviation');
+      if (devEl) {
+        const devPct = (typeof lpm.m_eff_vs_e_llm_deviation_percent === 'number')
+          ? lpm.m_eff_vs_e_llm_deviation_percent
+          : null;
+        if (devPct != null) {
+          devEl.textContent = 'Δ M_eff vs E_llm: ' + devPct.toFixed(1) + '%';
+          const excessive = devPct >= 20.0;
+          devEl.classList.remove('text-slate-500', 'text-red-400');
+          devEl.classList.add(excessive ? 'text-red-400' : 'text-slate-500');
+        } else {
+          devEl.textContent = 'Δ M_eff vs E_llm: n/a';
+          devEl.classList.remove('text-red-400');
+          devEl.classList.add('text-slate-500');
+        }
+      }
     }
 
     function updateEnergyChart(energyConsumption, intensity) {

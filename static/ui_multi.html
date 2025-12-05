@@ -7,14 +7,116 @@
   <title>LLM Behaviour Lab - Multi Model</title>
   <script src="/static/tailwind.min.js"></script>
   <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #8b5cf6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-dark: #0f172a;
+      --bg-darker: #020617;
+      --bg-card: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #334155;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .dashboard-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .dashboard-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      border-color: var(--primary);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.5);
+    }
+
+    input,
+    textarea,
+    select {
+      background: var(--bg-darker) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text-primary) !important;
+      border-radius: 8px;
+      padding: 0.75rem;
+      transition: all 0.3s ease;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      background: var(--bg-dark) !important;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+
+    select option {
+      background: var(--bg-darker);
+      color: var(--text-primary);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-darker);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+    }
+
     .model-output {
       white-space: pre-wrap;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: var(--bg-dark);
+      border-color: var(--border);
+      color: var(--text-primary);
     }
 
     .loader {
-      border: 3px solid #f3f4f6;
-      border-top: 3px solid #3b82f6;
+      border: 3px solid #1e293b;
+      border-top: 3px solid var(--primary);
       border-radius: 50%;
       width: 20px;
       height: 20px;
@@ -37,28 +139,56 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px;
-      background: #dbeafe;
-      border-radius: 4px;
+      padding: 8px 12px;
+      background: rgba(37, 99, 235, 0.15);
+      border-radius: 8px;
       margin-bottom: 8px;
       font-size: 0.875rem;
-      color: #1e40af;
+      color: #bfdbfe;
+      border: 1px solid rgba(37, 99, 235, 0.4);
     }
 
     .hidden {
       display: none !important;
     }
+
+    .bg-white {
+      background-color: var(--bg-card) !important;
+    }
+
+    .bg-gray-50 {
+      background-color: var(--bg-dark) !important;
+    }
+
+    .bg-gray-200 {
+      background-color: #1f2937 !important;
+    }
+
+    .text-gray-800 {
+      color: var(--text-primary) !important;
+    }
+
+    .text-gray-700 {
+      color: var(--text-secondary) !important;
+    }
   </style>
 </head>
 
-<body class="bg-gray-50 p-4">
-  <div class="max-w-7xl mx-auto space-y-4">
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold">LLM Behaviour Lab – Multi-model Compare</h1>
-      <div id="connectionStatus" class="text-sm px-3 py-1 rounded-full bg-gray-200 text-gray-700">Connecting…</div>
+<body class="p-6">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <div class="flex items-center justify-between mb-2">
+      <div>
+        <h1
+          class="text-4xl font-bold mb-1 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+          LLM Behaviour Lab – Multi-model Compare
+        </h1>
+        <p class="text-slate-400 text-sm">Compare multiple models side by side with a unified dark dashboard UI.</p>
+      </div>
+      <div id="connectionStatus"
+        class="text-sm px-3 py-1 rounded-full bg-gray-200 text-gray-700 whitespace-nowrap">Connecting…</div>
     </div>
 
-    <div class="bg-white rounded-lg shadow p-4 space-y-3">
+    <div class="dashboard-card p-6 space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">System Prompt</label>
         <textarea id="systemPrompt"
@@ -84,21 +214,29 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
         <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-blue-800 mb-1">Available Models (multi-select)</label>
-          <select id="modelMulti" multiple size="8" class="w-full p-2 border border-blue-200 rounded bg-white text-sm">
+          <label class="block text-sm font-semibold text-slate-200 mb-1">Available Models (multi-select)</label>
+          <select id="modelMulti" multiple size="8" class="w-full p-2 border rounded bg-white text-sm">
             <option>Loading models…</option>
           </select>
           <p class="text-xs text-blue-700 mt-2">Hold Ctrl/Cmd to select multiple. Click "Add Selected" to add panes.</p>
         </div>
         <div class="flex flex-col gap-2">
-          <button id="addModelsBtn" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">Add
-            Selected</button>
-          <button id="generateAllBtn" class="bg-indigo-600 text-white px-3 py-2 rounded hover:bg-indigo-700">Generate
+          <button id="addModelsBtn"
+            class="btn-primary w-full flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-500">
+            <span>➕</span>
+            <span>Add Selected</span>
+          </button>
+          <button id="generateAllBtn"
+            class="btn-primary w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-lime-500">
+            <span>⚡</span>
+            <span>Generate All</span>
+          </button>
+          <button id="stopAllBtn"
+            class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded font-medium shadow-sm w-full">Stop
             All</button>
-          <button id="stopAllBtn" class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700">Stop All</button>
-          <div id="modelStatus" class="text-sm text-gray-600 mt-2">Models: Loading…</div>
+          <div id="modelStatus" class="text-sm text-slate-400 mt-2">Models: Loading…</div>
         </div>
       </div>
     </div>
