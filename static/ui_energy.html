@@ -325,6 +325,11 @@
           <div class="text-2xl mb-2">📈</div>
           <div class="text-sm">Results</div>
         </button>
+        <a href="/documentation" class="nav-button flex flex-col items-start justify-center"
+          title="Open the full documentation for concepts, installation, API endpoints, and troubleshooting.">
+          <div class="text-2xl mb-2">📚</div>
+          <div class="text-sm">Documentation</div>
+        </a>
       </div>
     </div>
 
@@ -359,16 +364,21 @@
       <div class="dashboard-card p-6 space-y-6">
         <h2 class="text-2xl font-bold flex items-center gap-2">
           <span>🎯</span> Prompt Model
+          <span class="text-xs text-slate-400 cursor-help"
+            title="Choose which LLM provider and model to run for this test. Local (Ollama) supports live RAPL measurements; Cloud (Groq) uses benchmark-based estimates only.">ⓘ</span>
         </h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label class="block text-sm font-semibold mb-2">Provider</label>
+            <label class="block text-sm font-semibold mb-2 cursor-help"
+              title="Select where inference runs. Local (Ollama) talks to your own models; Cloud (Groq) uses hosted models and disables direct RAPL hardware measurements.">Provider</label>
             <select id="modelProviderSelect" class="w-full mb-3">
               <option value="local">🖥️ Local (Ollama)</option>
               <option value="cloud">☁️ Cloud (Groq)</option>
             </select>
-            <label class="block text-sm font-semibold mb-2">Model Selection</label>
+            <label class="block text-sm font-semibold mb-2 cursor-help"
+              title="Pick the concrete model to benchmark. Context length and energy profile depend strongly on this choice.">Model
+              Selection</label>
             <select id="modelSelect" class="w-full">
               <option>Loading models…</option>
             </select>
@@ -385,7 +395,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-semibold mb-2">User Query</label>
+          <label class="block text-sm font-semibold mb-2 cursor-help"
+            title="The actual task you care about. These are the only truly \"original\" tokens; everything added in Middleware counts as hidden overhead.">User
+            Query</label>
           <textarea id="userPrompt" class="w-full h-32 resize-y font-mono text-sm"
             placeholder="Explain quantum computing in simple terms."></textarea>
           <div class="text-xs text-slate-500 mt-2 flex items-center">
@@ -400,6 +412,8 @@
       <div class="dashboard-card p-6 space-y-6">
         <h2 class="text-2xl font-bold flex items-center gap-2">
           <span>🧩</span> Hidden Middleware
+          <span class="text-xs text-slate-400 cursor-help"
+            title="System prompts, conversation context, and injections add invisible tokens that change behaviour and increase prefill energy. Use this panel to experiment with middleware overhead.">ⓘ</span>
         </h2>
 
         <div class="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4 text-sm">
@@ -408,11 +422,15 @@
 
         <!-- System Prompt -->
         <div class="space-y-4">
-          <h3 class="text-lg font-semibold border-b border-slate-700 pb-2">Inputs (Prefill Stage)</h3>
+          <h3 class="text-lg font-semibold border-b border-slate-700 pb-2 cursor-help"
+            title="Tokens added before generation (system prompt, context, injections). Their length drives prefill energy and can dominate Wh for very long prompts.">Inputs
+            (Prefill Stage)</h3>
 
           <div>
             <div class="flex justify-between items-center mb-2">
-              <label class="text-sm font-semibold">System Prompt</label>
+              <label class="text-sm font-semibold cursor-help"
+                title="High-level role and behaviour instructions for the model. Presets come from reference system prompts; custom text lets you prototype your own middleware.">System
+                Prompt</label>
               <div class="flex gap-2">
                 <select id="systemPromptSelect" class="text-xs p-1.5">
                   <option value="">Custom / empty</option>
@@ -426,7 +444,9 @@
 
           <div>
             <div class="flex justify-between items-center mb-2">
-              <label class="text-sm font-semibold">Conversation Context</label>
+              <label class="text-sm font-semibold cursor-help"
+                title="Optional prior messages or history. Wrapped in &lt;conversation_context&gt; tags and added before your new query, increasing prefill tokens.">Conversation
+                Context</label>
               <button id="injectConversationBtn" class="text-xs bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded">
                 Inject Last Turn
               </button>
@@ -444,23 +464,29 @@
 
         <!-- Outputs -->
         <div class="space-y-4">
-          <h3 class="text-lg font-semibold border-b border-slate-700 pb-2">Outputs (Decode Stage)</h3>
+          <h3 class="text-lg font-semibold border-b border-slate-700 pb-2 cursor-help"
+            title="Controls for the decode phase: how the model samples tokens and how many it is allowed to generate.">Outputs
+            (Decode Stage)</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3 cursor-pointer"
+              title="When supported, includes chain-of-thought or reasoning tokens in the streamed output. These extra tokens increase both latency and energy.">
               <input type="checkbox" id="includeThinking" class="w-5 h-5">
               <span class="text-sm font-medium">Include Thinking</span>
             </label>
 
             <div>
               <div class="flex justify-between mb-2">
-                <label class="text-sm font-medium">Temperature</label>
+                <label class="text-sm font-medium cursor-help"
+                  title="Sampling randomness. Lower values are more deterministic; higher values increase variability and exploration but may waste energy on off-target tokens.">Temperature</label>
                 <span id="tempValue" class="text-sm font-mono text-indigo-400">0.7</span>
               </div>
               <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7" class="w-full">
             </div>
 
             <div>
-              <label class="block text-sm font-medium mb-2">Max Tokens</label>
+              <label class="block text-sm font-medium mb-2 cursor-help"
+                title="Upper bound on completion length. Higher limits allow longer answers but also raise worst-case energy and latency.">Max
+                Tokens</label>
               <input type="number" id="maxTokens" value="1000" class="w-full">
             </div>
           </div>
@@ -473,29 +499,40 @@
       <div class="space-y-6">
         <div class="dashboard-card p-6 space-y-6">
           <h2 class="text-2xl font-bold flex items-center gap-2 mb-2">
-            <span>⚡</span> Live Power RAPL Results
-          </h2>
+          <span>⚡</span> Live Power RAPL Results
+          <span class="text-xs text-slate-400 cursor-help"
+            title="Live hardware measurements using CPU/DRAM RAPL counters. Prefill vs decode energy is split using start/split/end snapshots.">ⓘ</span>
+        </h2>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="metric-card">
               <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
                 <span>🔄</span> Batch Testing
+                <span class="text-[10px] text-slate-400 cursor-help"
+                  title="Run the same live measurement N times with current settings to study variability and stability of Wh/1000 e-tokens.">ⓘ</span>
               </h4>
-              <label class="block text-xs text-slate-400 mb-2">Number of Runs</label>
+              <label class="block text-xs text-slate-400 mb-2 cursor-help"
+                title="How many back-to-back live runs to perform. Larger batches give better statistics but take longer.">Number
+                of Runs</label>
               <input type="number" id="raplBatchRuns" value="1" min="1" max="100" class="w-full">
             </div>
 
             <div class="metric-card">
               <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
                 <span>🎲</span> Reproducibility & Calibration
+                <span class="text-[10px] text-slate-400 cursor-help"
+                  title="Control randomness across runs and create calibrated benchmarks from repeated RAPL measurements.">ⓘ</span>
               </h4>
-              <label class="block text-xs text-slate-400 mb-2">Seed (Optional)</label>
+              <label class="block text-xs text-slate-400 mb-2 cursor-help"
+                title="Optional random seed for the model. Setting this makes batches more comparable by reducing sampling variance.">Seed
+                (Optional)</label>
               <input type="number" id="seedInput" placeholder="Random" class="w-full">
 
               <div class="mt-4 pt-4 border-t border-slate-700">
                 <div class="flex items-center justify-between">
                   <div>
-                    <label class="block text-xs text-slate-400 mb-1">Calibration</label>
+                    <label class="block text-xs text-slate-400 mb-1 cursor-help"
+                      title="Summarises whether you have run a RAPL calibration to turn live measurements into a reusable energy benchmark for this hardware.">Calibration</label>
                     <p class="text-[10px] text-slate-500" id="raplCalibrationStatus">Not run yet.</p>
                   </div>
                   <button id="runRaplCalibration" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded">
@@ -534,6 +571,8 @@
       <div class="dashboard-card p-6">
         <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
           <span>📊</span> Token Analysis
+          <span class="text-xs text-slate-400 cursor-help"
+            title="Breaks down total tokens into original input, hidden middleware overhead, optional thinking tokens, and final output to help interpret energy metrics.">ⓘ</span>
         </h2>
 
         <div style="height: 120px; position: relative; margin-bottom: 2rem;">
@@ -541,23 +580,26 @@
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="metric-card text-center">
+          <div class="metric-card text-center" title="Total tokens in your explicit user and system prompts.">
             <div class="text-xs text-slate-400 mb-1">Input</div>
             <div id="inputTokensVal" class="metric-value">-</div>
           </div>
-          <div class="metric-card text-center">
+          <div class="metric-card text-center"
+            title="Extra tokens added by middleware (system prompts, conversation context, injections, tools). These are invisible to the user but still consume energy.">
             <div class="text-xs text-slate-400 mb-1">Overhead</div>
             <div id="overheadTokensVal" class="metric-value"
               style="background: linear-gradient(135deg, #f59e0b, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
               -</div>
           </div>
-          <div class="metric-card text-center">
+          <div class="metric-card text-center"
+            title="Reasoning or chain-of-thought tokens when enabled. These improve interpretability but increase energy use.">
             <div class="text-xs text-slate-400 mb-1">Thinking</div>
             <div id="thinkingTokensVal" class="metric-value"
               style="background: linear-gradient(135deg, #a855f7, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
               -</div>
           </div>
-          <div class="metric-card text-center">
+          <div class="metric-card text-center"
+            title="Visible answer tokens produced by the model. Energy-weighted metrics are usually normalised per 1k of these.">
             <div class="text-xs text-slate-400 mb-1">Output</div>
             <div id="outputTokensVal" class="metric-value"
               style="background: linear-gradient(135deg, #3b82f6, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
@@ -566,19 +608,19 @@
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-          <div class="metric-card">
+          <div class="metric-card" title="Human-readable label for this test configuration (e.g. baseline vs injected prompt).">
             <div class="text-xs text-slate-400">Strategy</div>
             <div id="resultStrategy" class="font-medium truncate">-</div>
           </div>
-          <div class="metric-card">
+          <div class="metric-card" title="Total tokens across prompt, overhead, thinking, and output.">
             <div class="text-xs text-slate-400">Total Tokens</div>
             <div id="resultTokens" class="font-medium">-</div>
           </div>
-          <div class="metric-card">
+          <div class="metric-card" title="End-to-end time from request to last token.">
             <div class="text-xs text-slate-400">Latency</div>
             <div id="resultLatency" class="font-medium">-</div>
           </div>
-          <div class="metric-card">
+          <div class="metric-card" title="Throughput of output tokens per second. Useful for comparing speed across models.">
             <div class="text-xs text-slate-400">Tokens/Sec</div>
             <div id="resultTokensPerSec" class="font-medium">-</div>
           </div>
@@ -595,6 +637,8 @@
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold flex items-center gap-2">
               <span>📈</span> Results Overview
+              <span class="text-xs text-slate-400 cursor-help"
+                title="Session-level KPIs summarising energy (Wh), intensity per 1k tokens, speed, and carbon footprint derived from your selected grid.">ⓘ</span>
             </h2>
             <div class="flex items-center gap-4">
               <button onclick="clearAllResults()"
@@ -606,7 +650,8 @@
           <!-- Top Row: Core KPIs (Clean & Focused) -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <!-- Query Energy -->
-            <div class="metric-card group relative overflow-hidden">
+            <div class="metric-card group relative overflow-hidden"
+              title="Total measured or estimated watt-hours for this run or aggregated session.">
               <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">⚡</div>
               <div class="text-xs font-semibold text-slate-400 mb-1">Total Energy</div>
               <div class="metric-value text-3xl" id="kpiEnergyWh">-</div>
@@ -614,7 +659,8 @@
             </div>
 
             <!-- Intensity -->
-            <div class="metric-card group relative overflow-hidden">
+            <div class="metric-card group relative overflow-hidden"
+              title="Energy-weighted token intensity (Wh per 1k tokens) using the selected normalisation.">
               <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">🎯</div>
               <div class="text-xs font-semibold text-slate-400 mb-1">Intensity</div>
               <div class="metric-value text-3xl" id="kpiIntensityMain">-</div>
@@ -622,7 +668,8 @@
             </div>
 
             <!-- Speed -->
-            <div class="metric-card group relative overflow-hidden">
+            <div class="metric-card group relative overflow-hidden"
+              title="Effective token throughput. Higher values generally mean faster, more efficient runs for similar energy.">
               <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">🚀</div>
               <div class="text-xs font-semibold text-slate-400 mb-1">Speed</div>
               <div class="metric-value text-3xl" id="kpiSpeedMain">-</div>
@@ -630,7 +677,8 @@
             </div>
 
             <!-- Carbon -->
-            <div class="metric-card group relative overflow-hidden">
+            <div class="metric-card group relative overflow-hidden"
+              title="Estimated carbon footprint for the run based on energy and your chosen electricity grid emission factor.">
               <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">🌱</div>
               <div class="text-xs font-semibold text-slate-400 mb-1">Carbon Footprint</div>
               <div class="metric-value text-3xl" id="kpiCarbonMain">-</div>
@@ -659,7 +707,8 @@
 
             <!-- Electricity Grid (only visible in Carbon mode) -->
             <div id="electricityGridContainer" class="flex items-center gap-2 hidden">
-              <label class="text-xs font-semibold text-slate-400">Grid:</label>
+              <label class="text-xs font-semibold text-slate-400 cursor-help"
+                title="Choose the electricity grid whose emission factor (kgCO2/kWh) should be used to convert Wh into gCO2.">Grid:</label>
               <select id="electricityGridSelect" onchange="updateCarbonCalculation()"
                 class="text-xs py-1 pl-2 pr-6 bg-slate-900 border-slate-700 rounded-md">
                 <option value="GLOBAL">Global Average (0.445 kgCO2/kWh)</option>
@@ -671,20 +720,22 @@
                 class="flex items-center gap-2 text-xs cursor-pointer text-slate-300 hover:text-white transition-colors">
                 <input type="checkbox" id="chartToggleRapl" checked onchange="updateMainChartVisibility()"
                   class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-slate-900">
-                <span>Show RAPL (Actual)</span>
+                <span title="Toggle measured hardware energy series derived from RAPL.">Show RAPL (Actual)</span>
               </label>
               <label
                 class="flex items-center gap-2 text-xs cursor-pointer text-slate-300 hover:text-white transition-colors">
                 <input type="checkbox" id="chartToggleEst" checked onchange="updateMainChartVisibility()"
                   class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-slate-900">
-                <span>Show Estimates</span>
+                <span title="Toggle benchmark-based energy estimates (HF / Jegham / custom benchmarks).">Show
+                  Estimates</span>
               </label>
             </div>
 
             <div class="h-6 w-px bg-slate-700"></div>
 
             <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-slate-400">Norm:</span>
+              <span class="text-xs font-bold text-slate-400 cursor-help"
+                title="Choose whether energy/intensity should be normalised per 1k input tokens, output tokens, or total tokens.">Norm:</span>
               <select id="chartNormSelect" onchange="updateMainChart()"
                 class="text-xs py-1 pl-2 pr-6 bg-slate-900 border-slate-700 rounded-md">
                 <option value="output">Per 1k Output Tokens</option>
@@ -704,6 +755,8 @@
         <div class="dashboard-card p-6">
           <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
             <span>📐</span> Benchmark Estimation
+            <span class="text-xs text-slate-400 cursor-help"
+              title="Compare live runs against external energy benchmarks (Hugging Face, Jegham et al.) or your own calibrated/custom benchmarks.">ⓘ</span>
           </h2>
 
           <div style="height: 170px; position: relative; margin-bottom: 1.5rem;">
@@ -711,7 +764,8 @@
           </div>
 
           <div class="space-y-4">
-            <div class="bg-indigo-900/30 border border-indigo-700/50 rounded-xl p-4 flex justify-between items-center">
+            <div class="bg-indigo-900/30 border border-indigo-700/50 rounded-xl p-4 flex justify-between items-center"
+              title="Shows the benchmark currently used to derive estimated Wh/1000 e-tokens for this session.">
               <div>
                 <h4 class="text-sm font-bold mb-1">Current Benchmark</h4>
                 <p id="currentBenchmarkInfo" class="text-xs text-indigo-300 font-mono">-</p>
@@ -722,13 +776,17 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-semibold mb-2">Benchmark Source</label>
+                <label class="block text-sm font-semibold mb-2 cursor-help"
+                  title="Choose which external benchmark family to use (e.g. Hugging Face AI Energy Score or Jegham et al.).">Benchmark
+                  Source</label>
                 <select id="benchmarkSourceSelect" class="w-full">
                   <option>Loading sources...</option>
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-semibold mb-2">Baseline Benchmark</label>
+                <label class="block text-sm font-semibold mb-2 cursor-help"
+                  title="Specific model or configuration within the selected benchmark family that becomes your baseline energy profile.">Baseline
+                  Benchmark</label>
                 <div class="flex gap-2">
                   <select id="benchmarkSwitcher" class="flex-1">
                     <option>Loading benchmarks...</option>
@@ -741,7 +799,9 @@
             </div>
 
             <div>
-              <label class="block text-sm font-semibold mb-2">Compare Model Benchmarks</label>
+              <label class="block text-sm font-semibold mb-2 cursor-help"
+                title="Overlay multiple benchmark models to compare their e-token intensities against each other and your current runs.">Compare
+                Model Benchmarks</label>
               <select id="hfBenchmarkMulti" multiple class="w-full h-24">
                 <option>Loading model benchmarks...</option>
               </select>

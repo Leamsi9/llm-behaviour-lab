@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Behavior Lab – Documentation</title>
+  <script src="/static/tailwind.min.js"></script>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #8b5cf6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-dark: #0f172a;
+      --bg-darker: #020617;
+      --bg-card: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #334155;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .dashboard-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .dashboard-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      border-color: var(--primary);
+    }
+
+    .badge {
+      border-radius: 9999px;
+      padding: 0.25rem 0.7rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.85rem;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-darker);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+    }
+
+    /* Markdown content styling inside the documentation viewer */
+    #docs-article h1,
+    #docs-article h2,
+    #docs-article h3,
+    #docs-article h4 {
+      color: #e5e7eb;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      scroll-margin-top: 5rem;
+    }
+
+    #docs-article h1 {
+      font-size: 1.75rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.6);
+      padding-bottom: 0.5rem;
+    }
+
+    #docs-article h2 {
+      font-size: 1.35rem;
+      color: #c7d2fe;
+    }
+
+    #docs-article h3 {
+      font-size: 1.15rem;
+      color: #a5b4fc;
+    }
+
+    #docs-article h4 {
+      font-size: 1rem;
+      color: #7dd3fc;
+    }
+
+    #docs-article p {
+      margin-bottom: 0.75rem;
+      color: #e2e8f0;
+    }
+
+    #docs-article ul,
+    #docs-article ol {
+      margin-left: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    #docs-article li {
+      margin-bottom: 0.25rem;
+    }
+
+    #docs-article code {
+      background-color: rgba(15, 23, 42, 0.95);
+      border-radius: 0.25rem;
+      padding: 0.1rem 0.3rem;
+      color: #e5e7eb;
+      font-size: 0.85em;
+    }
+
+    #docs-article pre {
+      background-color: #020617;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid #1f2937;
+      overflow: auto;
+      margin-bottom: 1rem;
+    }
+
+    #docs-article pre code {
+      background: transparent;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body class="p-4 md:p-6">
+  <div class="max-w-7xl mx-auto" id="docs-root">
+    <!-- Header -->
+    <header class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1
+          class="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-400 via-purple-400 to-sky-400 bg-clip-text text-transparent">
+          LLM Behavior Lab Documentation
+        </h1>
+        <p class="text-sm md:text-base text-slate-300 max-w-3xl">
+          Read the full README overview and all detailed guides in one place. Use the buttons on the left to switch
+          between documents; links between docs activate the relevant button instead of opening new tabs.
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-3 justify-start md:justify-end" aria-label="Quick navigation">
+        <a href="/"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 text-sm text-slate-200 hover:text-white hover:border-indigo-500 hover:bg-slate-800/60 transition-colors">
+          <span>🏠</span>
+          <span>Back to Lab Selector</span>
+        </a>
+        <a href="/energy"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 text-sm text-white hover:bg-indigo-500 transition-colors">
+          <span>⚡</span>
+          <span>Open Energy Lab</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Main documentation layout -->
+    <div class="grid gap-4 md:gap-6 md:grid-cols-[minmax(220px,260px),minmax(0,1fr)]">
+      <!-- Sidebar: document buttons -->
+      <nav id="docs-tablist" class="dashboard-card p-3 md:p-4 flex flex-col gap-2" role="tablist"
+        aria-label="Documentation sections">
+        <p class="text-xs text-slate-400 mb-1">
+          Choose a document to view. All content is rendered in full with readable typography.
+        </p>
+        <div id="docs-tabs" class="flex flex-col gap-1" aria-live="polite"></div>
+      </nav>
+
+      <!-- Content: rendered markdown -->
+      <main id="docs-content" class="dashboard-card p-4 md:p-6 overflow-auto max-h-[calc(100vh-9rem)]" tabindex="-1"
+        role="tabpanel" aria-label="Documentation content" aria-live="polite">
+        <div id="docs-status" class="text-sm text-slate-300">
+          Loading documentation…
+        </div>
+        <article id="docs-article" class="max-w-none text-[15px] md:text-base leading-relaxed"></article>
+      </main>
+    </div>
+  </div>
+
+  <!-- Lightweight markdown renderer -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" crossorigin="anonymous"></script>
+  <script>
+    (function () {
+      const tabContainer = document.getElementById('docs-tabs');
+      const tablist = document.getElementById('docs-tablist');
+      const contentEl = document.getElementById('docs-content');
+      const statusEl = document.getElementById('docs-status');
+      const articleEl = document.getElementById('docs-article');
+
+      if (!tabContainer || !contentEl || !articleEl) {
+        return;
+      }
+
+      /**
+       * Simple state for docs loaded from /api/docs.
+       */
+      let docs = [];
+      let currentId = null;
+
+      function setStatus(message, isError) {
+        if (!statusEl) return;
+        statusEl.textContent = message || '';
+        statusEl.className = 'text-sm ' + (isError ? 'text-rose-300' : 'text-slate-300');
+      }
+
+      function clearStatus() {
+        if (statusEl) {
+          statusEl.textContent = '';
+        }
+      }
+
+      function createTabButton(doc, index) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = [
+          'w-full text-left px-3 py-2 rounded-md text-sm',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
+          'transition-colors border border-transparent text-slate-300 hover:bg-slate-800/80'
+        ].join(' ');
+        btn.dataset.docId = doc.id;
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', 'false');
+        btn.setAttribute('tabindex', index === 0 ? '0' : '-1');
+        btn.id = `tab-${doc.id}`;
+
+        const label = document.createElement('span');
+        label.textContent = doc.label || (doc.id === 'overview' ? 'Overview' : doc.id);
+        label.className = 'truncate';
+
+        if (doc.id === 'overview') {
+          const pill = document.createElement('span');
+          pill.className = 'ml-2 inline-flex items-center rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] text-slate-300 border border-slate-600';
+          pill.textContent = 'README';
+          btn.append(label, pill);
+        } else {
+          btn.appendChild(label);
+        }
+
+        btn.addEventListener('click', () => {
+          activateDoc(doc.id, null, true);
+        });
+
+        return btn;
+      }
+
+      function renderTabs() {
+        tabContainer.innerHTML = '';
+        docs.forEach((doc, index) => {
+          const btn = createTabButton(doc, index);
+          tabContainer.appendChild(btn);
+        });
+      }
+
+      function applyTabSelection(docId) {
+        const buttons = tabContainer.querySelectorAll('button[role="tab"]');
+        buttons.forEach((btn) => {
+          const isActive = btn.dataset.docId === docId;
+          btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          btn.setAttribute('tabindex', isActive ? '0' : '-1');
+          btn.classList.toggle('bg-slate-900', isActive);
+          btn.classList.toggle('border-slate-600', isActive);
+          btn.classList.toggle('text-slate-50', isActive);
+          btn.classList.toggle('text-slate-300', !isActive);
+        });
+      }
+
+      function scrollToAnchor(anchor) {
+        if (!anchor) return;
+        try {
+          const target = articleEl.querySelector(`#${CSS.escape(anchor)}`);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        } catch (err) {
+          // If CSS.escape is not supported or selector fails, silently ignore.
+        }
+      }
+
+      function enhanceLinksForDoc(doc) {
+        const links = articleEl.querySelectorAll('a[href]');
+        links.forEach((link) => {
+          const href = link.getAttribute('href');
+          if (!href) return;
+
+          // In-document anchors: keep default but style consistently.
+          if (href.startsWith('#')) {
+            link.classList.add('underline', 'decoration-indigo-400', 'decoration-2', 'underline-offset-4', 'hover:text-indigo-200');
+            return;
+          }
+
+          const lowerHref = href.toLowerCase();
+          let targetFile = null;
+          let anchor = '';
+
+          const hashIndex = lowerHref.indexOf('#');
+          if (hashIndex !== -1) {
+            anchor = href.slice(hashIndex + 1);
+          }
+
+          // Map markdown file links (README.md or documentation/*.md) to internal tabs.
+          if (lowerHref.includes('readme.md')) {
+            targetFile = 'readme.md';
+          } else if (lowerHref.includes('documentation/') && lowerHref.endsWith('.md')) {
+            const pathPart = href.split('#')[0];
+            targetFile = pathPart.replace(/^\.\//, '').toLowerCase();
+          }
+
+          if (targetFile) {
+            const targetDoc = docs.find((d) => {
+              if (!d.file) return false;
+              const f = d.file.toLowerCase();
+              if (targetFile === 'readme.md') {
+                return f.endsWith('readme.md');
+              }
+              return f === targetFile || f.endsWith('/' + targetFile.split('/').pop());
+            });
+
+            if (targetDoc) {
+              link.setAttribute('role', 'button');
+              link.setAttribute('href', '#');
+              link.classList.add('underline', 'decoration-indigo-400', 'decoration-2', 'underline-offset-4', 'hover:text-indigo-200');
+              link.addEventListener('click', (event) => {
+                event.preventDefault();
+                activateDoc(targetDoc.id, anchor || null, true);
+              });
+              return;
+            }
+          }
+
+          // External links: open in new tab and keep them visibly distinct.
+          if (lowerHref.startsWith('http://') || lowerHref.startsWith('https://')) {
+            link.target = '_blank';
+            link.rel = 'noreferrer noopener';
+          }
+          link.classList.add('underline', 'decoration-indigo-300', 'underline-offset-4', 'hover:text-indigo-200');
+        });
+      }
+
+      function renderDoc(doc, anchor) {
+        if (!doc) {
+          articleEl.innerHTML = '';
+          setStatus('No documentation found.', true);
+          return;
+        }
+
+        setStatus('', false);
+
+        if (window.marked) {
+          marked.setOptions({
+            gfm: true,
+            breaks: false,
+            headerIds: true,
+            mangle: false
+          });
+          try {
+            articleEl.innerHTML = window.marked.parse(doc.content || '');
+          } catch (e) {
+            articleEl.textContent = doc.content || '';
+          }
+        } else {
+          // Fallback: show raw markdown if the renderer is unavailable.
+          articleEl.textContent = doc.content || '';
+        }
+
+        enhanceLinksForDoc(doc);
+        scrollToAnchor(anchor);
+      }
+
+      function activateDoc(docId, anchor, focusTab) {
+        if (!docs || !docs.length) return;
+        const doc = docs.find((d) => d.id === docId) || docs[0];
+        currentId = doc.id;
+        applyTabSelection(currentId);
+        renderDoc(doc, anchor);
+
+        if (focusTab) {
+          const activeBtn = tabContainer.querySelector(`button[data-doc-id="${currentId}"]`);
+          if (activeBtn) {
+            activeBtn.focus({ preventScroll: true });
+          }
+        }
+      }
+
+      function initKeyboardNavigation() {
+        tablist.addEventListener('keydown', (event) => {
+          if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+          const buttons = Array.from(tabContainer.querySelectorAll('button[role="tab"]'));
+          if (!buttons.length) return;
+          const currentIndex = buttons.findIndex((b) => b.dataset.docId === currentId);
+          if (currentIndex === -1) return;
+          event.preventDefault();
+          const delta = event.key === 'ArrowRight' ? 1 : -1;
+          const nextIndex = (currentIndex + delta + buttons.length) % buttons.length;
+          const nextDocId = buttons[nextIndex].dataset.docId;
+          activateDoc(nextDocId, null, true);
+        });
+      }
+
+      async function loadDocs() {
+        try {
+          setStatus('Loading documentation…', false);
+          const response = await fetch('/api/docs');
+          if (!response.ok) {
+            throw new Error('Failed to load documentation');
+          }
+          const data = await response.json();
+          docs = (data && Array.isArray(data.docs)) ? data.docs : [];
+          if (!docs.length) {
+            setStatus('No documentation files were found. Ensure README.md and the documentation/ folder exist.', true);
+            return;
+          }
+
+          renderTabs();
+          initKeyboardNavigation();
+          clearStatus();
+          const initial = docs.find((d) => d.id === 'overview') || docs[0];
+          activateDoc(initial.id, null, false);
+        } catch (error) {
+          setStatus('Error loading documentation. Please check the backend logs or try again.', true);
+        }
+      }
+
+      loadDocs();
+    })();
+  </script>
+</body>
+
+</html>

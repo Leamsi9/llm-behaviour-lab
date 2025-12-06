@@ -1,4 +1,4 @@
-# Benchmark e-Token Estimates
+# E-Token Benchmark Estimates
 
 ## Benchmark Sources and Comparison (Hugging Face vs Jegham et al.)
 

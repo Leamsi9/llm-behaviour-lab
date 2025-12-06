@@ -100,6 +100,8 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 SYSTEM_PROMPTS_DIR = Path("./data/system_prompts")
+DOCS_DIR = Path("./documentation")
+README_PATH = Path("./README.md")
 
 # ---------- Routes ----------
 
@@ -142,6 +144,17 @@ async def comparison_ui():
         return HTMLResponse(content)
     except FileNotFoundError:
         return HTMLResponse("<h1>Model Comparison UI not found. Please check static/ui_multi.html</h1>")
+
+
+@app.get("/documentation")
+async def documentation_ui():
+    """Serve the integrated documentation page for the lab."""
+    try:
+        with open("static/ui_docs.html", "r") as f:
+            content = f.read()
+        return HTMLResponse(content)
+    except FileNotFoundError:
+        return HTMLResponse("<h1>Documentation UI not found. Please check static/ui_docs.html</h1>")
 
 @app.get("/api/models")
 async def get_available_models(provider: str = "local"):
@@ -262,6 +275,96 @@ async def get_system_prompts():
             })
 
     return {"prompts": prompts}
+
+@app.get("/api/docs")
+async def get_docs():
+    """Return lab documentation (README + markdown files in ./documentation) as raw Markdown.
+
+    Docs are ordered to match the order in which they are first referenced in README.md,
+    with the Overview (README) first and any unreferenced docs appended alphabetically.
+    """
+    docs: List[Dict[str, Any]] = []
+
+    # Cache README contents so we can both expose it and use it for ordering.
+    readme_text: str = ""
+    if README_PATH.exists():
+        try:
+            readme_text = README_PATH.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            readme_text = ""
+
+        docs.append({
+            "id": "overview",
+            "label": "Overview",
+            "file": "README.md",
+            "content": readme_text,
+        })
+
+    # Additional markdown documents under ./documentation
+    if DOCS_DIR.is_dir():
+        for path in sorted(DOCS_DIR.iterdir()):
+            if not path.is_file():
+                continue
+            if path.suffix.lower() not in {".md"}:
+                continue
+            try:
+                content = path.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                content = ""
+
+            # Derive a human-friendly label from the filename if possible
+            stem = path.stem.replace("_", " ")
+            label = stem[:1].upper() + stem[1:]
+
+            docs.append({
+                "id": path.stem,
+                "label": label,
+                "file": f"documentation/{path.name}",
+                "content": content,
+            })
+
+    # Sort docs to match README order of appearance, then fall back to label.
+    def doc_sort_key(doc: Dict[str, Any]) -> tuple:
+        # Overview (README) always first
+        if doc.get("id") == "overview":
+            return (0, "")
+
+        # If we don't have README text, group all non-overview docs after it alphabetically.
+        if not readme_text:
+            return (10_000_000, (doc.get("label") or doc.get("id") or "").lower())
+
+        # Find first mention of this doc's file or filename in README (case-insensitive).
+        file_ref = (doc.get("file") or "")
+        candidates: List[str] = []
+        if file_ref:
+            candidates.append(file_ref)
+            candidates.append(file_ref.lstrip("./"))
+            # Bare filename, e.g. models.md
+            candidates.append(file_ref.split("/")[-1])
+
+        best_index: Optional[int] = None
+        readme_lower = readme_text.lower()
+        for candidate in candidates:
+            cand = candidate.lower()
+            if not cand:
+                continue
+            idx = readme_lower.find(cand)
+            if idx != -1 and (best_index is None or idx < best_index):
+                best_index = idx
+
+        if best_index is None:
+            # Not explicitly referenced in README: group after referenced docs.
+            position = 9_000_000
+        else:
+            # Shift by 1 to leave room for overview at 0.
+            position = best_index + 1
+
+        label_key = (doc.get("label") or doc.get("id") or "").lower()
+        return (position, label_key)
+
+    docs.sort(key=doc_sort_key)
+
+    return {"docs": docs}
 
 @app.get("/api/injection-methods")
 async def get_injection_methods():
@@ -588,33 +691,20 @@ async def comparison_websocket_endpoint(websocket: WebSocket):
                     await acknowledge_cancel(target_model)
                 continue
 
-            # Convert payload - accept any dict for energy/alignment testing
+            # Convert payload - comparison lab expects the standalone Payload shape
             try:
-                # For flexibility, accept any payload with required fields
                 required_fields = ['system', 'user', 'model_name']
                 if not all(field in raw for field in required_fields):
                     await websocket.send_json({"error": f"Missing required fields: {required_fields}"})
                     continue
 
-                # Create a dict payload that can be passed to the test function
-                payload = {
-                    'system': raw['system'],
-                    'user': raw['user'],
-                    'model_name': raw['model_name'],
-                    'strategy_name': raw.get('strategy_name', 'baseline'),
-                    'energy_benchmark': raw.get('energy_benchmark', 'conservative_estimate'),
-                    'injection_type': raw.get('injection_type', 'none'),
-                    'injection_params': raw.get('injection_params', {}),
-                    'tool_integration_method': raw.get('tool_integration_method', 'none'),
-                    'tool_config': raw.get('tool_config', {}),
-                    'temp': raw.get('temp', 0.7),
-                    'max_tokens': raw.get('max_tokens', 512)
-                }
+                # Reuse the standalone comparison Payload dataclass so provider is preserved
+                payload_obj = ComparisonPayload(**raw)
             except Exception as exc:
                 await websocket.send_json({"error": f"Invalid payload: {str(exc)}"})
                 continue
 
-            if not payload['model_name']:
+            if not payload_obj.model_name:
                 await websocket.send_json({
                     "error": "No model selected. Please choose a model in the UI first.",
                     "done": True,
@@ -622,26 +712,14 @@ async def comparison_websocket_endpoint(websocket: WebSocket):
                 continue
 
             cancel_event = asyncio.Event()
-            # For the integrated lab, comparison WebSocket uses energy-style payloads
-            test_type = raw.get('test_type', 'energy')  # Retained for logging only
-            print(f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)")
-            await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)"})
+            current_model_key = "base" if payload_obj.use_base_model else "instruct"
 
-            # Create EnergyPayload and delegate to the standalone energy app
-            payload_obj = EnergyPayload(
-                    system=raw.get('system', ''),
-                    user=raw.get('user', ''),
-                    model_name=raw.get('model_name', ''),
-                    strategy_name=raw.get('strategy_name', 'baseline'),
-                    energy_benchmark=raw.get('energy_benchmark', 'conservative_estimate'),
-                    injection_type=raw.get('injection_type', 'none'),
-                    injection_params=raw.get('injection_params', {}),
-                    tool_integration_method=raw.get('tool_integration_method', 'none'),
-                    tool_config=raw.get('tool_config', {}),
-                    temp=raw.get('temp', 0.7),
-                    max_tokens=raw.get('max_tokens', 512)
-                )
-            current_task = asyncio.create_task(run_energy_test(payload_obj, websocket, cancel_event))
+            # For the integrated lab, comparison WebSocket delegates to the standalone comparison app
+            test_type = raw.get('test_type', 'comparison')  # Logging only
+            print(f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - delegating to comparison app")
+            await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - delegating to comparison app"})
+
+            current_task = asyncio.create_task(run_comparison_generation(payload_obj, websocket, cancel_event))
             current_task.add_done_callback(reset_task)
 
     except WebSocketDisconnect:
