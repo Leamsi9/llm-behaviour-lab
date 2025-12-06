@@ -69,7 +69,7 @@ print(f"\nPower:")
 print(f"  Baseline (idle): {baseline.total_watts:.2f} W")
 print(f"  During inference: {avg_power:.2f} W")
 print(f"  Active (LLM only): {active_power:.2f} W")
-print(f"\n🎯 Energy Efficiency:")
+print(f"\n🎯 Energy Intensity:")
 print(f"  {wh_per_1000_tokens:.4f} Wh per 1000 tokens")
 print(f"{'='*60}\n")
 

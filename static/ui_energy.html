@@ -317,10 +317,6 @@
           <div class="text-2xl mb-2">⚙️</div>
           <div class="text-sm">Live Metrics</div>
         </button>
-        <button class="nav-button" onclick="toggleSection('estimated')" data-section="estimated">
-          <div class="text-2xl mb-2">📐</div>
-          <div class="text-sm">Benchmark Estimation</div>
-        </button>
         <button class="nav-button" onclick="toggleSection('response')" data-section="response">
           <div class="text-2xl mb-2">💬</div>
           <div class="text-sm">Response</div>
@@ -333,7 +329,7 @@
     </div>
 
     <!-- Test Controls (Always Visible) -->
-    <div class="dashboard-card p-4 mb-6 sticky top-24 z-30">
+    <div class="dashboard-card p-4 mb-6 sticky top-32 z-30 shadow-xl border-t border-slate-700">
       <div class="flex flex-wrap items-center gap-4">
         <button id="runTest" class="btn-primary flex items-center gap-2">
           <span class="text-lg">⚡</span> Run Energy Test
@@ -464,80 +460,12 @@
       </div>
     </div>
 
-    <!-- Section: Benchmark Estimation (dedicated section for nav button) -->
-    <div id="section-estimated" class="section-content">
-      <div class="dashboard-card p-6">
-        <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
-          <span>📐</span> Benchmark Estimation
-        </h2>
-        <div class="space-y-4">
-          <div class="bg-indigo-900/30 border border-indigo-700/50 rounded-xl p-4 flex justify-between items-center">
-            <div>
-              <h4 class="text-sm font-bold mb-1">Current Benchmark</h4>
-              <p id="currentBenchmarkInfo" class="text-xs text-indigo-300 font-mono">-</p>
-            </div>
-            <button id="benchmarkInfoBtn" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">View
-              Details</button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-semibold mb-2">Benchmark Source</label>
-              <select id="benchmarkSourceSelect" class="w-full">
-                <option>Loading sources...</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-semibold mb-2">Baseline Benchmark</label>
-              <div class="flex gap-2">
-                <select id="benchmarkSwitcher" class="flex-1">
-                  <option>Loading benchmarks...</option>
-                </select>
-                <button id="switchBenchmarkBtn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded" disabled>
-                  Apply
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-semibold mb-2">Compare Model Benchmarks</label>
-            <select id="hfBenchmarkMulti" multiple class="w-full h-24">
-              <option>Loading model benchmarks...</option>
-            </select>
-          </div>
-
-          <div class="border-t border-slate-700 pt-6 mt-4">
-            <h4 class="text-sm font-bold mb-4">Add Custom Benchmark</h4>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <input type="text" id="customBenchmarkName" placeholder="Name (e.g. RTX 3080)" class="w-full">
-              <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="Wh/1k etokens-o" class="w-full">
-              <input type="text" id="customBenchmarkDesc" placeholder="Description" class="w-full">
-              <button id="addCustomBenchmarkBtn"
-                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded whitespace-nowrap">
-                Add
-              </button>
-            </div>
-          </div>
-
-          <div class="text-xs text-slate-400 mt-2">
-            Uses the selected benchmark and external baselines to estimate Wh/1000 e-tokens for this run and session.
-          </div>
-
-          <div style="height: 170px; position: relative; margin-top: 1.5rem;">
-            <canvas id="hfBenchmarkChartCanvas"></canvas>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Section: Live Power -->
     <div id="section-live-power" class="section-content">
       <div class="space-y-6">
         <div class="dashboard-card p-6 space-y-6">
-          <h2 class="text-2xl font-bold flex items-center gap-2">
-            <span>⚙️</span> Configure Live Power Tests
-            <span class="text-xs bg-green-600 px-2 py-1 rounded-full">Linux Only</span>
+          <h2 class="text-2xl font-bold flex items-center gap-2 mb-2">
+            <span>⚡</span> Live Power RAPL Results
           </h2>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -551,7 +479,7 @@
 
             <div class="metric-card">
               <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
-                <span>🎲</span> Reproducibility
+                <span>🎲</span> Reproducibility & Calibration
               </h4>
               <label class="block text-xs text-slate-400 mb-2">Seed (Optional)</label>
               <input type="number" id="seedInput" placeholder="Random" class="w-full">
@@ -569,16 +497,9 @@
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Live Power RAPL Results (under Configure) -->
-        <div class="dashboard-card p-6">
-          <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
-            <span>⚡</span> Live Power RAPL Results
-          </h2>
 
           <!-- Phase Energy Analysis Chart -->
-          <div style="height: 150px; position: relative; margin-bottom: 1.5rem;">
+          <div style="height: 150px; position: relative; margin-top: 1.5rem; margin-bottom: 1.5rem;">
             <canvas id="phaseEnergyChart"></canvas>
           </div>
 
@@ -600,113 +521,218 @@
           Run a test to see the model response here.
         </div>
       </div>
+
+      <!-- Token Analysis (shown with Response) -->
+      <div class="dashboard-card p-6">
+        <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
+          <span>📊</span> Token Analysis
+        </h2>
+
+        <div style="height: 120px; position: relative; margin-bottom: 2rem;">
+          <canvas id="tokenBreakdownChart"></canvas>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="metric-card text-center">
+            <div class="text-xs text-slate-400 mb-1">Input</div>
+            <div id="inputTokensVal" class="metric-value">-</div>
+          </div>
+          <div class="metric-card text-center">
+            <div class="text-xs text-slate-400 mb-1">Overhead</div>
+            <div id="overheadTokensVal" class="metric-value"
+              style="background: linear-gradient(135deg, #f59e0b, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+              -</div>
+          </div>
+          <div class="metric-card text-center">
+            <div class="text-xs text-slate-400 mb-1">Thinking</div>
+            <div id="thinkingTokensVal" class="metric-value"
+              style="background: linear-gradient(135deg, #a855f7, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+              -</div>
+          </div>
+          <div class="metric-card text-center">
+            <div class="text-xs text-slate-400 mb-1">Output</div>
+            <div id="outputTokensVal" class="metric-value"
+              style="background: linear-gradient(135deg, #3b82f6, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+              -</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+          <div class="metric-card">
+            <div class="text-xs text-slate-400">Strategy</div>
+            <div id="resultStrategy" class="font-medium truncate">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="text-xs text-slate-400">Total Tokens</div>
+            <div id="resultTokens" class="font-medium">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="text-xs text-slate-400">Latency</div>
+            <div id="resultLatency" class="font-medium">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="text-xs text-slate-400">Tokens/Sec</div>
+            <div id="resultTokensPerSec" class="font-medium">-</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Section: Results -->
     <div id="section-results" class="section-content">
       <div class="space-y-6">
 
-        <!-- Token Analysis (full width, first) -->
+        <!-- Results Overview (full width, first) -->
         <div class="dashboard-card p-6">
-          <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
-            <span>📊</span> Token Analysis
-          </h2>
-
-          <div style="height: 120px; position: relative; margin-bottom: 2rem;">
-            <canvas id="tokenBreakdownChart"></canvas>
-          </div>
-
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="metric-card text-center">
-              <div class="text-xs text-slate-400 mb-1">Input</div>
-              <div id="inputTokensVal" class="metric-value">-</div>
-            </div>
-            <div class="metric-card text-center">
-              <div class="text-xs text-slate-400 mb-1">Overhead</div>
-              <div id="overheadTokensVal" class="metric-value"
-                style="background: linear-gradient(135deg, #f59e0b, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                -</div>
-            </div>
-            <div class="metric-card text-center">
-              <div class="text-xs text-slate-400 mb-1">Thinking</div>
-              <div id="thinkingTokensVal" class="metric-value"
-                style="background: linear-gradient(135deg, #a855f7, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                -</div>
-            </div>
-            <div class="metric-card text-center">
-              <div class="text-xs text-slate-400 mb-1">Output</div>
-              <div id="outputTokensVal" class="metric-value"
-                style="background: linear-gradient(135deg, #3b82f6, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                -</div>
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold flex items-center gap-2">
+              <span>📈</span> Results Overview
+            </h2>
+            <div class="flex gap-2">
+               <button onclick="clearAllResults()" class="text-xs text-slate-400 hover:text-red-400 px-2 py-1 rounded border border-slate-700 hover:border-red-400 transition-colors">Clear History</button>
             </div>
           </div>
 
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <div class="metric-card">
-              <div class="text-xs text-slate-400">Strategy</div>
-              <div id="resultStrategy" class="font-medium truncate">-</div>
+          <!-- Top Row: Core KPIs (Clean & Focused) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <!-- Query Energy -->
+            <div class="metric-card group relative overflow-hidden">
+              <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">⚡</div>
+              <div class="text-xs font-semibold text-slate-400 mb-1">Total Energy</div>
+              <div class="metric-value text-3xl" id="kpiEnergyWh">-</div>
+              <div class="text-[11px] text-slate-500 mt-1">Watt-hours per run</div>
             </div>
-            <div class="metric-card">
-              <div class="text-xs text-slate-400">Total Tokens</div>
-              <div id="resultTokens" class="font-medium">-</div>
+
+            <!-- Intensity -->
+            <div class="metric-card group relative overflow-hidden">
+              <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">🎯</div>
+              <div class="text-xs font-semibold text-slate-400 mb-1">Intensity</div>
+              <div class="metric-value text-3xl" id="kpiIntensityMain">-</div>
+              <div class="text-[11px] text-slate-500 mt-1">Wh / 1k tokens</div>
             </div>
-            <div class="metric-card">
-              <div class="text-xs text-slate-400">Latency</div>
-              <div id="resultLatency" class="font-medium">-</div>
+
+            <!-- Speed -->
+            <div class="metric-card group relative overflow-hidden">
+              <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">🚀</div>
+              <div class="text-xs font-semibold text-slate-400 mb-1">Speed</div>
+              <div class="metric-value text-3xl" id="kpiSpeedMain">-</div>
+              <div class="text-[11px] text-slate-500 mt-1" id="kpiSpeedDetail">Tokens/sec</div>
             </div>
-            <div class="metric-card">
-              <div class="text-xs text-slate-400">Tokens/Sec</div>
-              <div id="resultTokensPerSec" class="font-medium">-</div>
+
+            <!-- Carbon -->
+            <div class="metric-card group relative overflow-hidden">
+              <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">🌱</div>
+              <div class="text-xs font-semibold text-slate-400 mb-1">Carbon Footprint</div>
+              <div class="metric-value text-3xl" id="kpiCarbonMain">-</div>
+              <div class="text-[11px] text-slate-500 mt-1">gCO2 emissions</div>
             </div>
+          </div>
+
+          <!-- Chart Controls Toolbar -->
+          <div class="flex flex-wrap items-center gap-4 mb-4 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
+            <div class="flex items-center gap-2 mr-4">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Metric:</span>
+                <div class="flex bg-slate-900 rounded-lg p-1">
+                    <button class="px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-600 text-white shadow-lg transition-all" id="btnModeEnergy" onclick="setChartMode('energy')">Energy</button>
+                    <button class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-all" id="btnModeSpeed" onclick="setChartMode('speed')">Speed</button>
+                    <button class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-all" id="btnModeCarbon" onclick="setChartMode('carbon')">Carbon</button>
+                </div>
+            </div>
+
+            <div class="h-6 w-px bg-slate-700"></div>
+
+            <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 text-xs cursor-pointer text-slate-300 hover:text-white transition-colors">
+                    <input type="checkbox" id="chartToggleRapl" checked onchange="updateMainChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-slate-900">
+                    <span>Show RAPL (Actual)</span>
+                </label>
+                <label class="flex items-center gap-2 text-xs cursor-pointer text-slate-300 hover:text-white transition-colors">
+                    <input type="checkbox" id="chartToggleEst" checked onchange="updateMainChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-slate-900">
+                    <span>Show Estimates</span>
+                </label>
+            </div>
+            
+            <div class="h-6 w-px bg-slate-700"></div>
+
+            <div class="flex items-center gap-2">
+                 <span class="text-xs font-bold text-slate-400">Norm:</span>
+                 <select id="chartNormSelect" onchange="updateMainChart()" class="text-xs py-1 pl-2 pr-6 bg-slate-900 border-slate-700 rounded-md">
+                    <option value="output">Per 1k Output Tokens</option>
+                    <option value="input">Per 1k Input Tokens</option>
+                    <option value="total">Per 1k Total Tokens</option>
+                 </select>
+            </div>
+          </div>
+
+          <!-- Main Chart -->
+          <div style="height: 350px; position: relative; width: 100%;">
+            <canvas id="mainResultsChart"></canvas>
           </div>
         </div>
 
-        <!-- Results Overview (full width, second) -->
+        <!-- Benchmark Estimation (moved under Results Overview) -->
         <div class="dashboard-card p-6">
           <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
-            <span>📈</span> Results Overview
+            <span>📐</span> Benchmark Estimation
           </h2>
-
-          <!-- Top Row: Core KPIs -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <!-- Query Energy -->
-            <div class="metric-card">
-              <div class="text-xs font-semibold text-slate-400 mb-1">Query Energy</div>
-              <div class="metric-value text-3xl" id="kpiEnergyWh">-</div>
-              <div class="text-[11px] text-slate-500 mt-1">Total Wh for this LLM run (model + middleware)</div>
-            </div>
-
-            <!-- Query Carbon -->
-            <div class="metric-card">
-              <div class="text-xs font-semibold text-slate-400 mb-1">Query Carbon</div>
-              <div class="metric-value text-3xl" id="kpiCarbonG">-</div>
-            </div>
-
-            <!-- Energy Efficiency (Wh / 1K etokens-o) -->
-            <div class="metric-card">
-              <div class="text-xs font-semibold text-slate-400 mb-1">Energy Efficiency (Wh / 1000 output tokens)</div>
-              <div class="mt-1 space-y-1 text-[11px] text-slate-300" id="kpiEfficiencyBreakdown">
-                <div><span class="font-semibold">Benchmark:</span> <span id="kpiEffBenchmark">-</span></div>
-                <div><span class="font-semibold">RAPL (E_llm):</span> <span id="kpiEffEllm">-</span></div>
-                <div><span class="font-semibold">M_eff:</span> <span id="kpiEffMeff">-</span></div>
-                <div class="text-[10px] text-slate-500 mt-1" id="mEffDeviation">Δ M_eff vs E_llm: -</div>
-              </div>
-            </div>
-
-            <!-- Speed & Timing -->
-            <div class="metric-card">
-              <div class="text-xs font-semibold text-slate-400 mb-1">Speed & Timing</div>
-              <div class="text-[11px] text-slate-300 space-y-1">
-                <div><span class="font-semibold">Latency:</span> <span id="kpiLatency">-</span></div>
-                <div><span class="font-semibold">Tokens/sec:</span> <span id="kpiTokensPerSec">-</span></div>
-                <div><span class="font-semibold">TTFT:</span> <span id="kpiTtft">-</span></div>
-              </div>
-            </div>
+          
+          <div style="height: 170px; position: relative; margin-bottom: 1.5rem;">
+            <canvas id="hfBenchmarkChartCanvas"></canvas>
           </div>
 
-          <!-- Bottom: Session trend (Total Wh & Wh/1K etokens-o across last runs) -->
-          <div style="height: 200px; position: relative;">
-            <canvas id="energyChart"></canvas>
+          <div class="space-y-4">
+            <div class="bg-indigo-900/30 border border-indigo-700/50 rounded-xl p-4 flex justify-between items-center">
+              <div>
+                <h4 class="text-sm font-bold mb-1">Current Benchmark</h4>
+                <p id="currentBenchmarkInfo" class="text-xs text-indigo-300 font-mono">-</p>
+              </div>
+              <button id="benchmarkInfoBtn" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">View
+                Details</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold mb-2">Benchmark Source</label>
+                <select id="benchmarkSourceSelect" class="w-full">
+                  <option>Loading sources...</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold mb-2">Baseline Benchmark</label>
+                <div class="flex gap-2">
+                  <select id="benchmarkSwitcher" class="flex-1">
+                    <option>Loading benchmarks...</option>
+                  </select>
+                  <button id="switchBenchmarkBtn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded" disabled>
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold mb-2">Compare Model Benchmarks</label>
+              <select id="hfBenchmarkMulti" multiple class="w-full h-24">
+                <option>Loading model benchmarks...</option>
+              </select>
+            </div>
+
+            <div class="border-t border-slate-700 pt-6 mt-4">
+              <h4 class="text-sm font-bold mb-4">Add Custom Benchmark</h4>
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input type="text" id="customBenchmarkName" placeholder="Name (e.g. RTX 3080)" class="w-full">
+                <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="Wh/1k etokens-o" class="w-full">
+                <input type="text" id="customBenchmarkDesc" placeholder="Description" class="w-full">
+                <button id="addCustomBenchmarkBtn"
+                  class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded whitespace-nowrap">
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <div class="text-xs text-slate-400 mt-2">
+              Uses the selected benchmark and external baselines to estimate Wh/1000 e-tokens for this run and session.
+            </div>
           </div>
         </div>
 
@@ -742,7 +768,7 @@
       <div id="prefillPer1kIn"></div>
       <div id="decodePer1kOut"></div>
       <div id="ewOutPer1k"></div>
-      <div id="raplEfficiency"></div>
+      <div id="raplIntensity"></div>
       <div id="powerBaseline"></div>
       <div id="powerActive"></div>
       <div id="powerMeasured"></div>
@@ -750,7 +776,7 @@
       <div id="decodeEnergy"></div>
       <div id="sessionEnergy"></div>
       <div id="sessionCarbon"></div>
-      <div id="sessionEfficiency"></div>
+      <div id="sessionIntensity"></div>
       <div id="sessionTokens"></div>
       <div id="sessionRaplEnergy"></div>
       <input type="number" id="raplCalibrationRuns" value="5" class="hidden">
@@ -779,6 +805,7 @@
 
     const systemPromptSelect = document.getElementById('systemPromptSelect');
     const systemPromptText = document.getElementById('systemPromptText');
+    const clearSystemPromptBtn = document.getElementById('clearSystemPromptBtn');
     const conversationContextText = document.getElementById('conversationContextText');
     const userPrompt = document.getElementById('userPrompt');
     const temperature = document.getElementById('temperature');
@@ -823,7 +850,7 @@
     // Results elements
     const sessionEnergy = document.getElementById('sessionEnergy');
     const sessionCarbon = document.getElementById('sessionCarbon');
-    const sessionEfficiency = document.getElementById('sessionEfficiency');
+    const sessionIntensity = document.getElementById('sessionIntensity');
     const sessionTokens = document.getElementById('sessionTokens');
     const sessionRaplEnergy = document.getElementById('sessionRaplEnergy');
 
@@ -831,7 +858,7 @@
     const testEnergyBar = document.getElementById('testEnergyBar');
     const carbonImpact = document.getElementById('carbonImpact');
     const raplEnergy = document.getElementById('raplEnergy');
-    const raplEfficiency = document.getElementById('raplEfficiency');
+    const raplIntensity = document.getElementById('raplIntensity');
 
     const resultStrategy = document.getElementById('resultStrategy');
     const resultTokens = document.getElementById('resultTokens');
@@ -840,7 +867,13 @@
 
     // Results Overview KPI elements
     const kpiEnergyWh = document.getElementById('kpiEnergyWh');
-    const kpiCarbonG = document.getElementById('kpiCarbonG');
+    const kpiCarbonMain = document.getElementById('kpiCarbonMain');
+    const kpiIntensityMain = document.getElementById('kpiIntensityMain');
+    const kpiSpeedMain = document.getElementById('kpiSpeedMain');
+    const kpiSpeedDetail = document.getElementById('kpiSpeedDetail');
+
+    // Legacy / Details elements
+    const kpiCarbonG = document.getElementById('kpiCarbonG'); // kept for legacy reference
     const kpiEffBenchmark = document.getElementById('kpiEffBenchmark');
     const kpiEffEllm = document.getElementById('kpiEffEllm');
     const kpiEffMeff = document.getElementById('kpiEffMeff');
@@ -942,8 +975,10 @@
       });
     }
 
-    // Chart
-    let energyChart = null;
+    // Chart State
+    let mainResultsChart = null; // Replaces energyChart
+    let currentChartMode = 'energy'; // 'energy', 'speed', 'carbon'
+    // energyHistory is defined in State block above
     let prefillDecodeChart = null;
     let phaseEnergyChart = null;
     let hfBenchmarkChart = null;
@@ -1039,6 +1074,30 @@
       }
     }
 
+    // System prompt selection wiring
+    if (systemPromptSelect) {
+      systemPromptSelect.addEventListener('change', () => {
+        const id = systemPromptSelect.value;
+        if (!id) {
+          // Custom / empty
+          systemPromptText.value = '';
+          return;
+        }
+        if (!Array.isArray(systemPrompts) || !systemPrompts.length) return;
+        const sel = systemPrompts.find(p => p.id === id);
+        if (sel) {
+          systemPromptText.value = sel.content || '';
+        }
+      });
+    }
+
+    if (clearSystemPromptBtn) {
+      clearSystemPromptBtn.addEventListener('click', () => {
+        if (systemPromptSelect) systemPromptSelect.value = '';
+        if (systemPromptText) systemPromptText.value = '';
+      });
+    }
+
     async function loadBenchmarks() {
       console.log('🔄 Attempting to load benchmarks...');
       try {
@@ -1121,6 +1180,12 @@
       benchmarkSwitcher.addEventListener('change', () => {
         if (switchBenchmarkBtn) switchBenchmarkBtn.disabled = false;
         if (benchmarkSwitcherConfig) benchmarkSwitcherConfig.value = benchmarkSwitcher.value;
+        // When the baseline benchmark selection changes, refresh info and charts
+        updateBenchmarkInfo();
+        updateMainChart();
+        if (currentTestResults) {
+          updateHfBenchmarkChartForRun(currentTestResults);
+        }
       });
     }
 
@@ -1205,6 +1270,14 @@
       });
     }
 
+    if (hfBenchmarkMulti) {
+      hfBenchmarkMulti.addEventListener('change', () => {
+        if (currentTestResults) {
+          updateHfBenchmarkChartForRun(currentTestResults);
+        }
+      });
+    }
+
     async function loadHfBenchmarks() {
       try {
         const r = await fetch('/api/benchmark-info');
@@ -1223,10 +1296,12 @@
       if (!hfBenchmarkChart) return;
       const models = getModelsForSelectedSource();
       if (!Array.isArray(models) || models.length === 0) return;
-      const promptTokens = data.basic_metrics && typeof data.basic_metrics.prompt_tokens === 'number'
-        ? data.basic_metrics.prompt_tokens
-        : null;
-      if (!promptTokens || promptTokens <= 0) return;
+      
+      const bm = data.basic_metrics || {};
+      const promptTokens = typeof bm.prompt_tokens === 'number' ? bm.prompt_tokens : 0;
+      const completionTokens = typeof bm.completion_tokens === 'number' ? bm.completion_tokens : 0;
+      
+      if (promptTokens <= 0 && completionTokens <= 0) return;
 
       const selectedIds = hfBenchmarkMulti
         ? Array.from(hfBenchmarkMulti.selectedOptions).map(o => o.value)
@@ -1239,16 +1314,39 @@
       const labels = [];
       const values = [];
 
-      if (typeof data.energy_metrics?.watt_hours_consumed === 'number') {
-        labels.push('Actual (this host)');
-        values.push(data.energy_metrics.watt_hours_consumed);
+      const inK = promptTokens / 1000.0;
+      const outK = completionTokens / 1000.0;
+
+      // 1. Baseline (Selected Benchmark)
+      // Recalculate using the CURRENT selected benchmark specs, not just the one in 'data'
+      // to allow switching to update the comparison.
+      let baselineWh = 0;
+      const benchOpt = benchmarkSwitcher.selectedOptions[0];
+      if (benchOpt) {
+          const benchWh = parseFloat(benchOpt.dataset.wh) || 0; 
+          // Simple assumption: Benchmark is uniform input/output unless we have detailed specs
+          // We'll use the generic wh/1k for both.
+          baselineWh = (inK + outK) * benchWh;
+          // Note: If we had separate input/output specs for the *benchmark* itself, we'd use them.
+          // But currently the UI only has a single scalar for custom/loaded benchmarks usually.
+          
+          labels.push(`Baseline (${benchOpt.text.split(' ')[0]})`);
+          values.push(baselineWh);
+      } else if (typeof data.energy_metrics?.watt_hours_consumed === 'number') {
+          // Fallback to actual if no benchmark selected (shouldn't happen)
+          labels.push('Actual (this host)');
+          values.push(data.energy_metrics.watt_hours_consumed);
       }
 
-      const tokensK = promptTokens / 1000.0;
       chosen.forEach(m => {
         const whPer1kIn = typeof m.wh_per_1000_input_etokens === 'number' ? m.wh_per_1000_input_etokens : null;
+        // If output specific is missing, fallback to input or generic
+        const whPer1kOut = typeof m.wh_per_1000_output_etokens === 'number' ? m.wh_per_1000_output_etokens : whPer1kIn;
+        
         if (whPer1kIn == null) return;
-        const estimatedWh = tokensK * whPer1kIn;
+        
+        const estimatedWh = (inK * whPer1kIn) + (outK * (whPer1kOut || whPer1kIn));
+        
         const fullId = m.model_id;
         const shortId = typeof fullId === 'string' ? fullId.split('/').pop() : String(fullId);
         labels.push(shortId);
@@ -1482,8 +1580,8 @@
       if (sessionCarbon && typeof recalculatedData.total_carbon_gco2 === 'number') {
         sessionCarbon.textContent = `${recalculatedData.total_carbon_gco2.toFixed(2)} gCO2`;
       }
-      if (sessionEfficiency && typeof recalculatedData.average_energy_per_1000_tokens === 'number') {
-        sessionEfficiency.textContent = `${recalculatedData.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
+      if (sessionIntensity && typeof recalculatedData.average_energy_per_1000_tokens === 'number') {
+        sessionIntensity.textContent = `${recalculatedData.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
       }
       if (sessionTokens && typeof recalculatedData.total_tokens === 'number') {
         sessionTokens.textContent = recalculatedData.total_tokens;
@@ -1724,6 +1822,40 @@
       });
     }
 
+    if (injectConversationBtn) {
+      injectConversationBtn.addEventListener('click', () => {
+        // Find last interaction from energyHistory or UI logs?
+        // Since we don't persist full conversation history in this simplified UI,
+        // we'll try to grab the last available output content from the UI itself
+        // or the last result.
+        if (currentTestResults && currentTestResults.response) {
+           const lastResp = currentTestResults.response;
+           const userQ = currentTestResults.user_prompt || '';
+           
+           if (lastResp) {
+               const existing = conversationContextText.value;
+               const turn = `<user>${userQ}</user>\n<assistant>${lastResp}</assistant>\n`;
+               conversationContextText.value = existing ? (existing + '\n' + turn) : turn;
+               // Flash visual feedback
+               injectConversationBtn.textContent = 'Injected!';
+               setTimeout(() => injectConversationBtn.textContent = 'Inject Last Turn', 1000);
+           } else {
+               alert('No previous response available to inject.');
+           }
+        } else if (responseOutput && responseOutput.textContent && responseOutput.textContent.length > 10 && !responseOutput.textContent.includes('Run a test')) {
+            // Fallback to scraping the div if no object
+            const content = responseOutput.textContent;
+            const existing = conversationContextText.value;
+            const turn = `<assistant>${content}</assistant>\n`;
+            conversationContextText.value = existing ? (existing + '\n' + turn) : turn;
+            injectConversationBtn.textContent = 'Injected!';
+            setTimeout(() => injectConversationBtn.textContent = 'Inject Last Turn', 1000);
+        } else {
+            alert('No recent output found to inject.');
+        }
+      });
+    }
+
     async function handleTestCompletion(data) {
       runTest.disabled = false;
       runTest.textContent = 'Run Energy Test';
@@ -1749,14 +1881,7 @@
         updateResultsDisplay(data);
 
         // Update chart
-        const raplIntensity = (data.live_power_metrics && data.live_power_metrics.measured_wh_per_1000_tokens != null) 
-          ? data.live_power_metrics.measured_wh_per_1000_tokens 
-          : null;
-        updateEnergyChart(
-          data.energy_metrics.watt_hours_consumed,
-          data.energy_metrics.energy_efficiency_score,
-          raplIntensity
-        );
+        updateMainResultsChart(data);
 
         // Update session summary
         await updateSessionSummary();
@@ -2058,11 +2183,7 @@
         const raplIntensity = (_raplLastBatchResult.live_power_metrics && _raplLastBatchResult.live_power_metrics.measured_wh_per_1000_tokens != null) 
           ? _raplLastBatchResult.live_power_metrics.measured_wh_per_1000_tokens 
           : null;
-        updateEnergyChart(
-          _raplLastBatchResult.energy_metrics.watt_hours_consumed, 
-          _raplLastBatchResult.energy_metrics.energy_efficiency_score,
-          raplIntensity
-        );
+        updateMainResultsChart(_raplLastBatchResult);
         await updateSessionSummary();
         analyzeModificationImpact(_raplLastBatchResult);
       }
@@ -2134,12 +2255,28 @@
       const energy = energyMetrics.watt_hours_consumed;
       const carbon = energyMetrics.carbon_grams_co2;
 
-      // Results Overview KPIs
-      if (kpiEnergyWh) {
-        kpiEnergyWh.textContent = `${energy.toFixed(4)} Wh`;
-      }
-      if (kpiCarbonG) {
-        kpiCarbonG.textContent = `${carbon.toFixed(2)} gCO2`;
+      // Update Main KPIs
+      if (kpiEnergyWh) kpiEnergyWh.textContent = `${energy.toFixed(4)} Wh`;
+      if (kpiCarbonMain) kpiCarbonMain.textContent = `${carbon.toFixed(2)} gCO2`;
+
+      // Calculate and display efficiency and speed from current results if available
+      if (currentTestResults && currentTestResults.basic_metrics) {
+         const bm = currentTestResults.basic_metrics;
+         const totalTokens = bm.total_tokens || 0;
+         const outputTokens = bm.completion_tokens || 0;
+         const inputTokens = bm.prompt_tokens || 0;
+         
+         // Default Intensity: Wh / 1k output tokens (matches traditional benchmark view)
+         // The user can toggle the chart, but the card usually shows the primary metric.
+         // Let's use the 'Intensity Score' from backend which is typically Wh/1k output
+         const effScore = energyMetrics.energy_efficiency_score; 
+         if (kpiIntensityMain) {
+             kpiIntensityMain.textContent = effScore > 0 ? `${effScore.toFixed(4)}` : '-';
+         }
+
+         if (kpiSpeedMain) {
+             kpiSpeedMain.textContent = bm.tokens_per_second ? bm.tokens_per_second.toFixed(1) : '-';
+         }
       }
 
       // Legacy per-run display (kept for compatibility)
@@ -2153,7 +2290,7 @@
       if (currentTestResults && currentTestResults.live_power_metrics) {
         const lpm = currentTestResults.live_power_metrics;
         if (lpm.measured_wh_per_1000_tokens != null) {
-          raplEfficiency.textContent = `${lpm.measured_wh_per_1000_tokens.toFixed(4)} Wh/1K`;
+          raplIntensity.textContent = `${lpm.measured_wh_per_1000_tokens.toFixed(4)} Wh/1K`;
         }
 
         // Update phase energy chart
@@ -2196,7 +2333,7 @@
           prefillDecodeChart.update();
         }
       } else {
-        if (raplEfficiency) raplEfficiency.textContent = '0.00';
+        if (raplIntensity) raplIntensity.textContent = '0.00';
         const prefillEl = document.getElementById('prefillEnergy');
         const decodeEl = document.getElementById('decodeEnergy');
         if (prefillEl) prefillEl.textContent = '-';
@@ -2375,7 +2512,7 @@
         ? data.energy_metrics.energy_efficiency_score
         : null;
 
-      // Efficiency comparison (Benchmark vs RAPL vs M_eff)
+      // Intensity comparison (Benchmark vs RAPL vs M_eff)
       let benchWhPer1k = null;
       if (lpm && typeof lpm.benchmark_wh_per_1000_tokens === 'number') {
         benchWhPer1k = lpm.benchmark_wh_per_1000_tokens;
@@ -2425,20 +2562,238 @@
       }
     }
 
-    function updateEnergyChart(energyConsumption, intensity, raplIntensity = null) {
-      if (!energyChart) return;
-      energyHistory.push({ 
-        energy: energyConsumption, 
-        intensity: intensity || 0,
-        raplIntensity: raplIntensity
-      });
-      if (energyHistory.length > 20) energyHistory.shift();
+    // --- NEW CHART LOGIC ---
 
-      energyChart.data.labels = energyHistory.map((_, i) => `Test ${i + 1}`);
-      energyChart.data.datasets[0].data = energyHistory.map(h => h.energy);
-      energyChart.data.datasets[1].data = energyHistory.map(h => h.intensity);
-      energyChart.data.datasets[2].data = energyHistory.map(h => h.raplIntensity);
-      energyChart.update();
+    function setChartMode(mode) {
+        currentChartMode = mode;
+        // Update button styles
+        ['Energy', 'Speed', 'Carbon'].forEach(m => {
+            const btn = document.getElementById(`btnMode${m}`);
+            if (btn) {
+                if (m.toLowerCase() === mode) {
+                    btn.classList.remove('text-slate-400', 'hover:text-white');
+                    btn.classList.add('bg-indigo-600', 'text-white', 'shadow-lg');
+                } else {
+                    btn.classList.add('text-slate-400', 'hover:text-white');
+                    btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg');
+                }
+            }
+        });
+        updateMainChart();
+    }
+
+    function updateMainChartVisibility() {
+        updateMainChart();
+    }
+
+    function updateMainResultsChart(data) {
+      if (!mainResultsChart) return;
+      
+      const bm = data.basic_metrics || {};
+      const em = data.energy_metrics || {};
+      const lpm = data.live_power_metrics || {};
+
+      const newItem = {
+          energyWh: em.watt_hours_consumed || 0,
+          carbon: em.carbon_grams_co2 || 0,
+          inputTokens: bm.prompt_tokens || 0,
+          outputTokens: bm.completion_tokens || 0,
+          totalTokens: bm.total_tokens || 0,
+          latency: bm.latency || 0,
+          tokensPerSec: bm.tokens_per_second || 0,
+          ttft: lpm.ttft_seconds || 0,
+          raplEnergyWh: lpm.total_wh || 0,
+          // Store raw RAPL Wh if available, otherwise 0
+          timestamp: new Date().toLocaleTimeString()
+      };
+      
+      energyHistory.push(newItem);
+      if (energyHistory.length > 30) energyHistory.shift();
+      
+      updateMainChart();
+    }
+
+    function updateMainChart() {
+      if (!mainResultsChart) return;
+      
+      const showRapl = document.getElementById('chartToggleRapl').checked;
+      const showEst = document.getElementById('chartToggleEst').checked;
+      const normMode = document.getElementById('chartNormSelect').value; // 'output', 'input', 'total'
+
+      const labels = energyHistory.map((_, i) => `Run ${i + 1}`);
+      const datasets = [];
+
+      // Helper to get normalization divisor (in thousands)
+      const getDivisor = (item) => {
+          let tokens = 0;
+          if (normMode === 'input') tokens = item.inputTokens;
+          else if (normMode === 'total') tokens = item.totalTokens;
+          else tokens = item.outputTokens; // default output
+          return tokens > 0 ? (tokens / 1000.0) : 0;
+      };
+
+      if (currentChartMode === 'energy') {
+          // Dataset 1: Benchmark Intensity (theoretical, from selected baseline)
+          if (showEst) {
+              const benchOpt = benchmarkSwitcher && benchmarkSwitcher.selectedOptions
+                ? benchmarkSwitcher.selectedOptions[0]
+                : null;
+              const benchWh = benchOpt ? parseFloat(benchOpt.dataset.wh || '0') : NaN;
+
+              const dataEst = energyHistory.map(item => {
+                  if (!benchOpt || !Number.isFinite(benchWh) || benchWh <= 0) return null;
+                  const outTok = item.outputTokens || 0;
+                  const inTok = item.inputTokens || 0;
+                  const totalTok = item.totalTokens || (inTok + outTok);
+
+                  // Convert baseline spec (Wh/1k output tokens) into the requested normalization
+                  if (normMode === 'output') {
+                      return benchWh;
+                  } else if (normMode === 'input') {
+                      if (inTok <= 0 || outTok <= 0) return null;
+                      // Scale by output/input ratio so energy-per-token remains consistent
+                      return benchWh * (outTok / inTok);
+                  } else if (normMode === 'total') {
+                      if (totalTok <= 0 || outTok <= 0) return null;
+                      return benchWh * (outTok / totalTok);
+                  }
+                  return benchWh;
+              });
+
+              datasets.push({
+                  label: `Benchmark Intensity (Wh/1k ${normMode})`,
+                  data: dataEst,
+                  borderColor: '#6366f1', // Indigo
+                  backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                  tension: 0.3,
+                  yAxisID: 'y'
+              });
+          }
+          
+          // Dataset 2: RAPL Intensity (Actual)
+          if (showRapl) {
+               const dataRapl = energyHistory.map(item => {
+                  if (!item.raplEnergyWh) return null;
+                  const div = getDivisor(item);
+                  return div > 0 ? (item.raplEnergyWh / div) : 0;
+              });
+              datasets.push({
+                  label: `RAPL Intensity (Wh/1k ${normMode})`,
+                  data: dataRapl,
+                  borderColor: '#ef4444', // Red
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  borderDash: [5, 5],
+                  tension: 0.3,
+                  yAxisID: 'y'
+              });
+          }
+
+           // Optional: Total Energy overlay (on separate axis)? 
+           // User asked for "Total Wh" and "Wh/1000" plottable. 
+           // Mixing absolute and relative on same chart was the original complaint.
+           // Let's keep this mode focused on Intensity as that's the primary scientific metric here.
+           // Or we can add Total Wh as a bar?
+           // Let's add Total Wh as a bar on a secondary axis if they want to see it?
+           // User said: "with two different measures on the Y axis... very noisy".
+           // So let's stick to Intensity in this view, maybe add a separate "Total Energy" view later if needed?
+           // Actually user listed: "total wh, wh/1000 e-tokens ... All of these should be plottable per run".
+           // Let's add Total Wh as a dataset but maybe hidden by default? Or just stick to the requested clean view.
+           // Let's stick to efficiency for the "Energy" view as it normalizes properly.
+      } 
+      else if (currentChartMode === 'speed') {
+           // Single-metric view: Tokens/sec only, to avoid confusing dual Y-axes
+           datasets.push({
+              label: 'Tokens / Sec',
+              data: energyHistory.map(h => h.tokensPerSec),
+              borderColor: '#10b981', // Green
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              tension: 0.3,
+              yAxisID: 'y'
+          });
+      }
+      else if (currentChartMode === 'carbon') {
+           const dataCarbon = energyHistory.map(item => {
+               const div = getDivisor(item);
+               return div > 0 ? (item.carbon / div) : 0;
+           });
+           datasets.push({
+              label: `Carbon (gCO2 / 1k ${normMode})`,
+              data: dataCarbon,
+              borderColor: '#22c55e', // Green
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              tension: 0.3,
+              fill: true,
+              yAxisID: 'y'
+           });
+      }
+
+      mainResultsChart.data.labels = labels;
+      mainResultsChart.data.datasets = datasets;
+      
+      // Update scales
+      if (currentChartMode === 'speed') {
+          mainResultsChart.options.scales.y.title.text = 'Tokens / Sec';
+          mainResultsChart.options.scales.y1.display = false;
+      } else {
+          mainResultsChart.options.scales.y.title.text = currentChartMode === 'carbon' ? 'gCO2 / 1k tokens' : 'Wh / 1k tokens';
+          mainResultsChart.options.scales.y1.display = false;
+      }
+      
+      mainResultsChart.update();
+    }
+    
+    function initMainResultsChart() {
+      const canvas = document.getElementById('mainResultsChart');
+      if (!canvas || !window.Chart) return;
+
+      const ctx = canvas.getContext('2d');
+      mainResultsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: []
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              ticks: { color: '#94a3b8' },
+              grid: { color: '#334155' }
+            },
+            y: {
+              position: 'left',
+              ticks: { color: '#94a3b8' },
+              grid: { color: '#334155' },
+              title: { display: true, text: 'Value', color: '#cbd5e1' },
+              beginAtZero: true
+            },
+            y1: {
+              position: 'right',
+              display: false,
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#94a3b8' },
+              title: { display: true, text: 'Value', color: '#cbd5e1' },
+              beginAtZero: true
+            },
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1' },
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#f8fafc',
+                bodyColor: '#e2e8f0',
+                borderColor: '#475569',
+                borderWidth: 1
+            }
+          },
+        },
+      });
     }
 
     function updatePhaseEnergyChart(livePowerMetrics) {
@@ -2521,10 +2876,10 @@
           labels: [],
           datasets: [
             {
-              label: 'Estimated Wh per run (baseline vs actual)',
+              label: 'Estimated Wh per run (baseline vs reference models)',
               data: [],
               backgroundColor: [
-                'rgba(52, 211, 153, 0.9)', // Actual
+                'rgba(52, 211, 153, 0.9)', // Baseline
                 'rgba(129, 140, 248, 0.9)',
                 'rgba(251, 191, 36, 0.9)',
                 'rgba(248, 113, 113, 0.9)',
@@ -2585,7 +2940,7 @@
               tension: 0.3,
             },
             {
-              label: 'Efficiency (Wh / 1K output tokens)',
+              label: 'Intensity (Wh / 1K output tokens)',
               data: [],
               borderColor: 'rgba(52, 211, 153, 1)',
               backgroundColor: 'rgba(52, 211, 153, 0.2)',
@@ -2723,7 +3078,7 @@
 
         sessionEnergy.textContent = `${summary.total_energy_wh.toFixed(4)} Wh`;
         sessionCarbon.textContent = `${summary.total_carbon_gco2.toFixed(2)} gCO2`;
-        sessionEfficiency.textContent = `${summary.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
+        sessionIntensity.textContent = `${summary.average_energy_per_1000_tokens.toFixed(4)} Wh/1K`;
         sessionTokens.textContent = summary.total_tokens;
         if (summary.rapl_session && typeof summary.rapl_session.measured_wh === 'number') {
           sessionRaplEnergy.textContent = `${summary.rapl_session.measured_wh.toFixed(6)} Wh`;
@@ -2779,12 +3134,10 @@
 
       // Clear chart
       energyHistory = [];
-      if (energyChart) {
-        energyChart.data.labels = [];
-        if (energyChart.data.datasets[0]) energyChart.data.datasets[0].data = [];
-        if (energyChart.data.datasets[1]) energyChart.data.datasets[1].data = [];
-        if (energyChart.data.datasets[2]) energyChart.data.datasets[2].data = [];
-        energyChart.update();
+      if (mainResultsChart) {
+        mainResultsChart.data.labels = [];
+        mainResultsChart.data.datasets = [];
+        mainResultsChart.update();
       }
     }
 
@@ -2951,7 +3304,7 @@
       setupWebSocket();
       initPhaseEnergyChart();
       initHfBenchmarkChart();
-      initEnergyChart();
+      initMainResultsChart();
       initPrefillDecodeChart();
       renderRaplBatchTable();
 
