@@ -42,6 +42,19 @@ from ollama_client import (
     DEFAULT_MAX_OUTPUT_TOKENS
 )
 
+# Import Groq cloud client for cloud model support
+from groq_client import (
+    check_groq_connection,
+    list_groq_models,
+    get_groq_models_with_defaults,
+    stream_groq_chat,
+    is_groq_configured,
+    GROQ_API_KEY,
+    GROQ_API_BASE_URL,
+    GROQ_DEFAULT_MODEL,
+    GROQ_REQUEST_TIMEOUT
+)
+
 # Import token tracking utilities (critical fix)
 from token_utils import track_middleware_tokens, create_token_breakdown
 
@@ -175,6 +188,7 @@ class EnergyPayload:
     seed: Optional[int] = None
     enable_live_power_monitoring: bool = False
     include_thinking: bool = False
+    provider: str = "local"  # "local" (Ollama) or "cloud" (Groq)
 
 # ---------- Ollama Client ----------
 # (Now imported from ollama_client.py)
@@ -317,9 +331,18 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         # Scaphandre per-process energy accounting (LLM-only)
         scaph_e_llm_wh = 0.0
         scaph_sampler_task = None
-        live_power_enabled = payload.enable_live_power_monitoring and POWER_MONITORING_AVAILABLE
-        print(f"🔌 Live Power Monitoring: Requested={payload.enable_live_power_monitoring}, Available={POWER_MONITORING_AVAILABLE}, Enabled={live_power_enabled}")
-        if payload.enable_live_power_monitoring and not POWER_MONITORING_AVAILABLE:
+        
+        # Check if using cloud provider - RAPL is not available for cloud models
+        is_cloud = getattr(payload, "provider", "local") == "cloud"
+        if is_cloud:
+            live_power_enabled = False
+            await websocket.send_json({"log": "☁️ Cloud provider detected (Groq) - RAPL power monitoring disabled"})
+            await websocket.send_json({"log": "📊 Energy estimates will be used instead of direct measurement"})
+        else:
+            live_power_enabled = payload.enable_live_power_monitoring and POWER_MONITORING_AVAILABLE
+        
+        print(f"🔌 Live Power Monitoring: Requested={payload.enable_live_power_monitoring}, Available={POWER_MONITORING_AVAILABLE}, Cloud={is_cloud}, Enabled={live_power_enabled}")
+        if payload.enable_live_power_monitoring and not POWER_MONITORING_AVAILABLE and not is_cloud:
             await websocket.send_json({"log": "❌ RAPL not available on this system"})
         
         if live_power_enabled:
@@ -433,9 +456,12 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     scaph_sampler_task = None
             await websocket.send_json({"log": "Running LLM inference with power monitoring..."})
         
-        print(f"📤 Sending to Ollama - Model: {payload.model_name}")
+        # Log provider and model info
+        provider_label = "☁️ Groq (Cloud)" if is_cloud else "🖥️ Ollama (Local)"
+        print(f"📤 Sending to {provider_label} - Model: {payload.model_name}")
         print(f"📤 Messages array: {json.dumps(messages, indent=2)}")
         print(f"📤 Options: temp={payload.temp}, num_predict={safe_max_tokens}, seed={payload.seed}")
+        
         try:
             await websocket.send_json({
                 "log": f"🧠 Thinking setting → include_thinking={payload.include_thinking}; sending think={bool(getattr(payload, 'include_thinking', False))}"
@@ -452,141 +478,190 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             except Exception as e:
                 await websocket.send_json({"log": f"⚠️ RAPL snapshot start (pre-request) error: {str(e)}"})
 
-        # Log the context window setting (calculation done earlier in Phase 4)
-        try:
-            await websocket.send_json({"log": f"🧮 Setting num_ctx={desired_ctx} (estimated prompt≈{estimated_prompt_tokens_guess}, max_out={safe_max_tokens})"})
-        except Exception:
-            pass
-
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            async with client.stream(
-                "POST",
-                f"{OLLAMA_BASE_URL}/api/chat",
-                json={
-                    "model": payload.model_name,
-                    "messages": messages,
-                    "stream": True,
-                    "think": bool(getattr(payload, "include_thinking", False)),
-                    "options": {
-                        "temperature": payload.temp,
-                        "num_predict": safe_max_tokens,  # Use validated max_tokens
-                        "seed": payload.seed if payload.seed is not None else None,
-                        "num_ctx": desired_ctx
-                    }
-                }
-            ) as response:
-                if response.status_code != 200:
-                    error_text = await response.aread()
+        # ===== PROVIDER BRANCHING: CLOUD (Groq) vs LOCAL (Ollama) =====
+        if is_cloud:
+            # ===== GROQ CLOUD INFERENCE =====
+            await websocket.send_json({"log": f"☁️ Streaming from Groq API: {payload.model_name}"})
+            
+            split_time = None
+            
+            async for chunk in stream_groq_chat(
+                model=payload.model_name,
+                messages=messages,
+                temperature=payload.temp,
+                max_tokens=safe_max_tokens,
+                seed=payload.seed
+            ):
+                if cancel_event.is_set():
+                    break
+                
+                if "error" in chunk:
                     await websocket.send_json({
-                        "error": f"Ollama error: {error_text.decode()}",
+                        "error": chunk["error"],
                         "done": True,
                     })
                     return
-
-                # Fallback: Take RAPL start snapshot right before reading first chunk if not already taken
-                if live_power_enabled and power_monitor and rapl_start_snap is None:
-                    try:
-                        loop = asyncio.get_running_loop()
-                        rapl_start_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
-                        await websocket.send_json({"log": "📍 RAPL snapshot taken: start (fallback)"})
-                    except Exception as e:
-                        await websocket.send_json({"log": f"⚠️ RAPL snapshot start error: {str(e)}"})
-
-                split_time = None
-                # TTFT heartbeat: log periodically while waiting for first token
-                heartbeat_task = None
-                async def _ttft_heartbeat():
-                    try:
-                        # Heartbeat while waiting for first token, regardless of RAPL state
-                        while rapl_split_snap is None and not cancel_event.is_set():
-                            elapsed = asyncio.get_event_loop().time() - start_time
-                            try:
-                                await websocket.send_json({"log": f"⌛ Prefill in progress… {elapsed:.1f}s (ctx~{estimated_prompt_tokens_guess})"})
-                            except Exception:
-                                pass
-                            await asyncio.sleep(2.0)
-                    except Exception:
-                        pass
-
-                try:
-                    heartbeat_task = asyncio.create_task(_ttft_heartbeat())
-                except Exception:
-                    heartbeat_task = None
-
-                async for line in response.aiter_lines():
-                    if cancel_event.is_set():
-                        break
-
-                    if not line:
-                        continue
-
-                    try:
-                        chunk = json.loads(line)
-                        print(f"🔍 Ollama chunk received: {chunk}")
-                    except json.JSONDecodeError:
-                        continue
-
-                    if "message" in chunk:
-                        # Support both regular models (content) and reasoning models (thinking)
-                        msg = chunk["message"] or {}
-                        content_text = msg.get("content") or ""
-                        thinking_text = msg.get("thinking") or ""
-
-                        # On first token (either thinking or content), record split time and
-                        # stop the TTFT heartbeat. When live power is enabled, also take a
-                        # RAPL split snapshot for prefill/decode separation.
-                        if (content_text or thinking_text) and rapl_split_snap is None:
-                            # Take RAPL split snapshot only when live power monitoring is active
-                            if live_power_enabled and power_monitor:
-                                try:
-                                    loop = asyncio.get_running_loop()
-                                    rapl_split_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
-                                    await websocket.send_json({"log": "📍 RAPL snapshot taken: split (first token)"})
-                                except Exception as e:
-                                    await websocket.send_json({"log": f"⚠️ RAPL snapshot split error: {str(e)}"})
-
-                            # Always record first-token time for TTFT and stop heartbeat
-                            split_time = asyncio.get_event_loop().time()
-                            if 'heartbeat_task' in locals() and heartbeat_task is not None:
-                                heartbeat_task.cancel()
-
-                        if content_text:
-                            print(f"📝 Extracted content: '{content_text}' (length: {len(content_text)})")
-                            full_response += content_text
-                            content_chars += len(content_text)
-                            await websocket.send_json({
-                                "token": content_text,
-                                "model": payload.model_name,
-                                "strategy": payload.strategy_name,
-                                "thinking": False,
-                                "done": False,
-                            })
-                        elif thinking_text and getattr(payload, "include_thinking", False):
-                            print(f"🧠 Extracted thinking: '{thinking_text}' (length: {len(thinking_text)})")
-                            full_response += thinking_text
-                            thinking_chars += len(thinking_text)
-                            await websocket.send_json({
-                                "token": thinking_text,
-                                "model": payload.model_name,
-                                "strategy": payload.strategy_name,
-                                "thinking": True,
-                                "done": False,
-                            })
-
-                    if chunk.get("done", False):
-                        prompt_tokens = chunk.get("prompt_eval_count", 0)
-                        completion_tokens = chunk.get("eval_count", 0)
-                        prompt_eval_duration_ns = chunk.get("prompt_eval_duration")
-                        eval_duration_ns = chunk.get("eval_duration")
-                        print(f"✅ Generation complete. Tokens: prompt={prompt_tokens}, completion={completion_tokens}")
-                        break
                 
-                # Always close the response stream properly
-                await response.aclose()
-                # Ensure heartbeat stopped
-                if 'heartbeat_task' in locals() and heartbeat_task is not None:
-                    with contextlib.suppress(Exception):
-                        heartbeat_task.cancel()
+                if chunk.get("done"):
+                    # Final chunk with usage info
+                    usage = chunk.get("usage", {})
+                    prompt_tokens = usage.get("prompt_tokens", 0)
+                    completion_tokens = usage.get("completion_tokens", 0)
+                    print(f"✅ Groq generation complete. Tokens: prompt={prompt_tokens}, completion={completion_tokens}")
+                    break
+                
+                token = chunk.get("token", "")
+                if token:
+                    # Record first token time
+                    if split_time is None:
+                        split_time = asyncio.get_event_loop().time()
+                    
+                    full_response += token
+                    content_chars += len(token)
+                    await websocket.send_json({
+                        "token": token,
+                        "model": payload.model_name,
+                        "strategy": payload.strategy_name,
+                        "thinking": False,
+                        "done": False,
+                    })
+        else:
+            # ===== OLLAMA LOCAL INFERENCE =====
+            # Log the context window setting (calculation done earlier in Phase 4)
+            try:
+                await websocket.send_json({"log": f"🧮 Setting num_ctx={desired_ctx} (estimated prompt≈{estimated_prompt_tokens_guess}, max_out={safe_max_tokens})"})
+            except Exception:
+                pass
+
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+                async with client.stream(
+                    "POST",
+                    f"{OLLAMA_BASE_URL}/api/chat",
+                    json={
+                        "model": payload.model_name,
+                        "messages": messages,
+                        "stream": True,
+                        "think": bool(getattr(payload, "include_thinking", False)),
+                        "options": {
+                            "temperature": payload.temp,
+                            "num_predict": safe_max_tokens,  # Use validated max_tokens
+                            "seed": payload.seed if payload.seed is not None else None,
+                            "num_ctx": desired_ctx
+                        }
+                    }
+                ) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        await websocket.send_json({
+                            "error": f"Ollama error: {error_text.decode()}",
+                            "done": True,
+                        })
+                        return
+
+                    # Fallback: Take RAPL start snapshot right before reading first chunk if not already taken
+                    if live_power_enabled and power_monitor and rapl_start_snap is None:
+                        try:
+                            loop = asyncio.get_running_loop()
+                            rapl_start_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
+                            await websocket.send_json({"log": "📍 RAPL snapshot taken: start (fallback)"})
+                        except Exception as e:
+                            await websocket.send_json({"log": f"⚠️ RAPL snapshot start error: {str(e)}"})
+
+                    split_time = None
+                    # TTFT heartbeat: log periodically while waiting for first token
+                    heartbeat_task = None
+                    async def _ttft_heartbeat():
+                        try:
+                            # Heartbeat while waiting for first token, regardless of RAPL state
+                            while rapl_split_snap is None and not cancel_event.is_set():
+                                elapsed = asyncio.get_event_loop().time() - start_time
+                                try:
+                                    await websocket.send_json({"log": f"⌛ Prefill in progress… {elapsed:.1f}s (ctx~{estimated_prompt_tokens_guess})"})
+                                except Exception:
+                                    pass
+                                await asyncio.sleep(2.0)
+                        except Exception:
+                            pass
+
+                    try:
+                        heartbeat_task = asyncio.create_task(_ttft_heartbeat())
+                    except Exception:
+                        heartbeat_task = None
+
+                    async for line in response.aiter_lines():
+                        if cancel_event.is_set():
+                            break
+
+                        if not line:
+                            continue
+
+                        try:
+                            chunk = json.loads(line)
+                            print(f"🔍 Ollama chunk received: {chunk}")
+                        except json.JSONDecodeError:
+                            continue
+
+                        if "message" in chunk:
+                            # Support both regular models (content) and reasoning models (thinking)
+                            msg = chunk["message"] or {}
+                            content_text = msg.get("content") or ""
+                            thinking_text = msg.get("thinking") or ""
+
+                            # On first token (either thinking or content), record split time and
+                            # stop the TTFT heartbeat. When live power is enabled, also take a
+                            # RAPL split snapshot for prefill/decode separation.
+                            if (content_text or thinking_text) and rapl_split_snap is None:
+                                # Take RAPL split snapshot only when live power monitoring is active
+                                if live_power_enabled and power_monitor:
+                                    try:
+                                        loop = asyncio.get_running_loop()
+                                        rapl_split_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
+                                        await websocket.send_json({"log": "📍 RAPL snapshot taken: split (first token)"})
+                                    except Exception as e:
+                                        await websocket.send_json({"log": f"⚠️ RAPL snapshot split error: {str(e)}"})
+
+                                # Always record first-token time for TTFT and stop heartbeat
+                                split_time = asyncio.get_event_loop().time()
+                                if 'heartbeat_task' in locals() and heartbeat_task is not None:
+                                    heartbeat_task.cancel()
+
+                            if content_text:
+                                print(f"📝 Extracted content: '{content_text}' (length: {len(content_text)})")
+                                full_response += content_text
+                                content_chars += len(content_text)
+                                await websocket.send_json({
+                                    "token": content_text,
+                                    "model": payload.model_name,
+                                    "strategy": payload.strategy_name,
+                                    "thinking": False,
+                                    "done": False,
+                                })
+                            elif thinking_text and getattr(payload, "include_thinking", False):
+                                print(f"🧠 Extracted thinking: '{thinking_text}' (length: {len(thinking_text)})")
+                                full_response += thinking_text
+                                thinking_chars += len(thinking_text)
+                                await websocket.send_json({
+                                    "token": thinking_text,
+                                    "model": payload.model_name,
+                                    "strategy": payload.strategy_name,
+                                    "thinking": True,
+                                    "done": False,
+                                })
+
+                        if chunk.get("done", False):
+                            prompt_tokens = chunk.get("prompt_eval_count", 0)
+                            completion_tokens = chunk.get("eval_count", 0)
+                            prompt_eval_duration_ns = chunk.get("prompt_eval_duration")
+                            eval_duration_ns = chunk.get("eval_duration")
+                            print(f"✅ Generation complete. Tokens: prompt={prompt_tokens}, completion={completion_tokens}")
+                            break
+                    
+                    # Always close the response stream properly
+                    await response.aclose()
+                    # Ensure heartbeat stopped
+                    if 'heartbeat_task' in locals() and heartbeat_task is not None:
+                        with contextlib.suppress(Exception):
+                            heartbeat_task.cancel()
 
         generation_done = True
         if scaph_sampler_task is not None:
@@ -1053,9 +1128,22 @@ async def energy_ui():
         return HTMLResponse("<h1>Energy UI not found. Please check static/ui_energy.html</h1>")
 
 @app.get("/api/models")
-async def get_available_models():
-    """List available Ollama models with defaults"""
-    return await get_models_with_defaults()
+async def get_available_models(provider: str = "local"):
+    """List available models based on provider (local=Ollama, cloud=Groq)"""
+    if provider == "cloud":
+        if not is_groq_configured():
+            return {
+                "models": [],
+                "current": {"base": "", "instruct": ""},
+                "provider": "cloud",
+                "error": "GROQ_API_KEY not configured"
+            }
+        return await get_groq_models_with_defaults()
+    else:
+        # Default to local (Ollama)
+        result = await get_models_with_defaults()
+        result["provider"] = "local"
+        return result
 
 @app.get("/api/model-info/{model_name:path}")
 async def get_model_information(model_name: str):
@@ -1084,6 +1172,20 @@ async def health_check():
 async def get_energy_benchmarks():
     """Get available energy benchmarks"""
     return {"benchmarks": get_available_benchmarks()}
+
+@app.get("/api/emissions")
+async def get_emissions():
+    """Get electricity grid emission factors for all countries."""
+    try:
+        emissions_path = Path("data/emissions.json")
+        if emissions_path.exists():
+            with emissions_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            return {"emissions": data}
+        else:
+            return {"emissions": [], "error": "emissions.json not found"}
+    except Exception as e:
+        return {"emissions": [], "error": str(e)}
 
 @app.get("/api/injection-methods")
 async def get_injection_methods():
@@ -1145,6 +1247,9 @@ async def switch_benchmark(request: dict):
     """Switch to a different energy benchmark and recalculate all readings."""
     try:
         benchmark_name = request.get("benchmark_name") if isinstance(request, dict) else request
+        # Ensure external benchmarks are registered before switching
+        from energy_tracker import ensure_external_energy_benchmarks_registered
+        ensure_external_energy_benchmarks_registered()
         result = energy_tracker.recalculate_with_benchmark(benchmark_name)
         return result
     except ValueError as e:

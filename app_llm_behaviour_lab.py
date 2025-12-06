@@ -49,6 +49,13 @@ from ollama_client import (
     REQUEST_TIMEOUT
 )
 
+# Import Groq cloud client for cloud model support
+from groq_client import (
+    check_groq_connection,
+    get_groq_models_with_defaults,
+    is_groq_configured,
+)
+
 # Import payload classes and test functions from standalone apps
 from app_energy import EnergyPayload, run_energy_test, ensure_scaphandre_ready
 
@@ -137,9 +144,22 @@ async def comparison_ui():
         return HTMLResponse("<h1>Model Comparison UI not found. Please check static/ui_multi.html</h1>")
 
 @app.get("/api/models")
-async def get_available_models():
-    """List available Ollama models with defaults"""
-    return await get_models_with_defaults()
+async def get_available_models(provider: str = "local"):
+    """List available models based on provider (local=Ollama, cloud=Groq)"""
+    if provider == "cloud":
+        if not is_groq_configured():
+            return {
+                "models": [],
+                "current": {"base": "", "instruct": ""},
+                "provider": "cloud",
+                "error": "GROQ_API_KEY not configured"
+            }
+        return await get_groq_models_with_defaults()
+    else:
+        # Default to local (Ollama)
+        result = await get_models_with_defaults()
+        result["provider"] = "local"
+        return result
 
 
 @app.get("/api/model-info/{model_name}")
@@ -273,6 +293,9 @@ async def switch_benchmark(request: dict):
     """Switch to a different energy benchmark and recalculate all readings."""
     try:
         benchmark_name = request.get("benchmark_name") if isinstance(request, dict) else request
+        # Ensure external benchmarks are registered before switching
+        from energy_tracker import ensure_external_energy_benchmarks_registered
+        ensure_external_energy_benchmarks_registered()
         result = energy_tracker.recalculate_with_benchmark(benchmark_name)
         return result
     except ValueError as e:
@@ -498,7 +521,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     temp=raw.get('temp', 0.7),
                     max_tokens=raw.get('max_tokens', 512),
                     enable_live_power_monitoring=raw.get('enable_live_power_monitoring', False),
-                    include_thinking=raw.get('include_thinking', False)
+                    include_thinking=raw.get('include_thinking', False),
+                    provider=raw.get('provider', 'local')  # Provider for cloud/local routing
             )
             current_task = asyncio.create_task(run_energy_test(payload_obj, websocket, cancel_event))
             current_task.add_done_callback(reset_task)

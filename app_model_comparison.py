@@ -36,6 +36,15 @@ from ollama_client import (
     REQUEST_TIMEOUT
 )
 
+# Import Groq cloud client for cloud model support
+from groq_client import (
+    check_groq_connection,
+    list_groq_models,
+    get_groq_models_with_defaults,
+    stream_groq_chat,
+    is_groq_configured,
+)
+
 # Model comparison specific defaults
 DEFAULT_BASE_MODEL = os.getenv("OLLAMA_DEFAULT_BASE_MODEL", "")
 
@@ -58,6 +67,7 @@ class Payload:
     repeat_penalty: float = 1.1
     max_tokens: int = 1024
     stop: List[str] = field(default_factory=lambda: [])
+    provider: str = "local"  # "local" (Ollama) or "cloud" (Groq)
 
 # ---------- Generation Helpers ----------
 
@@ -70,6 +80,7 @@ async def run_generation(
 
     model_name = payload.model_name or ""
     model_key = "base" if payload.use_base_model else "instruct"
+    is_cloud = getattr(payload, "provider", "local") == "cloud"
 
     # Cap max_tokens to prevent excessive generation
     safe_max_tokens = min(payload.max_tokens, DEFAULT_MAX_OUTPUT_TOKENS)
@@ -87,69 +98,114 @@ async def run_generation(
     start_time = asyncio.get_event_loop().time()
 
     try:
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            async with client.stream(
-                "POST",
-                f"{OLLAMA_BASE_URL}/api/chat",
-                json={
-                    "model": model_name,
-                    "messages": messages,
-                    "stream": True,
-                    "options": {
-                        "temperature": payload.temp,
-                        "top_p": payload.top_p,
-                        "repeat_penalty": payload.repeat_penalty,
-                        "num_predict": safe_max_tokens,
-                        # Let Ollama use model's default context length
-                        "num_thread": 4,  # Limit CPU threads to prevent overload
-                    },
-                },
-            ) as response:
-                if response.status_code != 200:
-                    error_text = await response.aread()
+        # ===== PROVIDER BRANCHING: CLOUD (Groq) vs LOCAL (Ollama) =====
+        if is_cloud:
+            # ===== GROQ CLOUD INFERENCE =====
+            async for chunk in stream_groq_chat(
+                model=model_name,
+                messages=messages,
+                temperature=payload.temp,
+                max_tokens=safe_max_tokens,
+            ):
+                if cancel_event.is_set():
+                    break
+                
+                if "error" in chunk:
                     await websocket.send_json({
-                        "error": f"Ollama error: {error_text.decode()}",
+                        "error": chunk["error"],
                         "done": True,
                     })
                     return
+                
+                if chunk.get("done"):
+                    # Final chunk with usage info
+                    usage = chunk.get("usage", {})
+                    prompt_tokens = usage.get("prompt_tokens", 0)
+                    completion_tokens = usage.get("completion_tokens", 0)
+                    break
+                
+                token = chunk.get("token", "")
+                if token:
+                    full_response += token
+                    await websocket.send_json({
+                        "token": token,
+                        "model": model_key,
+                        "done": False,
+                    })
+        else:
+            # ===== OLLAMA LOCAL INFERENCE =====
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+                async with client.stream(
+                    "POST",
+                    f"{OLLAMA_BASE_URL}/api/chat",
+                    json={
+                        "model": model_name,
+                        "messages": messages,
+                        "stream": True,
+                        "options": {
+                            "temperature": payload.temp,
+                            "top_p": payload.top_p,
+                            "repeat_penalty": payload.repeat_penalty,
+                            "num_predict": safe_max_tokens,
+                            # Let Ollama use model's default context length
+                            "num_thread": 4,  # Limit CPU threads to prevent overload
+                        },
+                    },
+                ) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        await websocket.send_json({
+                            "error": f"Ollama error: {error_text.decode()}",
+                            "done": True,
+                        })
+                        return
 
-                cancelled = False
+                    cancelled = False
 
-                async for line in response.aiter_lines():
+                    async for line in response.aiter_lines():
+                        if cancel_event.is_set():
+                            cancelled = True
+                            break
+
+                        if not line:
+                            continue
+
+                        try:
+                            chunk = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+
+                        if "message" in chunk and "content" in chunk["message"]:
+                            text = chunk["message"]["content"]
+                            full_response += text
+
+                            await websocket.send_json({
+                                "token": text,
+                                "model": model_key,
+                                "done": False,
+                            })
+
+                        if chunk.get("done", False):
+                            prompt_tokens = chunk.get("prompt_eval_count", 0)
+                            completion_tokens = chunk.get("eval_count", 0)
+                            break
+
+                    # Always close the response stream properly
+                    await response.aclose()
+
                     if cancel_event.is_set():
                         cancelled = True
-                        break
 
-                    if not line:
-                        continue
+            if cancelled:
+                await websocket.send_json({
+                    "token": "[CANCELLED]",
+                    "model": model_key,
+                    "done": True,
+                    "cancelled": True,
+                })
+                return
 
-                    try:
-                        chunk = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-
-                    if "message" in chunk and "content" in chunk["message"]:
-                        text = chunk["message"]["content"]
-                        full_response += text
-
-                        await websocket.send_json({
-                            "token": text,
-                            "model": model_key,
-                            "done": False,
-                        })
-
-                    if chunk.get("done", False):
-                        prompt_tokens = chunk.get("prompt_eval_count", 0)
-                        completion_tokens = chunk.get("eval_count", 0)
-                        break
-
-                # Always close the response stream properly
-                await response.aclose()
-
-                if cancel_event.is_set():
-                    cancelled = True
-
-        if cancel_event.is_set() or cancelled:
+        if cancel_event.is_set():
             await websocket.send_json({
                 "token": "[CANCELLED]",
                 "model": model_key,
@@ -258,23 +314,35 @@ async def index():
         return HTMLResponse("<h1>UI not found. Please build the frontend.</h1>")
 
 @app.get("/api/models")
-async def get_available_models():
-    """List available Ollama models"""
-    models = await list_ollama_models()
+async def get_available_models(provider: str = "local"):
+    """List available models based on provider (local=Ollama, cloud=Groq)"""
+    if provider == "cloud":
+        if not is_groq_configured():
+            return {
+                "models": [],
+                "current": {"base": "", "instruct": ""},
+                "provider": "cloud",
+                "error": "GROQ_API_KEY not configured"
+            }
+        return await get_groq_models_with_defaults()
+    else:
+        # Default to local (Ollama)
+        models = await list_ollama_models()
 
-    # Choose sensible defaults based on available models
-    base_default = DEFAULT_BASE_MODEL or (models[0] if models else "")
-    instruct_default = DEFAULT_MODEL or (
-        models[1] if len(models) > 1 else models[0] if models else ""
-    )
+        # Choose sensible defaults based on available models
+        base_default = DEFAULT_BASE_MODEL or (models[0] if models else "")
+        instruct_default = DEFAULT_MODEL or (
+            models[1] if len(models) > 1 else models[0] if models else ""
+        )
 
-    return {
-        "models": models,
-        "current": {
-            "base": base_default,
-            "instruct": instruct_default
+        return {
+            "models": models,
+            "current": {
+                "base": base_default,
+                "instruct": instruct_default
+            },
+            "provider": "local"
         }
-    }
 
 @app.get("/api/health")
 async def health_check():

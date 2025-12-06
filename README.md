@@ -19,8 +19,9 @@ It focuses on two related labs, both exposed through a FastAPI backend:
   - Integrated Lab: `http://localhost:8001/`
   - Energy Testing Lab: `http://localhost:8001/energy`
   - Model Comparison Lab: `http://localhost:8001/comparison`
-- **Key dependency**
-  - Local **Ollama** instance, typically at `http://localhost:11434` (or overridden via `OLLAMA_HOST`).
+- **Model Providers**
+  - **Local**: Ollama instance at `http://localhost:11434` (default, with RAPL power monitoring)
+  - **Cloud**: Groq API (optional, requires `GROQ_API_KEY` - see [Model Providers](./documentation/models.md))
 
 ## Table of Contents
 

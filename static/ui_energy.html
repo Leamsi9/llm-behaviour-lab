@@ -363,6 +363,11 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
+            <label class="block text-sm font-semibold mb-2">Provider</label>
+            <select id="modelProviderSelect" class="w-full mb-3">
+              <option value="local">🖥️ Local (Ollama)</option>
+              <option value="cloud">☁️ Cloud (Groq)</option>
+            </select>
             <label class="block text-sm font-semibold mb-2">Model Selection</label>
             <select id="modelSelect" class="w-full">
               <option>Loading models…</option>
@@ -372,6 +377,9 @@
                 <span>📊 Context Length:</span>
                 <span id="modelContextLength" class="font-mono text-indigo-400">-</span>
               </div>
+            </div>
+            <div id="cloudProviderNote" class="mt-2 text-xs text-amber-400 hidden">
+              ⚠️ RAPL power monitoring disabled for cloud models. Energy estimates only.
             </div>
           </div>
         </div>
@@ -928,6 +936,11 @@
     let systemPrompts = [];
     let inThinking = false;
     let answerStarted = false;
+    let modelProvider = 'local'; // 'local' (Ollama) or 'cloud' (Groq)
+
+    // Provider select element
+    const modelProviderSelect = document.getElementById('modelProviderSelect');
+    const cloudProviderNote = document.getElementById('cloudProviderNote');
 
     function renderRaplBatchTable() {
       const container = document.getElementById('raplResultsContainer');
@@ -1009,9 +1022,9 @@
     // Initialize (called at bottom)
 
     async function loadModels() {
-      console.log('🔄 Attempting to load models...');
+      console.log('🔄 Attempting to load models (provider=' + modelProvider + ')...');
       try {
-        const r = await fetch('/api/models');
+        const r = await fetch('/api/models?provider=' + encodeURIComponent(modelProvider));
         console.log('📡 Models API response status:', r.status);
         if (!r.ok) {
           const errorText = await r.text();
@@ -1021,6 +1034,14 @@
         }
         const d = await r.json();
         console.log('✓ Models API response data:', d);
+
+        // Check for cloud provider error (API key not configured)
+        if (d.error && modelProvider === 'cloud') {
+          modelSelect.innerHTML = '<option>⚠️ ' + d.error + '</option>';
+          console.warn('⚠️ Cloud provider error:', d.error);
+          return;
+        }
+
         modelSelect.innerHTML = '';
         if (d.models && d.models.length > 0) {
           d.models.forEach(model => {
@@ -1036,10 +1057,18 @@
           } else if (modelSelect.options.length > 0) {
             modelSelect.selectedIndex = 0;
           }
-          // Load info for the selected model
-          await loadModelInfo(modelSelect.value);
+          // Load info for the selected model (only for local)
+          if (modelProvider === 'local') {
+            await loadModelInfo(modelSelect.value);
+          } else {
+            // Hide context info for cloud models
+            document.getElementById('modelInfo').classList.add('hidden');
+          }
         } else {
-          modelSelect.innerHTML = '<option>No models available</option>';
+          const noModelsText = modelProvider === 'cloud'
+            ? 'No Groq models available'
+            : 'No models available';
+          modelSelect.innerHTML = '<option>' + noModelsText + '</option>';
           console.log('⚠️ No models found in API response');
         }
       } catch (e) {
@@ -1074,8 +1103,43 @@
 
     // Update model info when model selection changes
     modelSelect.addEventListener('change', () => {
-      loadModelInfo(modelSelect.value);
+      if (modelProvider === 'local') {
+        loadModelInfo(modelSelect.value);
+      }
     });
+
+    // Handle provider change (Local/Cloud)
+    if (modelProviderSelect) {
+      modelProviderSelect.addEventListener('change', async () => {
+        modelProvider = modelProviderSelect.value;
+        console.log('🔄 Provider changed to:', modelProvider);
+
+        // Update UI for cloud provider
+        if (modelProvider === 'cloud') {
+          // Disable and uncheck RAPL checkbox for cloud
+          if (enableLivePower) {
+            enableLivePower.checked = false;
+            enableLivePower.disabled = true;
+          }
+          // Show cloud note
+          if (cloudProviderNote) {
+            cloudProviderNote.classList.remove('hidden');
+          }
+        } else {
+          // Re-enable RAPL for local
+          if (enableLivePower) {
+            enableLivePower.disabled = false;
+          }
+          // Hide cloud note
+          if (cloudProviderNote) {
+            cloudProviderNote.classList.add('hidden');
+          }
+        }
+
+        // Reload models for the new provider
+        await loadModels();
+      });
+    }
 
     async function loadSystemPrompts() {
       try {
@@ -1479,8 +1543,10 @@
           const result = await r.json();
           // Update the UI with recalculated values
           updateSessionWithRecalculatedData(result);
-
-          alert(`Successfully switched to ${result.benchmark_used} benchmark`);
+          // Success - no alert, just log and update UI
+          console.log(`✓ Switched to ${result.benchmark_used} benchmark`);
+          // Update benchmark info display silently
+          updateBenchmarkInfo();
         } else {
           const error = await r.json();
           alert(`Error switching benchmark: ${error.detail || 'Unknown error'}`);
@@ -1548,6 +1614,12 @@
     }
 
     async function runRaplCalibrationHandler() {
+      // Block RAPL calibration for cloud providers
+      if (modelProvider === 'cloud') {
+        alert('RAPL calibration is only available for local (Ollama) models. Please switch to Local provider.');
+        return;
+      }
+
       const runsInput = document.getElementById('raplCalibrationRuns');
       const statusEl = document.getElementById('raplCalibrationStatus');
       const statsContainer = document.getElementById('raplCalibrationStats');
@@ -1646,6 +1718,10 @@
         content: inj.content
       }));
 
+      // Determine if RAPL should be enabled (always false for cloud)
+      const isCloud = modelProvider === 'cloud';
+      const enableRapl = isCloud ? false : (forceRapl ? true : (document.getElementById('enableLivePower')?.checked === true));
+
       const payload = {
         // New structured fields for backend composition
         system_prompt: baseSystem,
@@ -1665,8 +1741,11 @@
         temp: parseFloat(temperature.value),
         max_tokens: parseInt(maxTokens.value),
         seed: document.getElementById('seedInput').value ? parseInt(document.getElementById('seedInput').value) : null,
-        enable_live_power_monitoring: forceRapl ? true : (document.getElementById('enableLivePower')?.checked === true),
-        include_thinking: (document.getElementById('includeThinking')?.checked === true)
+        enable_live_power_monitoring: enableRapl,
+        include_thinking: (document.getElementById('includeThinking')?.checked === true),
+
+        // Provider field for backend routing
+        provider: modelProvider
       };
 
       return payload;
