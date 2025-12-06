@@ -2,9 +2,11 @@
 
 _Version 0.1.0_
 
-The **LLM Energy Lab (primary)**: The Energy Lab is designed to surface the difference (computational non-equivalence) between the energy impacts of the model in isolation, and the energy impacts of the model as a conversational system powered by (generally invisible), and fully deterministic middleware.  It measures energy consumption per 1000 energy-weighted tokens (e-tokens), and can run live hardware tests via RAPL (on Linux), and rigorous benchmark estimates to compare energy profiles across models, prompts, and prompt-injection strategies.
+The **LLM Energy Lab ** is a web application and API for benchmarking and comparing LLM energy consumption, emissions and behaviour on cloud and bare metal, under different inference configs, middleware scaffolds and post-training implementations
 
-- **LLM Behaviour Lab (WIP)**: Complementary side-by-side model comparison UI for studying output quality, variability, and behaviour across models and temperatures. Helpful to understand deterministic factors that affect model behaviour, and assess fit for purpose and fine tuning potential of environmentally optimal small models.
+It is designed to surface the impacts of LLM middleware scaffolds and configurations on LLM's raw behaviours and energy footprint. On linux bare metal it measures energy consumption per 1000 energy-weighted tokens (e-tokens), and n run live hardware tests via RAPL. On cloud it applies rigorous benchmark estimates to compare energy profiles across models, prompts, LLM configurations and middleware context-injections.
+
+- **LLM Behaviour Lab (secondary)**: Complementary side-by-side model comparison UI for studying output quality, variability, and behaviour across models and temperatures. Helpful to understand deterministic factors that affect model behaviour, and assess fit for purpose and fine tuning potential of environmentally optimal small models.
 
 ## At a Glance
 
