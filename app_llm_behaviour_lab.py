@@ -323,11 +323,30 @@ async def get_docs():
                 "content": content,
             })
 
-    # Sort docs to match README order of appearance, then fall back to label.
+    # Sort docs to match a preferred logical order for key energy docs, then
+    # README order of appearance, then fall back to label.
     def doc_sort_key(doc: Dict[str, Any]) -> tuple:
         # Overview (README) always first
-        if doc.get("id") == "overview":
+        doc_id = doc.get("id")
+        if doc_id == "overview":
             return (0, "")
+
+        # Explicit preferred order for core energy documentation sections
+        preferred_order = {
+            "energy_weighted_tokens": 1_000,
+            "benchmark_etoken_estimates": 2_000,
+            "live_energy_measurements": 3_000,
+            "emissions": 4_000,
+            "models": 5_000,
+            "api_endpoints": 6_000,
+            "installation": 7_000,
+            "troubleshooting": 8_000,
+        }
+
+        if doc_id in preferred_order:
+            base_pos = preferred_order[doc_id]
+            label_key = (doc.get("label") or doc_id or "").lower()
+            return (base_pos, label_key)
 
         # If we don't have README text, group all non-overview docs after it alphabetically.
         if not readme_text:
@@ -354,10 +373,10 @@ async def get_docs():
 
         if best_index is None:
             # Not explicitly referenced in README: group after referenced docs.
-            position = 9_000_000
+            position = 20_000_000
         else:
-            # Shift by 1 to leave room for overview at 0.
-            position = best_index + 1
+            # Shift by 1 to leave room for overview at 0, and add offset to come after preferred docs.
+            position = best_index + 1 + 10_000
 
         label_key = (doc.get("label") or doc.get("id") or "").lower()
         return (position, label_key)

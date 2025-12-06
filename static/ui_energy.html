@@ -751,6 +751,63 @@
           </div>
         </div>
 
+        <!-- Live Power RAPL Results (moved under Results Overview) -->
+        <div class="dashboard-card p-6 space-y-6">
+          <h2 class="text-2xl font-bold flex items-center gap-2 mb-2">
+            <span>⚡</span> Live Power RAPL Results
+            <span class="text-xs text-slate-400 cursor-help"
+              title="Live hardware measurements using CPU/DRAM RAPL counters. Prefill vs decode energy is split using start/split/end snapshots.">ⓘ</span>
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="metric-card">
+              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
+                <span>🔄</span> Batch Testing
+                <span class="text-[10px] text-slate-400 cursor-help"
+                  title="Run the same live measurement N times with current settings to study variability and stability of Wh/1000 e-tokens.">ⓘ</span>
+              </h4>
+              <label class="block text-xs text-slate-400 mb-2 cursor-help"
+                title="How many back-to-back live runs to perform. Larger batches give better statistics but take longer.">Number
+                of Runs</label>
+              <input type="number" id="raplBatchRuns" value="1" min="1" max="100" class="w-full">
+            </div>
+
+            <div class="metric-card">
+              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
+                <span>🎲</span> Reproducibility & Calibration
+                <span class="text-[10px] text-slate-400 cursor-help"
+                  title="Control randomness across runs and create calibrated benchmarks from repeated RAPL measurements.">ⓘ</span>
+              </h4>
+              <label class="block text-xs text-slate-400 mb-2 cursor-help"
+                title="Optional random seed for the model. Setting this makes batches more comparable by reducing sampling variance.">Seed
+                (Optional)</label>
+              <input type="number" id="seedInput" placeholder="Random" class="w-full">
+
+              <div class="mt-4 pt-4 border-t border-slate-700">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="block text-xs text-slate-400 mb-1 cursor-help"
+                      title="Summarises whether you have run a RAPL calibration to turn live measurements into a reusable energy benchmark for this hardware.">Calibration</label>
+                    <p class="text-[10px] text-slate-500" id="raplCalibrationStatus">Not run yet.</p>
+                  </div>
+                  <button id="runRaplCalibration" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded">
+                    Run Calibration
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prefill vs Decode history chart (multi-run line plot) -->
+          <div style="height: 180px; position: relative; margin-top: 1.5rem; margin-bottom: 1.5rem;">
+            <canvas id="prefillDecodeChart"></canvas>
+          </div>
+
+          <div id="raplResultsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- RAPL results will be populated here as metric cards -->
+          </div>
+        </div>
+
         <!-- Benchmark Estimation (moved under Results Overview) -->
         <div class="dashboard-card p-6">
           <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
@@ -3244,37 +3301,40 @@
 
       const ctx = canvas.getContext('2d');
       prefillDecodeChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
           labels: [],
           datasets: [
             {
               label: 'Prefill (Wh)',
               data: [],
-              backgroundColor: 'rgba(129, 140, 248, 0.9)',
-              borderRadius: 4,
-              barThickness: 20,
+              borderColor: 'rgba(129, 140, 248, 1)',
+              backgroundColor: 'rgba(129, 140, 248, 0.15)',
+              tension: 0.25,
+              fill: false,
             },
             {
               label: 'Decode (Wh)',
               data: [],
-              backgroundColor: 'rgba(248, 113, 113, 0.9)',
-              borderRadius: 4,
-              barThickness: 20,
+              borderColor: 'rgba(248, 113, 113, 1)',
+              backgroundColor: 'rgba(248, 113, 113, 0.15)',
+              tension: 0.25,
+              fill: false,
             },
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          indexAxis: 'y',
+          interaction: { mode: 'index', intersect: false },
           scales: {
             x: {
               ticks: { color: '#e5e7eb' },
-              title: { display: true, text: 'Wh', color: '#9ca3af' },
+              title: { display: true, text: 'Run', color: '#9ca3af' },
             },
             y: {
               ticks: { color: '#e5e7eb' },
+              title: { display: true, text: 'Wh', color: '#9ca3af' },
             },
           },
           plugins: {
