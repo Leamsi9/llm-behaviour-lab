@@ -588,8 +588,10 @@
             <h2 class="text-2xl font-bold flex items-center gap-2">
               <span>📈</span> Results Overview
             </h2>
-            <div class="flex gap-2">
-               <button onclick="clearAllResults()" class="text-xs text-slate-400 hover:text-red-400 px-2 py-1 rounded border border-slate-700 hover:border-red-400 transition-colors">Clear History</button>
+            <div class="flex items-center gap-4">
+              <button onclick="clearAllResults()"
+                class="text-xs text-slate-400 hover:text-red-400 px-2 py-1 rounded border border-slate-700 hover:border-red-400 transition-colors">Clear
+                History</button>
             </div>
           </div>
 
@@ -631,36 +633,56 @@
           <!-- Chart Controls Toolbar -->
           <div class="flex flex-wrap items-center gap-4 mb-4 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
             <div class="flex items-center gap-2 mr-4">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Metric:</span>
-                <div class="flex bg-slate-900 rounded-lg p-1">
-                    <button class="px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-600 text-white shadow-lg transition-all" id="btnModeEnergy" onclick="setChartMode('energy')">Energy</button>
-                    <button class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-all" id="btnModeSpeed" onclick="setChartMode('speed')">Speed</button>
-                    <button class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-all" id="btnModeCarbon" onclick="setChartMode('carbon')">Carbon</button>
-                </div>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Metric:</span>
+              <div class="flex bg-slate-900 rounded-lg p-1">
+                <button
+                  class="px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-600 text-white shadow-lg transition-all"
+                  id="btnModeEnergy" onclick="setChartMode('energy')">Energy</button>
+                <button
+                  class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-all"
+                  id="btnModeSpeed" onclick="setChartMode('speed')">Speed</button>
+                <button
+                  class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition-all"
+                  id="btnModeCarbon" onclick="setChartMode('carbon')">Carbon</button>
+              </div>
             </div>
 
             <div class="h-6 w-px bg-slate-700"></div>
 
-            <div class="flex items-center gap-4">
-                <label class="flex items-center gap-2 text-xs cursor-pointer text-slate-300 hover:text-white transition-colors">
-                    <input type="checkbox" id="chartToggleRapl" checked onchange="updateMainChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-slate-900">
-                    <span>Show RAPL (Actual)</span>
-                </label>
-                <label class="flex items-center gap-2 text-xs cursor-pointer text-slate-300 hover:text-white transition-colors">
-                    <input type="checkbox" id="chartToggleEst" checked onchange="updateMainChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-slate-900">
-                    <span>Show Estimates</span>
-                </label>
+            <!-- Electricity Grid (only visible in Carbon mode) -->
+            <div id="electricityGridContainer" class="flex items-center gap-2 hidden">
+              <label class="text-xs font-semibold text-slate-400">Grid:</label>
+              <select id="electricityGridSelect" onchange="updateCarbonCalculation()"
+                class="text-xs py-1 pl-2 pr-6 bg-slate-900 border-slate-700 rounded-md">
+                <option value="GLOBAL">Global Average (0.445 kgCO2/kWh)</option>
+              </select>
             </div>
-            
+
+            <div class="flex items-center gap-4">
+              <label
+                class="flex items-center gap-2 text-xs cursor-pointer text-slate-300 hover:text-white transition-colors">
+                <input type="checkbox" id="chartToggleRapl" checked onchange="updateMainChartVisibility()"
+                  class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-slate-900">
+                <span>Show RAPL (Actual)</span>
+              </label>
+              <label
+                class="flex items-center gap-2 text-xs cursor-pointer text-slate-300 hover:text-white transition-colors">
+                <input type="checkbox" id="chartToggleEst" checked onchange="updateMainChartVisibility()"
+                  class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-slate-900">
+                <span>Show Estimates</span>
+              </label>
+            </div>
+
             <div class="h-6 w-px bg-slate-700"></div>
 
             <div class="flex items-center gap-2">
-                 <span class="text-xs font-bold text-slate-400">Norm:</span>
-                 <select id="chartNormSelect" onchange="updateMainChart()" class="text-xs py-1 pl-2 pr-6 bg-slate-900 border-slate-700 rounded-md">
-                    <option value="output">Per 1k Output Tokens</option>
-                    <option value="input">Per 1k Input Tokens</option>
-                    <option value="total">Per 1k Total Tokens</option>
-                 </select>
+              <span class="text-xs font-bold text-slate-400">Norm:</span>
+              <select id="chartNormSelect" onchange="updateMainChart()"
+                class="text-xs py-1 pl-2 pr-6 bg-slate-900 border-slate-700 rounded-md">
+                <option value="output">Per 1k Output Tokens</option>
+                <option value="input">Per 1k Input Tokens</option>
+                <option value="total">Per 1k Total Tokens</option>
+              </select>
             </div>
           </div>
 
@@ -675,7 +697,7 @@
           <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
             <span>📐</span> Benchmark Estimation
           </h2>
-          
+
           <div style="height: 170px; position: relative; margin-bottom: 1.5rem;">
             <canvas id="hfBenchmarkChartCanvas"></canvas>
           </div>
@@ -721,7 +743,8 @@
               <h4 class="text-sm font-bold mb-4">Add Custom Benchmark</h4>
               <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <input type="text" id="customBenchmarkName" placeholder="Name (e.g. RTX 3080)" class="w-full">
-                <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="Wh/1k etokens-o" class="w-full">
+                <input type="number" id="customBenchmarkWattHours" step="0.01" placeholder="Wh/1k etokens-o"
+                  class="w-full">
                 <input type="text" id="customBenchmarkDesc" placeholder="Description" class="w-full">
                 <button id="addCustomBenchmarkBtn"
                   class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded whitespace-nowrap">
@@ -1074,6 +1097,83 @@
       }
     }
 
+    // Emissions data for electricity grid carbon calculations
+    let emissionsData = [];
+    let currentEmissionFactor = 0.445; // Default: Global Average (IEA)
+
+    async function loadEmissionsData() {
+      try {
+        const r = await fetch('/api/emissions');
+        const d = await r.json();
+        emissionsData = Array.isArray(d.emissions) ? d.emissions : [];
+
+        const select = document.getElementById('electricityGridSelect');
+        if (!select) return;
+
+        select.innerHTML = '';
+
+        emissionsData.forEach(entry => {
+          const opt = document.createElement('option');
+          opt.value = entry.country_code;
+          opt.dataset.factor = entry.emission_factor;
+          const factorDisplay = entry.emission_factor > 0 ? entry.emission_factor.toFixed(3) : '0.000';
+          opt.textContent = `${entry.country_name} (${factorDisplay} kgCO2/kWh)`;
+          select.appendChild(opt);
+        });
+
+        // Default to Global Average (first entry)
+        if (select.options.length > 0) {
+          select.selectedIndex = 0;
+          currentEmissionFactor = parseFloat(select.options[0].dataset.factor) || 0.445;
+        }
+
+        console.log(`✓ Loaded ${emissionsData.length} emission factors`);
+      } catch (e) {
+        console.error('Failed to load emissions data:', e);
+      }
+    }
+
+    function getSelectedEmissionFactor() {
+      const select = document.getElementById('electricityGridSelect');
+      if (!select || !select.selectedOptions[0]) return 0.445;
+      return parseFloat(select.selectedOptions[0].dataset.factor) || 0.445;
+    }
+
+    function updateCarbonCalculation() {
+      currentEmissionFactor = getSelectedEmissionFactor();
+
+      // Recalculate carbon for the current test results if available
+      if (currentTestResults && currentTestResults.energy_metrics) {
+        const energyWh = currentTestResults.energy_metrics.watt_hours_consumed;
+        const newCarbon = energyWh * currentEmissionFactor;
+
+        if (kpiCarbonMain) {
+          kpiCarbonMain.textContent = `${newCarbon.toFixed(2)} gCO2`;
+        }
+
+        // Update chart if in carbon mode
+        if (currentChartMode === 'carbon') {
+          updateMainChart();
+        }
+      }
+
+      // Update all history entries' carbon values
+      energyHistory = energyHistory.map(entry => {
+        const energyWh = entry.energyWh || 0;
+        return {
+          ...entry,
+          carbonG: energyWh * currentEmissionFactor
+        };
+      });
+
+      // Redraw chart to reflect new carbon values
+      if (currentChartMode === 'carbon') {
+        updateMainChart();
+      }
+
+      console.log(`Updated emission factor to ${currentEmissionFactor} kgCO2/kWh`);
+    }
+
     // System prompt selection wiring
     if (systemPromptSelect) {
       systemPromptSelect.addEventListener('change', () => {
@@ -1296,11 +1396,11 @@
       if (!hfBenchmarkChart) return;
       const models = getModelsForSelectedSource();
       if (!Array.isArray(models) || models.length === 0) return;
-      
+
       const bm = data.basic_metrics || {};
       const promptTokens = typeof bm.prompt_tokens === 'number' ? bm.prompt_tokens : 0;
       const completionTokens = typeof bm.completion_tokens === 'number' ? bm.completion_tokens : 0;
-      
+
       if (promptTokens <= 0 && completionTokens <= 0) return;
 
       const selectedIds = hfBenchmarkMulti
@@ -1323,30 +1423,30 @@
       let baselineWh = 0;
       const benchOpt = benchmarkSwitcher.selectedOptions[0];
       if (benchOpt) {
-          const benchWh = parseFloat(benchOpt.dataset.wh) || 0; 
-          // Simple assumption: Benchmark is uniform input/output unless we have detailed specs
-          // We'll use the generic wh/1k for both.
-          baselineWh = (inK + outK) * benchWh;
-          // Note: If we had separate input/output specs for the *benchmark* itself, we'd use them.
-          // But currently the UI only has a single scalar for custom/loaded benchmarks usually.
-          
-          labels.push(`Baseline (${benchOpt.text.split(' ')[0]})`);
-          values.push(baselineWh);
+        const benchWh = parseFloat(benchOpt.dataset.wh) || 0;
+        // Simple assumption: Benchmark is uniform input/output unless we have detailed specs
+        // We'll use the generic wh/1k for both.
+        baselineWh = (inK + outK) * benchWh;
+        // Note: If we had separate input/output specs for the *benchmark* itself, we'd use them.
+        // But currently the UI only has a single scalar for custom/loaded benchmarks usually.
+
+        labels.push(`Baseline (${benchOpt.text.split(' ')[0]})`);
+        values.push(baselineWh);
       } else if (typeof data.energy_metrics?.watt_hours_consumed === 'number') {
-          // Fallback to actual if no benchmark selected (shouldn't happen)
-          labels.push('Actual (this host)');
-          values.push(data.energy_metrics.watt_hours_consumed);
+        // Fallback to actual if no benchmark selected (shouldn't happen)
+        labels.push('Actual (this host)');
+        values.push(data.energy_metrics.watt_hours_consumed);
       }
 
       chosen.forEach(m => {
         const whPer1kIn = typeof m.wh_per_1000_input_etokens === 'number' ? m.wh_per_1000_input_etokens : null;
         // If output specific is missing, fallback to input or generic
         const whPer1kOut = typeof m.wh_per_1000_output_etokens === 'number' ? m.wh_per_1000_output_etokens : whPer1kIn;
-        
+
         if (whPer1kIn == null) return;
-        
+
         const estimatedWh = (inK * whPer1kIn) + (outK * (whPer1kOut || whPer1kIn));
-        
+
         const fullId = m.model_id;
         const shortId = typeof fullId === 'string' ? fullId.split('/').pop() : String(fullId);
         labels.push(shortId);
@@ -1829,29 +1929,29 @@
         // we'll try to grab the last available output content from the UI itself
         // or the last result.
         if (currentTestResults && currentTestResults.response) {
-           const lastResp = currentTestResults.response;
-           const userQ = currentTestResults.user_prompt || '';
-           
-           if (lastResp) {
-               const existing = conversationContextText.value;
-               const turn = `<user>${userQ}</user>\n<assistant>${lastResp}</assistant>\n`;
-               conversationContextText.value = existing ? (existing + '\n' + turn) : turn;
-               // Flash visual feedback
-               injectConversationBtn.textContent = 'Injected!';
-               setTimeout(() => injectConversationBtn.textContent = 'Inject Last Turn', 1000);
-           } else {
-               alert('No previous response available to inject.');
-           }
-        } else if (responseOutput && responseOutput.textContent && responseOutput.textContent.length > 10 && !responseOutput.textContent.includes('Run a test')) {
-            // Fallback to scraping the div if no object
-            const content = responseOutput.textContent;
+          const lastResp = currentTestResults.response;
+          const userQ = currentTestResults.user_prompt || '';
+
+          if (lastResp) {
             const existing = conversationContextText.value;
-            const turn = `<assistant>${content}</assistant>\n`;
+            const turn = `<user>${userQ}</user>\n<assistant>${lastResp}</assistant>\n`;
             conversationContextText.value = existing ? (existing + '\n' + turn) : turn;
+            // Flash visual feedback
             injectConversationBtn.textContent = 'Injected!';
             setTimeout(() => injectConversationBtn.textContent = 'Inject Last Turn', 1000);
+          } else {
+            alert('No previous response available to inject.');
+          }
+        } else if (responseOutput && responseOutput.textContent && responseOutput.textContent.length > 10 && !responseOutput.textContent.includes('Run a test')) {
+          // Fallback to scraping the div if no object
+          const content = responseOutput.textContent;
+          const existing = conversationContextText.value;
+          const turn = `<assistant>${content}</assistant>\n`;
+          conversationContextText.value = existing ? (existing + '\n' + turn) : turn;
+          injectConversationBtn.textContent = 'Injected!';
+          setTimeout(() => injectConversationBtn.textContent = 'Inject Last Turn', 1000);
         } else {
-            alert('No recent output found to inject.');
+          alert('No recent output found to inject.');
         }
       });
     }
@@ -2180,8 +2280,8 @@
         currentTestResults = _raplLastBatchResult;
         updateEnergyDisplay(_raplLastBatchResult.energy_metrics);
         updateResultsDisplay(_raplLastBatchResult);
-        const raplIntensity = (_raplLastBatchResult.live_power_metrics && _raplLastBatchResult.live_power_metrics.measured_wh_per_1000_tokens != null) 
-          ? _raplLastBatchResult.live_power_metrics.measured_wh_per_1000_tokens 
+        const raplIntensity = (_raplLastBatchResult.live_power_metrics && _raplLastBatchResult.live_power_metrics.measured_wh_per_1000_tokens != null)
+          ? _raplLastBatchResult.live_power_metrics.measured_wh_per_1000_tokens
           : null;
         updateMainResultsChart(_raplLastBatchResult);
         await updateSessionSummary();
@@ -2253,7 +2353,8 @@
     }
     function updateEnergyDisplay(energyMetrics) {
       const energy = energyMetrics.watt_hours_consumed;
-      const carbon = energyMetrics.carbon_grams_co2;
+      // Recalculate carbon using the user-selected emission factor
+      const carbon = energy * currentEmissionFactor;
 
       // Update Main KPIs
       if (kpiEnergyWh) kpiEnergyWh.textContent = `${energy.toFixed(4)} Wh`;
@@ -2261,22 +2362,22 @@
 
       // Calculate and display efficiency and speed from current results if available
       if (currentTestResults && currentTestResults.basic_metrics) {
-         const bm = currentTestResults.basic_metrics;
-         const totalTokens = bm.total_tokens || 0;
-         const outputTokens = bm.completion_tokens || 0;
-         const inputTokens = bm.prompt_tokens || 0;
-         
-         // Default Intensity: Wh / 1k output tokens (matches traditional benchmark view)
-         // The user can toggle the chart, but the card usually shows the primary metric.
-         // Let's use the 'Intensity Score' from backend which is typically Wh/1k output
-         const effScore = energyMetrics.energy_efficiency_score; 
-         if (kpiIntensityMain) {
-             kpiIntensityMain.textContent = effScore > 0 ? `${effScore.toFixed(4)}` : '-';
-         }
+        const bm = currentTestResults.basic_metrics;
+        const totalTokens = bm.total_tokens || 0;
+        const outputTokens = bm.completion_tokens || 0;
+        const inputTokens = bm.prompt_tokens || 0;
 
-         if (kpiSpeedMain) {
-             kpiSpeedMain.textContent = bm.tokens_per_second ? bm.tokens_per_second.toFixed(1) : '-';
-         }
+        // Default Intensity: Wh / 1k output tokens (matches traditional benchmark view)
+        // The user can toggle the chart, but the card usually shows the primary metric.
+        // Let's use the 'Intensity Score' from backend which is typically Wh/1k output
+        const effScore = energyMetrics.energy_efficiency_score;
+        if (kpiIntensityMain) {
+          kpiIntensityMain.textContent = effScore > 0 ? `${effScore.toFixed(4)}` : '-';
+        }
+
+        if (kpiSpeedMain) {
+          kpiSpeedMain.textContent = bm.tokens_per_second ? bm.tokens_per_second.toFixed(1) : '-';
+        }
       }
 
       // Legacy per-run display (kept for compatibility)
@@ -2565,57 +2666,68 @@
     // --- NEW CHART LOGIC ---
 
     function setChartMode(mode) {
-        currentChartMode = mode;
-        // Update button styles
-        ['Energy', 'Speed', 'Carbon'].forEach(m => {
-            const btn = document.getElementById(`btnMode${m}`);
-            if (btn) {
-                if (m.toLowerCase() === mode) {
-                    btn.classList.remove('text-slate-400', 'hover:text-white');
-                    btn.classList.add('bg-indigo-600', 'text-white', 'shadow-lg');
-                } else {
-                    btn.classList.add('text-slate-400', 'hover:text-white');
-                    btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg');
-                }
-            }
-        });
-        updateMainChart();
+      currentChartMode = mode;
+      // Update button styles
+      ['Energy', 'Speed', 'Carbon'].forEach(m => {
+        const btn = document.getElementById(`btnMode${m}`);
+        if (btn) {
+          if (m.toLowerCase() === mode) {
+            btn.classList.remove('text-slate-400', 'hover:text-white');
+            btn.classList.add('bg-indigo-600', 'text-white', 'shadow-lg');
+          } else {
+            btn.classList.add('text-slate-400', 'hover:text-white');
+            btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg');
+          }
+        }
+      });
+
+      // Show/hide electricity grid dropdown based on Carbon mode
+      const gridContainer = document.getElementById('electricityGridContainer');
+      if (gridContainer) {
+        if (mode === 'carbon') {
+          gridContainer.classList.remove('hidden');
+        } else {
+          gridContainer.classList.add('hidden');
+        }
+      }
+
+      updateMainChart();
     }
 
     function updateMainChartVisibility() {
-        updateMainChart();
+      updateMainChart();
     }
 
     function updateMainResultsChart(data) {
       if (!mainResultsChart) return;
-      
+
       const bm = data.basic_metrics || {};
       const em = data.energy_metrics || {};
       const lpm = data.live_power_metrics || {};
 
       const newItem = {
-          energyWh: em.watt_hours_consumed || 0,
-          carbon: em.carbon_grams_co2 || 0,
-          inputTokens: bm.prompt_tokens || 0,
-          outputTokens: bm.completion_tokens || 0,
-          totalTokens: bm.total_tokens || 0,
-          latency: bm.latency || 0,
-          tokensPerSec: bm.tokens_per_second || 0,
-          ttft: lpm.ttft_seconds || 0,
-          raplEnergyWh: lpm.total_wh || 0,
-          // Store raw RAPL Wh if available, otherwise 0
-          timestamp: new Date().toLocaleTimeString()
+        energyWh: em.watt_hours_consumed || 0,
+        carbon: em.carbon_grams_co2 || 0,
+        inputTokens: bm.prompt_tokens || 0,
+        outputTokens: bm.completion_tokens || 0,
+        totalTokens: bm.total_tokens || 0,
+        latency: bm.latency || 0,
+        tokensPerSec: bm.tokens_per_second || 0,
+        ttft: lpm.ttft_seconds || 0,
+        raplEnergyWh: lpm.total_wh || 0,
+        // Store raw RAPL Wh if available, otherwise 0
+        timestamp: new Date().toLocaleTimeString()
       };
-      
+
       energyHistory.push(newItem);
       if (energyHistory.length > 30) energyHistory.shift();
-      
+
       updateMainChart();
     }
 
     function updateMainChart() {
       if (!mainResultsChart) return;
-      
+
       const showRapl = document.getElementById('chartToggleRapl').checked;
       const showEst = document.getElementById('chartToggleEst').checked;
       const normMode = document.getElementById('chartNormSelect').value; // 'output', 'input', 'total'
@@ -2625,123 +2737,123 @@
 
       // Helper to get normalization divisor (in thousands)
       const getDivisor = (item) => {
-          let tokens = 0;
-          if (normMode === 'input') tokens = item.inputTokens;
-          else if (normMode === 'total') tokens = item.totalTokens;
-          else tokens = item.outputTokens; // default output
-          return tokens > 0 ? (tokens / 1000.0) : 0;
+        let tokens = 0;
+        if (normMode === 'input') tokens = item.inputTokens;
+        else if (normMode === 'total') tokens = item.totalTokens;
+        else tokens = item.outputTokens; // default output
+        return tokens > 0 ? (tokens / 1000.0) : 0;
       };
 
       if (currentChartMode === 'energy') {
-          // Dataset 1: Benchmark Intensity (theoretical, from selected baseline)
-          if (showEst) {
-              const benchOpt = benchmarkSwitcher && benchmarkSwitcher.selectedOptions
-                ? benchmarkSwitcher.selectedOptions[0]
-                : null;
-              const benchWh = benchOpt ? parseFloat(benchOpt.dataset.wh || '0') : NaN;
+        // Dataset 1: Benchmark Intensity (theoretical, from selected baseline)
+        if (showEst) {
+          const benchOpt = benchmarkSwitcher && benchmarkSwitcher.selectedOptions
+            ? benchmarkSwitcher.selectedOptions[0]
+            : null;
+          const benchWh = benchOpt ? parseFloat(benchOpt.dataset.wh || '0') : NaN;
 
-              const dataEst = energyHistory.map(item => {
-                  if (!benchOpt || !Number.isFinite(benchWh) || benchWh <= 0) return null;
-                  const outTok = item.outputTokens || 0;
-                  const inTok = item.inputTokens || 0;
-                  const totalTok = item.totalTokens || (inTok + outTok);
+          const dataEst = energyHistory.map(item => {
+            if (!benchOpt || !Number.isFinite(benchWh) || benchWh <= 0) return null;
+            const outTok = item.outputTokens || 0;
+            const inTok = item.inputTokens || 0;
+            const totalTok = item.totalTokens || (inTok + outTok);
 
-                  // Convert baseline spec (Wh/1k output tokens) into the requested normalization
-                  if (normMode === 'output') {
-                      return benchWh;
-                  } else if (normMode === 'input') {
-                      if (inTok <= 0 || outTok <= 0) return null;
-                      // Scale by output/input ratio so energy-per-token remains consistent
-                      return benchWh * (outTok / inTok);
-                  } else if (normMode === 'total') {
-                      if (totalTok <= 0 || outTok <= 0) return null;
-                      return benchWh * (outTok / totalTok);
-                  }
-                  return benchWh;
-              });
-
-              datasets.push({
-                  label: `Benchmark Intensity (Wh/1k ${normMode})`,
-                  data: dataEst,
-                  borderColor: '#6366f1', // Indigo
-                  backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                  tension: 0.3,
-                  yAxisID: 'y'
-              });
-          }
-          
-          // Dataset 2: RAPL Intensity (Actual)
-          if (showRapl) {
-               const dataRapl = energyHistory.map(item => {
-                  if (!item.raplEnergyWh) return null;
-                  const div = getDivisor(item);
-                  return div > 0 ? (item.raplEnergyWh / div) : 0;
-              });
-              datasets.push({
-                  label: `RAPL Intensity (Wh/1k ${normMode})`,
-                  data: dataRapl,
-                  borderColor: '#ef4444', // Red
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  borderDash: [5, 5],
-                  tension: 0.3,
-                  yAxisID: 'y'
-              });
-          }
-
-           // Optional: Total Energy overlay (on separate axis)? 
-           // User asked for "Total Wh" and "Wh/1000" plottable. 
-           // Mixing absolute and relative on same chart was the original complaint.
-           // Let's keep this mode focused on Intensity as that's the primary scientific metric here.
-           // Or we can add Total Wh as a bar?
-           // Let's add Total Wh as a bar on a secondary axis if they want to see it?
-           // User said: "with two different measures on the Y axis... very noisy".
-           // So let's stick to Intensity in this view, maybe add a separate "Total Energy" view later if needed?
-           // Actually user listed: "total wh, wh/1000 e-tokens ... All of these should be plottable per run".
-           // Let's add Total Wh as a dataset but maybe hidden by default? Or just stick to the requested clean view.
-           // Let's stick to efficiency for the "Energy" view as it normalizes properly.
-      } 
-      else if (currentChartMode === 'speed') {
-           // Single-metric view: Tokens/sec only, to avoid confusing dual Y-axes
-           datasets.push({
-              label: 'Tokens / Sec',
-              data: energyHistory.map(h => h.tokensPerSec),
-              borderColor: '#10b981', // Green
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              tension: 0.3,
-              yAxisID: 'y'
+            // Convert baseline spec (Wh/1k output tokens) into the requested normalization
+            if (normMode === 'output') {
+              return benchWh;
+            } else if (normMode === 'input') {
+              if (inTok <= 0 || outTok <= 0) return null;
+              // Scale by output/input ratio so energy-per-token remains consistent
+              return benchWh * (outTok / inTok);
+            } else if (normMode === 'total') {
+              if (totalTok <= 0 || outTok <= 0) return null;
+              return benchWh * (outTok / totalTok);
+            }
+            return benchWh;
           });
+
+          datasets.push({
+            label: `Benchmark Intensity (Wh/1k ${normMode})`,
+            data: dataEst,
+            borderColor: '#6366f1', // Indigo
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            tension: 0.3,
+            yAxisID: 'y'
+          });
+        }
+
+        // Dataset 2: RAPL Intensity (Actual)
+        if (showRapl) {
+          const dataRapl = energyHistory.map(item => {
+            if (!item.raplEnergyWh) return null;
+            const div = getDivisor(item);
+            return div > 0 ? (item.raplEnergyWh / div) : 0;
+          });
+          datasets.push({
+            label: `RAPL Intensity (Wh/1k ${normMode})`,
+            data: dataRapl,
+            borderColor: '#ef4444', // Red
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderDash: [5, 5],
+            tension: 0.3,
+            yAxisID: 'y'
+          });
+        }
+
+        // Optional: Total Energy overlay (on separate axis)? 
+        // User asked for "Total Wh" and "Wh/1000" plottable. 
+        // Mixing absolute and relative on same chart was the original complaint.
+        // Let's keep this mode focused on Intensity as that's the primary scientific metric here.
+        // Or we can add Total Wh as a bar?
+        // Let's add Total Wh as a bar on a secondary axis if they want to see it?
+        // User said: "with two different measures on the Y axis... very noisy".
+        // So let's stick to Intensity in this view, maybe add a separate "Total Energy" view later if needed?
+        // Actually user listed: "total wh, wh/1000 e-tokens ... All of these should be plottable per run".
+        // Let's add Total Wh as a dataset but maybe hidden by default? Or just stick to the requested clean view.
+        // Let's stick to efficiency for the "Energy" view as it normalizes properly.
+      }
+      else if (currentChartMode === 'speed') {
+        // Single-metric view: Tokens/sec only, to avoid confusing dual Y-axes
+        datasets.push({
+          label: 'Tokens / Sec',
+          data: energyHistory.map(h => h.tokensPerSec),
+          borderColor: '#10b981', // Green
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          tension: 0.3,
+          yAxisID: 'y'
+        });
       }
       else if (currentChartMode === 'carbon') {
-           const dataCarbon = energyHistory.map(item => {
-               const div = getDivisor(item);
-               return div > 0 ? (item.carbon / div) : 0;
-           });
-           datasets.push({
-              label: `Carbon (gCO2 / 1k ${normMode})`,
-              data: dataCarbon,
-              borderColor: '#22c55e', // Green
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              tension: 0.3,
-              fill: true,
-              yAxisID: 'y'
-           });
+        const dataCarbon = energyHistory.map(item => {
+          const div = getDivisor(item);
+          return div > 0 ? (item.carbon / div) : 0;
+        });
+        datasets.push({
+          label: `Carbon (gCO2 / 1k ${normMode})`,
+          data: dataCarbon,
+          borderColor: '#22c55e', // Green
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          tension: 0.3,
+          fill: true,
+          yAxisID: 'y'
+        });
       }
 
       mainResultsChart.data.labels = labels;
       mainResultsChart.data.datasets = datasets;
-      
+
       // Update scales
       if (currentChartMode === 'speed') {
-          mainResultsChart.options.scales.y.title.text = 'Tokens / Sec';
-          mainResultsChart.options.scales.y1.display = false;
+        mainResultsChart.options.scales.y.title.text = 'Tokens / Sec';
+        mainResultsChart.options.scales.y1.display = false;
       } else {
-          mainResultsChart.options.scales.y.title.text = currentChartMode === 'carbon' ? 'gCO2 / 1k tokens' : 'Wh / 1k tokens';
-          mainResultsChart.options.scales.y1.display = false;
+        mainResultsChart.options.scales.y.title.text = currentChartMode === 'carbon' ? 'gCO2 / 1k tokens' : 'Wh / 1k tokens';
+        mainResultsChart.options.scales.y1.display = false;
       }
-      
+
       mainResultsChart.update();
     }
-    
+
     function initMainResultsChart() {
       const canvas = document.getElementById('mainResultsChart');
       if (!canvas || !window.Chart) return;
@@ -2783,13 +2895,13 @@
               labels: { color: '#cbd5e1' },
             },
             tooltip: {
-                mode: 'index',
-                intersect: false,
-                backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                titleColor: '#f8fafc',
-                bodyColor: '#e2e8f0',
-                borderColor: '#475569',
-                borderWidth: 1
+              mode: 'index',
+              intersect: false,
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleColor: '#f8fafc',
+              bodyColor: '#e2e8f0',
+              borderColor: '#475569',
+              borderWidth: 1
             }
           },
         },
@@ -3297,6 +3409,7 @@
       await loadHfBenchmarks();
       await loadBenchmarks();
       await loadSystemPrompts();
+      await loadEmissionsData();
 
       await updateSessionSummary();
 

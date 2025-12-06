@@ -1,0 +1,1257 @@
+[
+  {
+    "country_name": "Global Average",
+    "country_code": "GLOBAL",
+    "emission_factor": 0.445,
+    "year": 2025,
+    "source": "IEA Electricity 2025"
+  },
+  {
+    "country_name": "Afghanistan",
+    "country_code": "AF",
+    "emission_factor": 0.111202893,
+    "year": 2025
+  },
+  {
+    "country_name": "Albania",
+    "country_code": "AL",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "Algeria",
+    "country_code": "DZ",
+    "emission_factor": 0.50303113,
+    "year": 2025
+  },
+  {
+    "country_name": "American Samoa",
+    "country_code": "AS",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Angola",
+    "country_code": "AO",
+    "emission_factor": 0.157268595,
+    "year": 2025
+  },
+  {
+    "country_name": "Antigua and Barbuda",
+    "country_code": "AG",
+    "emission_factor": 0.728064565,
+    "year": 2025
+  },
+  {
+    "country_name": "Argentina",
+    "country_code": "AR",
+    "emission_factor": 0.327164162,
+    "year": 2025
+  },
+  {
+    "country_name": "Armenia",
+    "country_code": "AM",
+    "emission_factor": 0.217931792,
+    "year": 2025
+  },
+  {
+    "country_name": "Aruba",
+    "country_code": "AW",
+    "emission_factor": 0.63984027,
+    "year": 2025
+  },
+  {
+    "country_name": "Australia",
+    "country_code": "AU",
+    "emission_factor": 0.580232018,
+    "year": 2025
+  },
+  {
+    "country_name": "Austria",
+    "country_code": "AT",
+    "emission_factor": 0.085973076,
+    "year": 2025
+  },
+  {
+    "country_name": "Azerbaijan",
+    "country_code": "AZ",
+    "emission_factor": 0.474774919,
+    "year": 2025
+  },
+  {
+    "country_name": "Bahamas",
+    "country_code": "BS",
+    "emission_factor": 0.763370995,
+    "year": 2025
+  },
+  {
+    "country_name": "Bahrain",
+    "country_code": "BH",
+    "emission_factor": 0.505489079,
+    "year": 2025
+  },
+  {
+    "country_name": "Bangladesh",
+    "country_code": "BD",
+    "emission_factor": 0.601551587,
+    "year": 2025
+  },
+  {
+    "country_name": "Barbados",
+    "country_code": "BB",
+    "emission_factor": 0.700615049,
+    "year": 2025
+  },
+  {
+    "country_name": "Belarus",
+    "country_code": "BY",
+    "emission_factor": 0.362048947,
+    "year": 2025
+  },
+  {
+    "country_name": "Belgium",
+    "country_code": "BE",
+    "emission_factor": 0.119454826,
+    "year": 2025
+  },
+  {
+    "country_name": "Belize",
+    "country_code": "BZ",
+    "emission_factor": 0.096607036,
+    "year": 2025
+  },
+  {
+    "country_name": "Benin",
+    "country_code": "BJ",
+    "emission_factor": 0.554941554,
+    "year": 2025
+  },
+  {
+    "country_name": "Bermuda",
+    "country_code": "BM",
+    "emission_factor": 0.759360099,
+    "year": 2025
+  },
+  {
+    "country_name": "Bhutan",
+    "country_code": "BT",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "Bolivia",
+    "country_code": "BO",
+    "emission_factor": 0.335146549,
+    "year": 2025
+  },
+  {
+    "country_name": "Bosnia and Herzegovina",
+    "country_code": "BA",
+    "emission_factor": 0.597635072,
+    "year": 2025
+  },
+  {
+    "country_name": "Botswana",
+    "country_code": "BW",
+    "emission_factor": 0.976619492,
+    "year": 2025
+  },
+  {
+    "country_name": "Brazil",
+    "country_code": "BR",
+    "emission_factor": 0.063979197,
+    "year": 2025
+  },
+  {
+    "country_name": "British Virgin Islands",
+    "country_code": "VG",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Brunei",
+    "country_code": "BN",
+    "emission_factor": 0.613467648,
+    "year": 2025
+  },
+  {
+    "country_name": "Bulgaria",
+    "country_code": "BG",
+    "emission_factor": 0.319071584,
+    "year": 2025
+  },
+  {
+    "country_name": "Burkina Faso",
+    "country_code": "BF",
+    "emission_factor": 0.638920548,
+    "year": 2025
+  },
+  {
+    "country_name": "Burundi",
+    "country_code": "BI",
+    "emission_factor": 0.238039996,
+    "year": 2025
+  },
+  {
+    "country_name": "Cambodia",
+    "country_code": "KH",
+    "emission_factor": 0.547877051,
+    "year": 2025
+  },
+  {
+    "country_name": "Cameroon",
+    "country_code": "CM",
+    "emission_factor": 0.216564318,
+    "year": 2025
+  },
+  {
+    "country_name": "Canada",
+    "country_code": "CA",
+    "emission_factor": 0.115407761,
+    "year": 2025
+  },
+  {
+    "country_name": "Cape Verde",
+    "country_code": "CV",
+    "emission_factor": 0.555042162,
+    "year": 2025
+  },
+  {
+    "country_name": "Cayman Islands",
+    "country_code": "KY",
+    "emission_factor": 0.748866409,
+    "year": 2025
+  },
+  {
+    "country_name": "Central African Republic",
+    "country_code": "CF",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "Chad",
+    "country_code": "TD",
+    "emission_factor": 0.732201465,
+    "year": 2025
+  },
+  {
+    "country_name": "Chile",
+    "country_code": "CL",
+    "emission_factor": 0.273427723,
+    "year": 2025
+  },
+  {
+    "country_name": "China",
+    "country_code": "CN",
+    "emission_factor": 0.663072613,
+    "year": 2025
+  },
+  {
+    "country_name": "Colombia",
+    "country_code": "CO",
+    "emission_factor": 0.243146751,
+    "year": 2025
+  },
+  {
+    "country_name": "Comoros",
+    "country_code": "KM",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Congo [DRC]",
+    "country_code": "CD",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "Congo [Republic]",
+    "country_code": "CG",
+    "emission_factor": 0.416751397,
+    "year": 2025
+  },
+  {
+    "country_name": "Cook Islands",
+    "country_code": "CK",
+    "emission_factor": 0.385445946,
+    "year": 2025
+  },
+  {
+    "country_name": "Costa Rica",
+    "country_code": "CR",
+    "emission_factor": 0.000826674,
+    "year": 2025
+  },
+  {
+    "country_name": "Cote d'Ivoire",
+    "country_code": "CI",
+    "emission_factor": 0.349956198,
+    "year": 2025
+  },
+  {
+    "country_name": "Croatia",
+    "country_code": "HR",
+    "emission_factor": 0.192753758,
+    "year": 2025
+  },
+  {
+    "country_name": "Cuba",
+    "country_code": "CU",
+    "emission_factor": 0.700403604,
+    "year": 2025
+  },
+  {
+    "country_name": "Cyprus",
+    "country_code": "CY",
+    "emission_factor": 0.615861484,
+    "year": 2025
+  },
+  {
+    "country_name": "Czech Republic",
+    "country_code": "CZ",
+    "emission_factor": 0.456006264,
+    "year": 2025
+  },
+  {
+    "country_name": "Denmark",
+    "country_code": "DK",
+    "emission_factor": 0.096301513,
+    "year": 2025
+  },
+  {
+    "country_name": "Djibouti",
+    "country_code": "DJ",
+    "emission_factor": 0.50107973,
+    "year": 2025
+  },
+  {
+    "country_name": "Dominica",
+    "country_code": "DM",
+    "emission_factor": 0.668106306,
+    "year": 2025
+  },
+  {
+    "country_name": "Dominican Republic",
+    "country_code": "DO",
+    "emission_factor": 0.628088222,
+    "year": 2025
+  },
+  {
+    "country_name": "Ecuador",
+    "country_code": "EC",
+    "emission_factor": 0.171495235,
+    "year": 2025
+  },
+  {
+    "country_name": "Egypt",
+    "country_code": "EG",
+    "emission_factor": 0.469603812,
+    "year": 2025
+  },
+  {
+    "country_name": "El Salvador",
+    "country_code": "SV",
+    "emission_factor": 0.076945239,
+    "year": 2025
+  },
+  {
+    "country_name": "Equatorial Guinea",
+    "country_code": "GQ",
+    "emission_factor": 0.350274789,
+    "year": 2025
+  },
+  {
+    "country_name": "Eritrea",
+    "country_code": "ER",
+    "emission_factor": 0.683290541,
+    "year": 2025
+  },
+  {
+    "country_name": "Estonia",
+    "country_code": "EE",
+    "emission_factor": 0.394270458,
+    "year": 2025
+  },
+  {
+    "country_name": "Ethiopia",
+    "country_code": "ET",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "Falkland Islands [Islas Malvinas]",
+    "country_code": "FK",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Faroe Islands",
+    "country_code": "FO",
+    "emission_factor": 0.417566441,
+    "year": 2025
+  },
+  {
+    "country_name": "Fiji",
+    "country_code": "FJ",
+    "emission_factor": 0.284971697,
+    "year": 2025
+  },
+  {
+    "country_name": "Finland",
+    "country_code": "FI",
+    "emission_factor": 0.051377727,
+    "year": 2025
+  },
+  {
+    "country_name": "France",
+    "country_code": "FR",
+    "emission_factor": 0.047044192,
+    "year": 2025
+  },
+  {
+    "country_name": "French Polynesia",
+    "country_code": "PF",
+    "emission_factor": 0.510308717,
+    "year": 2025
+  },
+  {
+    "country_name": "Gabon",
+    "country_code": "GA",
+    "emission_factor": 0.308517302,
+    "year": 2025
+  },
+  {
+    "country_name": "Gambia",
+    "country_code": "GM",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Georgia",
+    "country_code": "GE",
+    "emission_factor": 0.121408854,
+    "year": 2025
+  },
+  {
+    "country_name": "Germany",
+    "country_code": "DE",
+    "emission_factor": 0.336723263,
+    "year": 2025
+  },
+  {
+    "country_name": "Ghana",
+    "country_code": "GH",
+    "emission_factor": 0.316180142,
+    "year": 2025
+  },
+  {
+    "country_name": "Gibraltar",
+    "country_code": "GI",
+    "emission_factor": 0.50675,
+    "year": 2025
+  },
+  {
+    "country_name": "Greece",
+    "country_code": "GR",
+    "emission_factor": 0.300215297,
+    "year": 2025
+  },
+  {
+    "country_name": "Greenland",
+    "country_code": "GL",
+    "emission_factor": 0.09993043,
+    "year": 2025
+  },
+  {
+    "country_name": "Grenada",
+    "country_code": "GD",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Guam",
+    "country_code": "GU",
+    "emission_factor": 0.710933634,
+    "year": 2025
+  },
+  {
+    "country_name": "Guatemala",
+    "country_code": "GT",
+    "emission_factor": 0.24326988,
+    "year": 2025
+  },
+  {
+    "country_name": "Guinea",
+    "country_code": "GN",
+    "emission_factor": 0.194150551,
+    "year": 2025
+  },
+  {
+    "country_name": "Guinea-Bissau",
+    "country_code": "GW",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Guyana",
+    "country_code": "GY",
+    "emission_factor": 0.718860781,
+    "year": 2025
+  },
+  {
+    "country_name": "Haiti",
+    "country_code": "HT",
+    "emission_factor": 0.625872625,
+    "year": 2025
+  },
+  {
+    "country_name": "Honduras",
+    "country_code": "HN",
+    "emission_factor": 0.299751063,
+    "year": 2025
+  },
+  {
+    "country_name": "Hong Kong",
+    "country_code": "HK",
+    "emission_factor": 0.673482279,
+    "year": 2025
+  },
+  {
+    "country_name": "Hungary",
+    "country_code": "HU",
+    "emission_factor": 0.195432225,
+    "year": 2025
+  },
+  {
+    "country_name": "Iceland",
+    "country_code": "IS",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "India",
+    "country_code": "IN",
+    "emission_factor": 0.951819469,
+    "year": 2025
+  },
+  {
+    "country_name": "Indonesia",
+    "country_code": "ID",
+    "emission_factor": 0.717665168,
+    "year": 2025
+  },
+  {
+    "country_name": "Iran",
+    "country_code": "IR",
+    "emission_factor": 0.484910218,
+    "year": 2025
+  },
+  {
+    "country_name": "Iraq",
+    "country_code": "IQ",
+    "emission_factor": 0.608219366,
+    "year": 2025
+  },
+  {
+    "country_name": "Ireland",
+    "country_code": "IE",
+    "emission_factor": 0.262917543,
+    "year": 2025
+  },
+  {
+    "country_name": "Israel",
+    "country_code": "IL",
+    "emission_factor": 0.539818796,
+    "year": 2025
+  },
+  {
+    "country_name": "Italy",
+    "country_code": "IT",
+    "emission_factor": 0.261483538,
+    "year": 2025
+  },
+  {
+    "country_name": "Jamaica",
+    "country_code": "JM",
+    "emission_factor": 0.531149132,
+    "year": 2025
+  },
+  {
+    "country_name": "Japan",
+    "country_code": "JP",
+    "emission_factor": 0.439843668,
+    "year": 2025
+  },
+  {
+    "country_name": "Jordan",
+    "country_code": "JO",
+    "emission_factor": 0.399613404,
+    "year": 2025
+  },
+  {
+    "country_name": "Kazakhstan",
+    "country_code": "KZ",
+    "emission_factor": 0.720462654,
+    "year": 2025
+  },
+  {
+    "country_name": "Kenya",
+    "country_code": "KE",
+    "emission_factor": 0.078868717,
+    "year": 2025
+  },
+  {
+    "country_name": "Kiribati",
+    "country_code": "KI",
+    "emission_factor": 0.578168919,
+    "year": 2025
+  },
+  {
+    "country_name": "Kosovo",
+    "country_code": "XK",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "Kuwait",
+    "country_code": "KW",
+    "emission_factor": 0.619190761,
+    "year": 2025
+  },
+  {
+    "country_name": "Kyrgyzstan",
+    "country_code": "KG",
+    "emission_factor": 0.136682336,
+    "year": 2025
+  },
+  {
+    "country_name": "Laos",
+    "country_code": "LA",
+    "emission_factor": 0.230316312,
+    "year": 2025
+  },
+  {
+    "country_name": "Latvia",
+    "country_code": "LV",
+    "emission_factor": 0.116369029,
+    "year": 2025
+  },
+  {
+    "country_name": "Lebanon",
+    "country_code": "LB",
+    "emission_factor": 0.406130181,
+    "year": 2025
+  },
+  {
+    "country_name": "Lesotho",
+    "country_code": "LS",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "Liberia",
+    "country_code": "LR",
+    "emission_factor": 0.513927928,
+    "year": 2025
+  },
+  {
+    "country_name": "Libya",
+    "country_code": "LY",
+    "emission_factor": 0.569801108,
+    "year": 2025
+  },
+  {
+    "country_name": "Lithuania",
+    "country_code": "LT",
+    "emission_factor": 0.102636499,
+    "year": 2025
+  },
+  {
+    "country_name": "Luxembourg",
+    "country_code": "LU",
+    "emission_factor": 0.06588471,
+    "year": 2025
+  },
+  {
+    "country_name": "Macau",
+    "country_code": "MO",
+    "emission_factor": 0.334886947,
+    "year": 2025
+  },
+  {
+    "country_name": "Macedonia [FYROM]",
+    "country_code": "MK",
+    "emission_factor": 0.557063726,
+    "year": 2025
+  },
+  {
+    "country_name": "Madagascar",
+    "country_code": "MG",
+    "emission_factor": 0.541807191,
+    "year": 2025
+  },
+  {
+    "country_name": "Malawi",
+    "country_code": "MW",
+    "emission_factor": 0.034597928,
+    "year": 2025
+  },
+  {
+    "country_name": "Malaysia",
+    "country_code": "MY",
+    "emission_factor": 0.62051495,
+    "year": 2025
+  },
+  {
+    "country_name": "Maldives",
+    "country_code": "MV",
+    "emission_factor": 0.716475994,
+    "year": 2025
+  },
+  {
+    "country_name": "Mali",
+    "country_code": "ML",
+    "emission_factor": 0.44255269,
+    "year": 2025
+  },
+  {
+    "country_name": "Malta",
+    "country_code": "MT",
+    "emission_factor": 0.440133578,
+    "year": 2025
+  },
+  {
+    "country_name": "Mauritania",
+    "country_code": "MR",
+    "emission_factor": 0.559366678,
+    "year": 2025
+  },
+  {
+    "country_name": "Mauritius",
+    "country_code": "MU",
+    "emission_factor": 0.71305185,
+    "year": 2025
+  },
+  {
+    "country_name": "Mexico",
+    "country_code": "MX",
+    "emission_factor": 0.418964733,
+    "year": 2025
+  },
+  {
+    "country_name": "Moldova",
+    "country_code": "MD",
+    "emission_factor": 0.461295275,
+    "year": 2025
+  },
+  {
+    "country_name": "Mongolia",
+    "country_code": "MN",
+    "emission_factor": 0.884198756,
+    "year": 2025
+  },
+  {
+    "country_name": "Montenegro",
+    "country_code": "ME",
+    "emission_factor": 0.38429356,
+    "year": 2025
+  },
+  {
+    "country_name": "Montserrat",
+    "country_code": "MS",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Morocco",
+    "country_code": "MA",
+    "emission_factor": 0.716395638,
+    "year": 2025
+  },
+  {
+    "country_name": "Mozambique",
+    "country_code": "MZ",
+    "emission_factor": 0.084618731,
+    "year": 2025
+  },
+  {
+    "country_name": "Myanmar [Burma]",
+    "country_code": "MM",
+    "emission_factor": 0.355441044,
+    "year": 2025
+  },
+  {
+    "country_name": "Namibia",
+    "country_code": "NA",
+    "emission_factor": 0.019774872,
+    "year": 2025
+  },
+  {
+    "country_name": "Nauru",
+    "country_code": "NR",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Nepal",
+    "country_code": "NP",
+    "emission_factor": 0,
+    "year": 2025
+  },
+  {
+    "country_name": "Netherlands",
+    "country_code": "NL",
+    "emission_factor": 0.254774431,
+    "year": 2025
+  },
+  {
+    "country_name": "New Caledonia",
+    "country_code": "NC",
+    "emission_factor": 0.649226249,
+    "year": 2025
+  },
+  {
+    "country_name": "New Zealand",
+    "country_code": "NZ",
+    "emission_factor": 0.079386992,
+    "year": 2025
+  },
+  {
+    "country_name": "Nicaragua",
+    "country_code": "NI",
+    "emission_factor": 0.280120204,
+    "year": 2025
+  },
+  {
+    "country_name": "Niger",
+    "country_code": "NE",
+    "emission_factor": 0.784151962,
+    "year": 2025
+  },
+  {
+    "country_name": "Nigeria",
+    "country_code": "NG",
+    "emission_factor": 0.390807726,
+    "year": 2025
+  },
+  {
+    "country_name": "North Korea",
+    "country_code": "KP",
+    "emission_factor": 0.360320943,
+    "year": 2025
+  },
+  {
+    "country_name": "Norway",
+    "country_code": "NO",
+    "emission_factor": 0.009263414,
+    "year": 2025
+  },
+  {
+    "country_name": "Oman",
+    "country_code": "OM",
+    "emission_factor": 0.493242865,
+    "year": 2025
+  },
+  {
+    "country_name": "Pakistan",
+    "country_code": "PK",
+    "emission_factor": 0.407228799,
+    "year": 2025
+  },
+  {
+    "country_name": "Palestinian Territories",
+    "country_code": "PS",
+    "emission_factor": 0.513927928,
+    "year": 2025
+  },
+  {
+    "country_name": "Panama",
+    "country_code": "PA",
+    "emission_factor": 0.245330893,
+    "year": 2025
+  },
+  {
+    "country_name": "Papua New Guinea",
+    "country_code": "PG",
+    "emission_factor": 0.537606592,
+    "year": 2025
+  },
+  {
+    "country_name": "Paraguay",
+    "country_code": "PY",
+    "emission_factor": 0.000178249,
+    "year": 2025
+  },
+  {
+    "country_name": "Peru",
+    "country_code": "PE",
+    "emission_factor": 0.243918147,
+    "year": 2025
+  },
+  {
+    "country_name": "Philippines",
+    "country_code": "PH",
+    "emission_factor": 0.701775912,
+    "year": 2025
+  },
+  {
+    "country_name": "Poland",
+    "country_code": "PL",
+    "emission_factor": 0.643034234,
+    "year": 2025
+  },
+  {
+    "country_name": "Portugal",
+    "country_code": "PT",
+    "emission_factor": 0.109483428,
+    "year": 2025
+  },
+  {
+    "country_name": "Puerto Rico",
+    "country_code": "PR",
+    "emission_factor": 0.693401603,
+    "year": 2025
+  },
+  {
+    "country_name": "Qatar",
+    "country_code": "QA",
+    "emission_factor": 0.505540831,
+    "year": 2025
+  },
+  {
+    "country_name": "Romania",
+    "country_code": "RO",
+    "emission_factor": 0.224193921,
+    "year": 2025
+  },
+  {
+    "country_name": "Russia",
+    "country_code": "RU",
+    "emission_factor": 0.472728606,
+    "year": 2025
+  },
+  {
+    "country_name": "Rwanda",
+    "country_code": "RW",
+    "emission_factor": 0.28999727,
+    "year": 2025
+  },
+  {
+    "country_name": "Saint Helena",
+    "country_code": "SH",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Saint Kitts and Nevis",
+    "country_code": "KN",
+    "emission_factor": 0.735851351,
+    "year": 2025
+  },
+  {
+    "country_name": "Saint Lucia",
+    "country_code": "LC",
+    "emission_factor": 0.751619595,
+    "year": 2025
+  },
+  {
+    "country_name": "Saint Pierre and Miquelon",
+    "country_code": "PM",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Saint Vincent and the Grenadines",
+    "country_code": "VC",
+    "emission_factor": 0.668106306,
+    "year": 2025
+  },
+  {
+    "country_name": "Samoa",
+    "country_code": "WS",
+    "emission_factor": 0.464725611,
+    "year": 2025
+  },
+  {
+    "country_name": "Sao Tome and Principe",
+    "country_code": "ST",
+    "emission_factor": 0.685237237,
+    "year": 2025
+  },
+  {
+    "country_name": "Saudi Arabia",
+    "country_code": "SA",
+    "emission_factor": 0.594812116,
+    "year": 2025
+  },
+  {
+    "country_name": "Senegal",
+    "country_code": "SN",
+    "emission_factor": 0.615825101,
+    "year": 2025
+  },
+  {
+    "country_name": "Serbia",
+    "country_code": "RS",
+    "emission_factor": 0.623413741,
+    "year": 2025
+  },
+  {
+    "country_name": "Seychelles",
+    "country_code": "SC",
+    "emission_factor": 0.660764479,
+    "year": 2025
+  },
+  {
+    "country_name": "Sierra Leone",
+    "country_code": "SL",
+    "emission_factor": 0.036709138,
+    "year": 2025
+  },
+  {
+    "country_name": "Singapore",
+    "country_code": "SG",
+    "emission_factor": 0.494532732,
+    "year": 2025
+  },
+  {
+    "country_name": "Slovakia",
+    "country_code": "SK",
+    "emission_factor": 0.134160427,
+    "year": 2025
+  },
+  {
+    "country_name": "Slovenia",
+    "country_code": "SI",
+    "emission_factor": 0.217081076,
+    "year": 2025
+  },
+  {
+    "country_name": "Solomon Islands",
+    "country_code": "SB",
+    "emission_factor": 0.700810811,
+    "year": 2025
+  },
+  {
+    "country_name": "Somalia",
+    "country_code": "SO",
+    "emission_factor": 0.624055341,
+    "year": 2025
+  },
+  {
+    "country_name": "South Africa",
+    "country_code": "ZA",
+    "emission_factor": 0.757437264,
+    "year": 2025
+  },
+  {
+    "country_name": "South Korea",
+    "country_code": "KR",
+    "emission_factor": 0.477390201,
+    "year": 2025
+  },
+  {
+    "country_name": "Spain",
+    "country_code": "ES",
+    "emission_factor": 0.135894958,
+    "year": 2025
+  },
+  {
+    "country_name": "Sri Lanka",
+    "country_code": "LK",
+    "emission_factor": 0.464391012,
+    "year": 2025
+  },
+  {
+    "country_name": "Sudan",
+    "country_code": "SD",
+    "emission_factor": 0.230332761,
+    "year": 2025
+  },
+  {
+    "country_name": "Suriname",
+    "country_code": "SR",
+    "emission_factor": 0.437165347,
+    "year": 2025
+  },
+  {
+    "country_name": "Swaziland",
+    "country_code": "SZ",
+    "emission_factor": 0.0,
+    "year": null
+  },
+  {
+    "country_name": "Sweden",
+    "country_code": "SE",
+    "emission_factor": 0.012847537,
+    "year": 2025
+  },
+  {
+    "country_name": "Switzerland",
+    "country_code": "CH",
+    "emission_factor": 0.023268456,
+    "year": 2025
+  },
+  {
+    "country_name": "Syria",
+    "country_code": "SY",
+    "emission_factor": 0.635867404,
+    "year": 2025
+  },
+  {
+    "country_name": "Taiwan",
+    "country_code": "TW",
+    "emission_factor": 0.641420937,
+    "year": 2025
+  },
+  {
+    "country_name": "Tajikistan",
+    "country_code": "TJ",
+    "emission_factor": 0.066552492,
+    "year": 2025
+  },
+  {
+    "country_name": "Tanzania",
+    "country_code": "TZ",
+    "emission_factor": 0.379177005,
+    "year": 2025
+  },
+  {
+    "country_name": "Thailand",
+    "country_code": "TH",
+    "emission_factor": 0.508243306,
+    "year": 2025
+  },
+  {
+    "country_name": "Timor-Leste",
+    "country_code": "TL",
+    "emission_factor": 0.0,
+    "year": null
+  },
+  {
+    "country_name": "Togo",
+    "country_code": "TG",
+    "emission_factor": 0.422192861,
+    "year": 2025
+  },
+  {
+    "country_name": "Tonga",
+    "country_code": "TO",
+    "emission_factor": 0.660764479,
+    "year": 2025
+  },
+  {
+    "country_name": "Trinidad and Tobago",
+    "country_code": "TT",
+    "emission_factor": 0.507328755,
+    "year": 2025
+  },
+  {
+    "country_name": "Tunisia",
+    "country_code": "TN",
+    "emission_factor": 0.489361545,
+    "year": 2025
+  },
+  {
+    "country_name": "Turkey",
+    "country_code": "TR",
+    "emission_factor": 0.434398584,
+    "year": 2025
+  },
+  {
+    "country_name": "Turkmenistan",
+    "country_code": "TM",
+    "emission_factor": 0.50660003,
+    "year": 2025
+  },
+  {
+    "country_name": "Turks and Caicos Islands",
+    "country_code": "TC",
+    "emission_factor": 0.770891892,
+    "year": 2025
+  },
+  {
+    "country_name": "Uganda",
+    "country_code": "UG",
+    "emission_factor": 0.022795938,
+    "year": 2025
+  },
+  {
+    "country_name": "Ukraine",
+    "country_code": "UA",
+    "emission_factor": 0.253267046,
+    "year": 2025
+  },
+  {
+    "country_name": "United Arab Emirates",
+    "country_code": "AE",
+    "emission_factor": 0.365198832,
+    "year": 2025
+  },
+  {
+    "country_name": "United Kingdom",
+    "country_code": "GB",
+    "emission_factor": 0.177,
+    "year": 2025
+  },
+  {
+    "country_name": "United States",
+    "country_code": "US",
+    "emission_factor": 0.355065029,
+    "year": 2025
+  },
+  {
+    "country_name": "Uruguay",
+    "country_code": "UY",
+    "emission_factor": 0.069504553,
+    "year": 2025
+  },
+  {
+    "country_name": "U.S. Virgin Islands",
+    "country_code": "VI",
+    "emission_factor": 0.747880194,
+    "year": 2025
+  },
+  {
+    "country_name": "Uzbekistan",
+    "country_code": "UZ",
+    "emission_factor": 0.501131798,
+    "year": 2025
+  },
+  {
+    "country_name": "Vanuatu",
+    "country_code": "VU",
+    "emission_factor": 0.578168919,
+    "year": 2025
+  },
+  {
+    "country_name": "Venezuela",
+    "country_code": "VE",
+    "emission_factor": 0.128020864,
+    "year": 2025
+  },
+  {
+    "country_name": "Vietnam",
+    "country_code": "VN",
+    "emission_factor": 0.516665775,
+    "year": 2025
+  },
+  {
+    "country_name": "Yemen",
+    "country_code": "YE",
+    "emission_factor": 0.592995532,
+    "year": 2025
+  },
+  {
+    "country_name": "Zambia",
+    "country_code": "ZM",
+    "emission_factor": 0.108766406,
+    "year": 2025
+  },
+  {
+    "country_name": "Zimbabwe",
+    "country_code": "ZW",
+    "emission_factor": 0.0,
+    "year": null
+  }
+]

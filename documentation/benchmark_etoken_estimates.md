@@ -127,7 +127,7 @@ For each model in `data/energy/text_generation.csv` we define:
   wh_per_1000_tokens = wh_per_1000_queries * wh_per_1000_tokens_factor
   ```
 
-In the benchmark JSON used by this lab (`benchmark_data/hugging_face.json`), this factor is stored as `wh_per_1000_tokens_factor`, and each model row includes a precomputed
+In the benchmark JSON used by this lab (`data/benchmark_data/hugging_face.json`), this factor is stored as `wh_per_1000_tokens_factor`, and each model row includes a precomputed
 `wh_per_1000_input_etokens` value, which applies the same factor to that model's `wh_per_1000_queries`. These correspond directly to the **e-token (input)** metric derived above.
 
 ### What energy is being assigned to each token?

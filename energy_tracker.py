@@ -100,7 +100,7 @@ ENERGY_BENCHMARKS = {
 
 
 # Optional: Hugging Face AI Energy Score benchmarks (NVIDIA H100, text_generation_and_reasoning)
-_HF_BENCHMARK_PATH = Path("benchmark_data/hugging_face.json")
+_HF_BENCHMARK_PATH = Path("data/benchmark_data/hugging_face.json")
 _HF_BENCHMARK_CACHE: Optional[Dict[str, Any]] = None
 
 
@@ -203,7 +203,7 @@ _LEGACY_BASELINE_KEYS = {
 
 
 def get_benchmark_sources() -> Dict[str, Any]:
-    """Discover external benchmark JSON sources under 'benchmark_data/'.
+    """Discover external benchmark JSON sources under 'data/benchmark_data/'.
 
     Each JSON file is expected to have at least:
 

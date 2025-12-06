@@ -322,6 +322,26 @@ Core endpoints:
 
 The Energy UI also calls helper endpoints such as `/api/energy-benchmarks`, `/api/system-prompts`, and `/api/export-session`; these are described in the API documentation.
 
+## Emissions & Carbon Footprint
+
+The lab converts energy consumption (Wh) into carbon footprint estimates (gCO2) using **electricity grid emission factors**. By default, it uses the IEA global average of **445 gCO2/kWh**, but users can select country-specific factors for more accurate local estimates.
+
+### Features
+
+- **Global Average**: Default emission factor of 0.445 kgCO2e/kWh (IEA Electricity 2025)
+- **Country-Specific**: 209 countries with emission factors based on their electricity generation fuel mix
+- **UI Selection**: "Electricity Grid" dropdown in the Results Overview to select your region
+- **Real-time Updates**: Carbon footprint recalculates instantly when you change the grid selection
+
+### Data Sources
+
+| Source | Coverage | Description |
+|--------|----------|-------------|
+| [IEA Electricity 2025](https://www.iea.org/reports/electricity-2025/emissions) | Global | Worldwide average carbon intensity |
+| [CaDI](https://www.carbondi.com) | 209 Countries | Country-specific factors from fuel mix data |
+
+For detailed documentation on the methodology, data sources, and emission factor calculations, see the [Emissions Documentation](./documentation/emissions.md).
+
 ## Model Comparison Lab (WIP)
 
  `localhost:8001/comparison`

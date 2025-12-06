@@ -92,7 +92,7 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-SYSTEM_PROMPTS_DIR = Path("./system_prompts")
+SYSTEM_PROMPTS_DIR = Path("./data/system_prompts")
 
 # ---------- Routes ----------
 
@@ -195,6 +195,20 @@ async def health_check():
 async def get_energy_benchmarks():
     """Get available energy benchmarks"""
     return {"benchmarks": get_available_benchmarks()}
+
+@app.get("/api/emissions")
+async def get_emissions():
+    """Get electricity grid emission factors for all countries."""
+    try:
+        emissions_path = Path("data/emissions.json")
+        if emissions_path.exists():
+            with emissions_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            return {"emissions": data}
+        else:
+            return {"emissions": [], "error": "emissions.json not found"}
+    except Exception as e:
+        return {"emissions": [], "error": str(e)}
 
 
 @app.get("/api/system-prompts")
