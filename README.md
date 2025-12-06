@@ -1,14 +1,10 @@
-# LLM Behaviour Lab
+# LLM Energy Lab
 
 _Version 0.1.0_
 
-LLM Behaviour Lab is an experimental environment for systematically probing how **human-controlled, deterministic parameters** interact with the **intrinsic, probabilistic behaviour** of Large Language Models via middleware.
- 
-It focuses on two related labs, both exposed through a FastAPI backend:
+The **LLM Energy Lab (primary)**: The Energy Lab is designed to surface the difference (computational non-equivalence) between the energy impacts of the model in isolation, and the energy impacts of the model as a conversational system powered by (generally invisible), and fully deterministic middleware.  It measures energy consumption per 1000 energy-weighted tokens (e-tokens), and can run live hardware tests via RAPL (on Linux), and rigorous benchmark estimates to compare energy profiles across models, prompts, and prompt-injection strategies.
 
-- **Energy Lab (primary)**: The Energy Lab is designed to surface the difference (computational non-equivalence) between the energy impacts of the model in isolation, and the energy impacts of the model as a conversational system powered by (generally invisible), and fully deterministic middleware.  It measures energy consumption per 1000 energy-weighted tokens (e-tokens), and can run live hardware tests via RAPL (on Linux), and rigorous benchmark estimates to compare energy profiles across models, prompts, and prompt-injection strategies.
-
-- **Model Comparison Lab (WIP)**: Complementary side-by-side model comparison UI for studying output quality, variability, and behaviour across models and temperatures. Helpful to understand deterministic factors that affect model behaviour, and assess fit for purpose and fine tuning potential of environmentally optimal small models.
+- **LLM Behaviour Lab (WIP)**: Complementary side-by-side model comparison UI for studying output quality, variability, and behaviour across models and temperatures. Helpful to understand deterministic factors that affect model behaviour, and assess fit for purpose and fine tuning potential of environmentally optimal small models.
 
 ## At a Glance
 
@@ -17,8 +13,8 @@ It focuses on two related labs, both exposed through a FastAPI backend:
   - Local (Linux/macOS): run `./install.sh` and then start `uvicorn app_llm_behaviour_lab:app` as shown in [Quick Start](#quick-start).
 - **Main UIs**
   - Integrated Lab: `http://localhost:8001/`
-  - Energy Testing Lab: `http://localhost:8001/energy`
-  - Model Comparison Lab: `http://localhost:8001/comparison`
+  - LLM Energy Lab: `http://localhost:8001/energy`
+  - LLM Behaviour Lab: `http://localhost:8001/comparison`
 - **Model Providers**
   - **Local**: Ollama instance at `http://localhost:11434` (default, with RAPL power monitoring)
   - **Cloud**: Groq API (optional, requires `GROQ_API_KEY` - see [Model Providers](./documentation/models.md))
@@ -52,7 +48,7 @@ It focuses on two related labs, both exposed through a FastAPI backend:
 - ✅ **RAPL Batch Runner**: Multiple live runs using current UI query + injections with CLI logs and stop support; results table appears in Test Results.
 - ✅ **Real-time streaming**: Token streaming over WebSocket (supports reasoning "thinking" streams when present).
 
-### Model Comparison (WIP)
+### LLM Behaviour Lab (WIP)
 - ✅ Multi-model comparison panes with per-pane controls.
 - ✅ Streaming outputs, token counts (prompt/completion), and TPS.
  
@@ -129,8 +125,8 @@ uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
 Then open:
 
 - Integrated Lab: `http://localhost:8001/`
-- Energy Testing Lab: `http://localhost:8001/energy`
-- Model Comparison: `http://localhost:8001/comparison`
+- LLM Energy Lab: `http://localhost:8001/energy`
+- LLM Behaviour Lab: `http://localhost:8001/comparison`
 
 For Windows, alternative Docker networking setups, and the full `install.sh` helper script behaviour (including Scaphandre integration), see [Installation Options](#installation-options).
 
@@ -169,9 +165,9 @@ Notes:
 - System prompt presets are served by `/api/system-prompts`; conversation context injection is wrapped in `<conversation_context>` tags.
 - Model context limits are fetched dynamically from Ollama's `/api/show` endpoint.
 
-### Model Comparison Lab
+### LLM Behaviour Lab
 
-For the comparison UI, a basic workflow is:
+For the behavioural UI, a basic workflow is:
 
 1. **Select models** from the multi-select dropdown (hold Ctrl/Cmd for multiple) and click **Add Selected** to create panes.
 2. **Craft prompts** (system and user) in each pane – this is where you control deterministic variables like style, safety, or reasoning instructions.
