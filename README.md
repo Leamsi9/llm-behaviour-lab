@@ -6,10 +6,21 @@ LLM Behaviour Lab is an experimental environment for systematically probing how 
  
 It focuses on two related labs, both exposed through a FastAPI backend:
 
-- **Energy Testing Lab (primary)**: Measure energy consumption per 1000 energy weighted output tokens ("Wh/1000 e-tokens"), run live hardware tests via RAPL, and benchmark or compare energy profiles across models, prompts, and prompt-injection strategies.
+- **Energy Lab (primary)**: The Energy Lab is designed to surface the difference (computational non-equivalence) between the energy impacts of the model in isolation, and the energy impacts of the model as a conversational system powered by (generally invisible), and fully deterministic middleware.  It measures energy consumption per 1000 energy-weighted tokens (e-tokens), and can run live hardware tests via RAPL (on Linux), and rigorous benchmark estimates to compare energy profiles across models, prompts, and prompt-injection strategies.
 
-- **Model Comparison Lab (secondary)**: Side-by-side model comparison UI for studying output quality, variability, and behaviour across models and temperatures.
+- **Model Comparison Lab (WIP)**: Complementary side-by-side model comparison UI for studying output quality, variability, and behaviour across models and temperatures. Helpful to understand deterministic factors that affect model behaviour, and assess fit for purpose and fine tuning potential of environmentally optimal small models.
 
+## At a Glance
+
+- **How to run**
+  - Docker (Linux, reproducible): see [Quick Start](#quick-start) for `docker build` and `docker run` examples.
+  - Local (Linux/macOS): run `./install.sh` and then start `uvicorn app_llm_behaviour_lab:app` as shown in [Quick Start](#quick-start).
+- **Main UIs**
+  - Integrated Lab: `http://localhost:8001/`
+  - Energy Testing Lab: `http://localhost:8001/energy`
+  - Model Comparison Lab: `http://localhost:8001/comparison`
+- **Key dependency**
+  - Local **Ollama** instance, typically at `http://localhost:11434` (or overridden via `OLLAMA_HOST`).
 
 ## Table of Contents
 
@@ -33,14 +44,14 @@ It focuses on two related labs, both exposed through a FastAPI backend:
  ## Features
 
 ### Energy Testing Lab (primary)
-- ✅ **Per-output-token energy metrics**: All "Wh/1000" metrics are per 1000 output tokens ("Wh/1000 e-tokens").
+- ✅ **Per-input/output-token energy metrics**: All "Wh/1000" metrics are per 1000 energy weighted tokens (e-tokens) normalised by input or by output ("Wh/1000 e-tokens").
 - ✅ **Live Hardware Tests (RAPL)**: Snapshot-based cumulative energy counters with start/split/end snapshots to separate Prefill (input) vs Decode (output) energy, plus measured Wh/1K.
-- ✅ **Estimated Hardware Tests**: Switch and create benchmarks; recalculate session with new benchmarks.
-- ✅ **Middleware Injections**: Fixed System Prompt (presets from `./system_prompts`), Conversation Context (with "Inject conversation"), and free-form injections.
+- ✅ **Estimated Benchmark Tests**: Switch and create benchmarks; recalculate session with new benchmarks.
+- ✅ **Middleware Injections and Configuration**: Custom and Frontier System Prompts, Conversation Context (with "Inject conversation"), free-form injections, thinking and temperature toggles.
 - ✅ **RAPL Batch Runner**: Multiple live runs using current UI query + injections with CLI logs and stop support; results table appears in Test Results.
 - ✅ **Real-time streaming**: Token streaming over WebSocket (supports reasoning "thinking" streams when present).
 
-### Model Comparison (secondary)
+### Model Comparison (WIP)
 - ✅ Multi-model comparison panes with per-pane controls.
 - ✅ Streaming outputs, token counts (prompt/completion), and TPS.
  
@@ -124,7 +135,7 @@ For Windows, alternative Docker networking setups, and the full `install.sh` hel
 
 ## Basic Workflow
 
-### Energy Testing Lab
+### LLM Energy Lab
 
 At a high level, a single Energy test walks through the same structure as the Energy UI:
 
@@ -170,9 +181,10 @@ For the comparison UI, a basic workflow is:
 
 The "Model Comparison Strategies" and "Advanced Features" sections below outline how to interpret these comparisons in terms of deterministic (human-controlled) vs probabilistic (model-intrinsic) elements.
 
-## Methodology & Metrics
+## Methodology (_Energy Lab_)
 
-### Inference Energy Workflow: Prefill, Decode, and Crossover
+
+### Inference Energy Distribution: Prefill, Decode, and Crossover
 
 During a single LLM inference you can roughly separate work into two phases:
 
@@ -192,113 +204,141 @@ The Energy Testing Lab is designed to help you see and reason about this crossov
   - Decode Wh and **Decode Wh/1000 output tokens** staying relatively stable for similar-length answers.
   - The point where **prefill Wh overtakes decode Wh** for your model and hardware — your empirical crossover region.
 
-### Energy Measurement
-- **Live Power Measurements (RAPL)**: Uses Intel/AMD **Running Average Power Limit (RAPL)** counters to directly measure CPU/DRAM energy during inference. RAPL is a hardware feature that exposes cumulative energy readings (in microjoules) per power domain (package, cores, DRAM). The Linux kernel surfaces these counters under `/sys/class/powercap/*-rapl*`. The lab reads these counters before, during, and after each run to compute actual watt‑hours consumed on your machine. Accurate but requires local execution on Linux with RAPL available.
-- **Live (RAPL + Scaphandre, optional)**: [Scaphandre](https://github.com/hubblo-org/scaphandre) is an open‑source power/energy agent that also reads RAPL counters but attributes power **per process** and exports metrics in Prometheus format. When its Prometheus exporter is running, the lab samples `scaph_process_power_consumption_microwatts` and filters for the Ollama process tree to approximate **per‑process energy for the LLM service itself (`E_llm`)**. RAPL remains the ground‑truth energy source; Scaphandre adds a process‑level attribution layer on top of it so you can separate LLM energy from other workloads on the same host.
-- **Estimated**: Uses benchmark coefficients (Wh/1000 tokens) derived from hardware specs or calibration. Good for approximation when live monitoring isn't available, or for comparing runs against a consistent "virtual hardware" profile (e.g., a specific GPU or CPU baseline).
+### Energy-Weighted Tokens (e-Tokens)
 
-In all live modes, RAPL is read as **cumulative energy counters** (in microjoules) from the CPU package/DRAM. The app never guesses instantaneous power: instead it takes three snapshots per run and uses differences to derive Wh:
+_For full rationale and maths, see [Energy-Weighted Tokens documentation](./documentation/energy_weighted_tokens.md)._ 
 
-- `start` – just before sending the Ollama request.
-- `split` – when the **first token** (thinking or content) is observed.
-- `end` – after the last token is streamed.
+> **E‑tokens express the total end to end energy of an inference run per 1,000 tokens**.
+> 
+> **E-tokens ammortize the full energy cost of inference over either input or output tokens.**
+>
+> **E-tokens turn raw Wh measurements into human-interpretable, model-comparable quantities**.
 
-From these three cumulative readings we compute:
+---
 
-- **Prefill energy**: energy between `start` → `split` (includes full TTFT: model prefill plus any queueing or stalls before the first token).
-- **Decode energy**: energy between `split` → `end` (token generation phase).
-- **Total energy**: energy between `start` → `end` (entire run window).
+Let
 
-We also measure a short **idle baseline power** before each run and use it to derive optional *baseline-subtracted* "active" energies (prefill/decode/total minus idle × time). This helps separate model work from host background load on noisy machines, while still reporting the full package-level energy that the user actually pays.
+$$
+E = \text{total inference energy (Wh)}
+$$
 
-### Metrics Explained
-- **Wh/1000 Energy-Weighted Output Tokens (E-Tokens)**: Energy intensity metric. Amortizes total energy (input + output) over generated output tokens. Useful for comparing the “cost of production.”
-- **Input/Output Split**: Separate energy costs for processing the prompt (prefill) and generating tokens (decode). Used in estimated mode for more accurate attribution.
-- **Injection Overhead**: Extra tokens added by system prompts, tools, or conversation context that the user doesn’t see but still pay for in energy.
-- **E_llm (LLM-only energy)**: When Scaphandre is available, the app integrates per-process power for the Ollama process tree over the whole WebSocket run and computes **Wh/1000 output tokens for the LLM service itself**. If Scaphandre is unavailable, this falls back to package-level RAPL energy. *Intuitively: “what did the Ollama server actually burn in Wh to serve this request, including stalls and waiting, per 1000 output tokens?”*
-- **M_eff (model compute efficiency)**: An *active-time–scaled* variant of `E_llm`. It uses Ollama’s `prompt_eval_duration` + `eval_duration` (nanoseconds) as an approximation of **active model compute time** within the wall-clock run, and scales `E_llm` by the ratio `(active_time / wall_time)`. Intuitively: “if only the time the model was actively computing tokens counted, what would Wh/1000 tokens look like?” This is the primary live **efficiency** metric shown in the Results Overview card.
+$$
+T_{\text{input}}, T_{\text{output}} = \text{number of input/output tokens}
+$$
 
-The UI reports both metrics when live monitoring is enabled, but they answer slightly different questions:
+Then:
 
-- `E_llm` captures **what the LLM service actually cost on this hardware, under real-world contention**. On a noisy CPU host with other processes, or when the OS intermittently suspends the Ollama process, `E_llm` will rise because tokens took longer to produce at roughly the same power draw. Use `E_llm` when you care about "what did this request actually cost me in practice?".
-- `M_eff` instead asks **"how intense is compute during the time Ollama reports as actively evaluating?"** by scaling `E_llm` by `(Ollama active time / wall-clock latency)`. This is closer to an "intrinsic" model efficiency and is useful when wall-clock is badly polluted by stalls, queueing, or I/O. The Results Overview card surfaces `M_eff` as the default live efficiency score.
-- The **deviation between `M_eff` and `E_llm`** is displayed as ` M_eff vs E_llm` and highlighted in red when large (e.g. > ~20%). A large deviation typically means that a significant portion of the wall-clock time was not reported by Ollama as prompt/decoding (queueing, stalls, I/O waits, or instrumentation gaps). On a stable, lightly loaded machine these two values should be close; large gaps are a signal that system-level factors, not pure model compute, are dominating your energy bill.
-- The **deviation between `M_eff` and `E_llm`** is displayed as ` M_eff vs E_llm` and highlighted in red when large (e.g. > ~20%). A large deviation typically means that a significant portion of the wall-clock time was not reported by Ollama as prompt/decoding (queueing, stalls, I/O waits, or instrumentation gaps). On a stable, lightly loaded machine these two values should be close; large gaps are a signal that system-level factors, not pure model compute, are dominating your energy bill.
+- **e-token-i (input)**
+  $$
+  \text{e-token-i} = \frac{E}{T_{\text{input}}} \times 1000
+  $$
+- **e-token-o (output)**
+  $$
+  \text{e-token-o} = \frac{E}{T_{\text{output}}} \times 1000
+  $$
 
-See the “RAPL Workflow” section for step-by-step live measurement and batch procedures, including how RAPL snapshots and Scaphandre sampling are combined.
+---
 
-#### Prerequisites
-- Linux host with RAPL available at `/sys/class/powercap/*-rapl*`.
-- Sufficient permissions to read RAPL energy counters (root/sudo may be required on some systems).
-- If RAPL is unavailable, the app gracefully degrades to estimated benchmarks (no measured values).
+#### **E-tokens provide:**
 
-Optional, for per-process LLM energy (`E_llm`):
+✔ A universal scale for comparing models
 
-- A running Scaphandre Prometheus exporter (for example: `scaphandre prometheus --bind :8080`).
-- Environment variables configured so the Energy app can query the exporter:
-  - `SCAPHANDRE_URL` – full URL of the `/metrics` endpoint (e.g. `http://localhost:8080/metrics`).
-  - `SCAPHANDRE_OLLAMA_MATCH` – substring to match in the `scaph_process_power_consumption_microwatts` metric lines to select the Ollama process (default: `"ollama"`, but you can narrow this to a specific command line).
+✔ A universal scale for comparing tasks
 
-#### Single Run (live measurement)
-1. Enable "Enable Live Power (RAPL)" in the Energy UI.
-2. Enter your query, configure injections/context as desired.
-3. Click "Run Energy Test".
-4. The Live Logs modal will open and stream:
-   - RAPL Snapshots: start → split (first token) → end
-   - Prefill energy (Wh), Decode energy (Wh), and Total energy (Wh)
-   - `E_llm` (per 1000 output tokens): LLM-service energy from Scaphandre when available, else package-level RAPL energy
-   - `M_eff` (per 1000 output tokens): active-time–scaled efficiency using Ollama’s `prompt_eval_duration` + `eval_duration`
-   - Measured Wh/1000 e‑tokens (legacy RAPL-per-1k metric, still logged for comparison)
-5. On completion:
-   - A single-row summary is added to "RAPL Batch Results (UI Prompt + Injections)".
-   - A dynamic benchmark named `rapl_live_dynamic` is created/updated and used for the energy metrics of that run.
+✔ A universal scale for comparing hardware
 
-#### Batch Mode (N runs)
-1. Set "Number of Runs" > 1 in Batch Testing.
-2. Keep "Enable Live Power (RAPL)" enabled.
-3. Click "Run Energy Test".
-4. The UI performs N back-to-back live runs with current query + injections.
-5. CLI logs show per-run tokens, latency, energy (Wh), and measured Wh/1K.
-6. At the end, a summary row is added to "RAPL Batch Results (UI Prompt + Injections)" containing:
-   - Mean/Median/Std and 5–95% Wh/1000 e‑tokens
-   - Coefficient of Variation (CV)
-   - Input/Output token statistics (μ/median)
-7. Use the red Remove action to delete rows. Results are not persisted as benchmarks.
+✔ A way to express task intensity ("how heavy is this task?")
 
-Tip: Use the first-run duration to estimate time remaining; the CLI log prints an ETA.
+✔ A predictive metric for relative cost at scale
 
-#### Calibration (Benchmark creation)
-- Use `POST /api/rapl-calibrate` (or the Calibration UI button when available) to run many integrated measurements and create/update a named benchmark (e.g., `rapl_calibrated_<model>`). See API Endpoints for request/response.
+**_Examples:_**
 
-#### Output Interpretation
-- Measured Wh/1000 e‑tokens are normalized per 1000 output tokens only (completion tokens).
-- The Energy chart shows:
-  - Total Energy (blue)
-  - Intensity (Wh/1000 e‑tokens) (purple)
-- Session Summary aggregates energy/carbon across runs, independent of RAPL availability.
+- Two models perform the same task on the same hardware, with the same input and output tokens. The model with the lower Wh/1000 e-tokens value will be more energy-efficient.
+- One model performs two tasks on the same hardware, each task yielding a different Wh/1000 e-tokens value. The task with the lower Wh/1000 e-tokens value will be more energy-efficient.
+- The same model runs the same task with the same input and output tokens on different hardware. The hardware yielding the lower Wh/1000 e-tokens value will be more energy-efficient.
 
-#### Troubleshooting RAPL
-- No rows appear in the RAPL table:
-  - Ensure the RAPL toggle is enabled for the run(s).
-  - Check Live Logs for "Integrated RAPL" and "Measured" lines; if absent, RAPL may be unavailable.
-  - If logs show "insufficient tokens", increase output tokens or prompt complexity.
-- Permission denied reading `energy_uj`:
-  - Try running with elevated permissions or adjust udev permissions for powercap.
+In each of these examples the e-token value is a **direct metric of the total energy** consumed by the query and its response.
 
-### Model Comparison Strategies
-Each model comparison reveals insights about:
+#### **How to use e-tokens in the Energy Lab**
 
-#### The Deterministic Elements (Human-Controlled)
+- Use **Wh/1000 e‑tokens** in the UI as your primary energy efficiency metric.
+- Prefer **input‑normalised** values when you have more visibility into the input tokens, or wish to emphasize *query length*.
+- Prefer **output‑normalised** values when you have more visibility into output tokens, or wish to emphasize *final inference output*.
+
+### Benchmark e-Token Estimates
+
+_This section summarises how external benchmarks are turned into e‑token metrics. For full methodology, including Hugging Face AI Energy Score and Jegham et al., see [Benchmark e‑Token Estimates documentation](./documentation/benchmark_etoken_estimates.md)._ 
+
+> **Benchmarks at a glance**  
+> - **Hugging Face AI Energy Score (HF)** – ground‑truth GPU energy measurements for open models on H100 hardware.  
+> - **Jegham et al. (2025)** – modelled energy estimates for many closed and open models under a standardised 1k/1k token workload.  
+> - Together they provide rigorous and replicable examples of appying e-tokens to both measured and inferred energy use.
+> See [Benchmark e‑Token Estimates](./documentation/benchmark_etoken_estimates.md) for details.
+
+
+The lab currently uses two benchmark families:
+
+- **Hugging Face AI Energy Score (HF)** – GPU energy **measured** on an H100, reported as Wh/1,000 queries and converted here to **Wh/1,000 input tokens (e‑token‑i)**.
+- **Jegham et al. (2025)** – API benchmarks for many open and closed models; energy is **modelled** from assumed infrastructure and a standardised **1,000 input / 1,000 output** workload, giving e‑token‑style values for both input and output.
+
+In practice:
+
+- HF anchors **ground‑truth GPU measurements** for open models.
+- Jegham provides **plausible proxies** and coverage for closed models and additional I/O regimes.
+- The UI exposes these as selectable **energy benchmarks** that drive estimated Wh/1000 e‑token values when live power is disabled.
+
+### Live Energy Measurements
+
+_This section explains live power monitoring at a glance; see [Live Energy Measurements documentation](./documentation/live_energy_measurements.md) for full RAPL/Scaphandre workflows and calibration._ 
+
+The lab supports three energy modes:
+
+- **Live (RAPL)** – reads CPU/DRAM RAPL counters on Linux to measure **actual Wh** per run.
+- **Live (RAPL + Scaphandre, optional)** – attributes power to the Ollama process tree to estimate **LLM‑only Wh/1000 tokens (`E_llm`, `M_eff`)**.
+- **Estimated** – uses benchmark coefficients (HF / Jegham / calibrations) when live monitoring is unavailable.
+
+To use live energy:
+
+1. Run on **Linux** with RAPL available under `/sys/class/powercap/*-rapl*`.
+2. Start the lab and enable **“Enable Live Power (RAPL)”** in the Energy UI.
+3. Optionally run a Scaphandre Prometheus exporter so `E_llm` and `M_eff` are available.
+
+When live power is off, the lab falls back to **benchmark-based estimates only**.
+
+### API Endpoints
+
+_This section maps out the main backend surfaces. For complete request/response schemas and more endpoints, see the [API Endpoints documentation](./documentation/api_endpoints.md)._ 
+
+Core endpoints:
+
+- **WebSocket `/ws`** – streaming inference used by the Energy UI.
+  - Send model, prompts, injections, energy benchmark, and flags like `enable_live_power_monitoring`.
+  - Receive streamed tokens plus a final message containing basic metrics and (optionally) live power metrics.
+
+- **GET `/api/models`** – list available Ollama models and current defaults.
+- **GET `/api/model-info/{model_name}`** – model metadata, including context length.
+- **GET `/api/health`** – simple health check (backend + Ollama connectivity).
+- **POST `/api/rapl-calibrate`** – run N live RAPL measurements and produce a calibrated benchmark.
+
+The Energy UI also calls helper endpoints such as `/api/energy-benchmarks`, `/api/system-prompts`, and `/api/export-session`; these are described in the API documentation.
+
+## Model Comparison Lab (WIP)
+
+ `localhost:8001/comparison`
+
+The LLM Comparison Lab complements the Energy Lab by helping assess fit for purpose for small language models. The Energy Lab can help surface energy efficient alternatives to frontier models, but it may be unclear how suitable they would be in either general or specialist applications. The Comparison Lab enables side by side comparison and intuitions about fine tuning potential. It is also (and primarily) designed to reveal insights about:
+
+#### The Deterministic Elements of LLM behavioural patterns (Human-Controlled)
 - **System Prompt**: Defines the AI's role, personality, and behavioral constraints. Presets sourced from https://github.com/elder-plinius/CL4R1T4S are available in the Energy UI.
 - **User Prompt**: The specific task or question being asked
 - **Temperature**: Controls randomness (0.0 = deterministic, 1.0 = creative, 2.0 = chaotic)
 - **Token limits**: Limits output length and computational cost
 - **Post training inputs**: Fine-tuning ([instruction, preference and reinforcement](https://www.interconnects.ai/p/the-state-of-post-training-2025)) comparable in this app by selecting base and fine tuned models (e.g. `qwen2.5:7b` vs `qwen2.5:7b-instruct`) or different fine-tuning approaches to the same base model (e.g. tool-using vs instruction-tuned vs abliterated (uncensored) vs niche-tuned). The post-training becomes intrinsic to the model, but the process of post-training relies on deterministic human artefacts extrinsic to the base models, in the form of explicit instructions, preferences and reinforcements that are fully interpretable and corrigible.
 
-#### The Probabilistic Elements (Model-Dependent)
+#### The Probabilistic Elements of LLM behavioural patterns(Model-Dependent)
 - **Architecture differences**: Transformer variants, attention mechanisms, parameter counts
 - **Training data**: What knowledge and patterns each model has learned
-- **Fine-tuning approach**: Base models vs instruction-tuned vs tool-using variants
+- **Fine-tuning approach**: Base models vs instruction-tuned vs abliterated (uncensored) vs niche-tuned vs tool-using variants
 - **Token generation**: How each model chooses the next word given identical inputs
 
 #### Temperature Testing
@@ -340,193 +380,6 @@ Each pane can have a custom alias (displayed in brackets):
 - **Clear**: Reset output and metrics
 - **Remove**: Delete this pane and close its WebSocket
 
-## Installation Options
-
-### Option A: Docker (portable, good for CI and pinned environments)
-
-If you prefer to run the lab inside a container, the repository includes a `Dockerfile` that:
-
-- Builds the integrated lab (FastAPI + Uvicorn) into an image.
-- Compiles and **bakes in a `scaphandre` binary** via a Rust build stage.
-- Configures the app so that, when live power monitoring is enabled, it will try to start a Scaphandre Prometheus exporter inside the container and use it for per-process `E_llm` measurements (falling back to package-level RAPL if this is not possible).
-
-#### Building the image
-
-From the project root:
-
-```bash
-docker build -t llm-behaviour-lab .
-```
-
-This produces an image with:
-
-- Python runtime and all dependencies from `requirements.txt` / `requirements-dev.txt`.
-- The integrated lab entrypoint (`app_llm_behaviour_lab:app`).
-- A `scaphandre` binary on `PATH`, configured by default as:
-  - `SCAPHANDRE_CMD="scaphandre prometheus --bind :8080"`
-  - `SCAPHANDRE_DEFAULT_URL="http://127.0.0.1:8080/metrics"`
-  - `SCAPHANDRE_AUTOSTART=1` (the app will try to start the exporter automatically).
-
-#### Recommended: Linux with `--network=host`
-
-On a Linux host where **Ollama is running directly on the host** and **RAPL is available**, the simplest and most accurate setup is to share the host network and expose RAPL counters into the container:
-
-```bash
-docker run --rm \
-  --network=host \
-  --privileged \
-  -v /sys/class/powercap:/sys/class/powercap:ro \
-  llm-behaviour-lab
-```
-
-This configuration means:
-
-- **Networking**
-  - The container shares the host network namespace, so the integrated lab is reachable at `http://localhost:8001/` on the host without extra `-p` flags.
-  - Ollama is reachable from the container at the same address it uses on the host (e.g. `http://localhost:11434`), so you usually do *not* need to set `OLLAMA_HOST` explicitly.
-- **Energy / RAPL access**
-  - `/sys/class/powercap` is mounted read-only from the host, allowing Scaphandre and the app to read RAPL counters.
-  - `--privileged` is the simplest way to grant the necessary capabilities for RAPL/Scaphandre in local experiments; for stricter environments you can replace this with a more minimal set of capabilities or device mounts as appropriate.
-
-With this setup, when you enable **Enable Live Power (RAPL)** in the Energy UI:
-
-- The app reads RAPL counters directly from the host to compute total energy (`total_wh`, `prefill_wh`, `decode_wh`).
-- Scaphandre inside the container attributes power per process and exposes it on `SCAPHANDRE_DEFAULT_URL`; the app uses this to compute `E_llm` and `M_eff` per 1000 output tokens.
-
-#### Alternative networking setups
-
-If you cannot or do not want to use `--network=host`, you can instead publish only the lab’s port and point the container at a reachable Ollama endpoint explicitly. For example:
-
-```bash
-docker run --rm \
-  -p 8001:8001 \
-  -e OLLAMA_HOST=http://host.docker.internal:11434 \
-  llm-behaviour-lab
-```
-
-In this mode:
-
-- The integrated lab is available at `http://localhost:8001/` on the host.
-- `OLLAMA_HOST` tells the container how to reach the host Ollama instance (the `host.docker.internal` name works on Docker for macOS/Windows and many recent Linux setups; otherwise you can inject the host IP instead).
-- You can still mount `/sys/class/powercap` and grant additional capabilities if you want live RAPL measurements inside the container:
-
-```bash
-docker run --rm \
-  -p 8001:8001 \
-  -e OLLAMA_HOST=http://host.docker.internal:11434 \
-  --privileged \
-  -v /sys/class/powercap:/sys/class/powercap:ro \
-  llm-behaviour-lab
-```
-
-On macOS and Windows hosts, RAPL is typically not available to the container at all, so live hardware energy metrics will be limited. The lab will still function, but energy values will come from **benchmarks and calibration profiles** rather than direct RAPL reads; Scaphandre may start, but without real RAPL counters it cannot provide meaningful LLM-only energy.
-
-#### Tuning Scaphandre behaviour via environment variables
-
-The container (and bare-metal app) honour the following environment variables:
-
-- `SCAPHANDRE_AUTOSTART` (default `1`): set to `0`, `false`, or `no` to disable automatic Scaphandre startup and rely only on package-level RAPL unless you start an exporter yourself.
-- `SCAPHANDRE_CMD`: the exact command the app will run to start the exporter (defaults to `scaphandre prometheus --bind :8080`). You can change this to use a different port, flags, or wrapper script.
-- `SCAPHANDRE_DEFAULT_URL`: the URL the app probes for the exporter metrics endpoint (defaults to `http://127.0.0.1:8080/metrics`).
-
-If Scaphandre cannot be started or reached, the app logs a warning and gracefully falls back to RAPL-only measurements; if RAPL is also unavailable, it falls back again to benchmark-based estimates.
-
-
-### Option B: Local install (Linux/macOS)
-
-Local install is the most straightforward path when:
-
-- You are running on a **single Linux box with RAPL** and want the app to manage Scaphandre for you.
-- You want Scaphandre to see **host‑level tools** (browser, code executor, RAG stack) as well as Ollama.
-
-#### 1. Clone the repository
-
-```bash
-git clone https://github.com/Leamsi9/llm-behaviour-lab.git
-cd llm-behaviour-lab
-```
-
-#### 2. Use the `install.sh` helper (recommended on Linux/macOS)
-
-Run:
-
-```bash
-./install.sh
-```
-
-The `./install.sh` helper script is designed to set up an **end‑to‑end local environment**:
-
-- Creates a local `.venv` virtual environment if it does not exist.
-- Upgrades `pip` and installs both `requirements.txt` and `requirements-dev.txt` into that environment.
-- Checks for **Ollama** on Linux/macOS and can help install it if missing.
-- Offers to pull a default test model (`qwen3:0.6b`) via Ollama.
-- On Linux, optionally downloads a local **Scaphandre** binary so per‑process live power works out of the box.
-- Prints next steps for starting the integrated lab.
-
-If you prefer not to use the script, you can follow the equivalent manual steps:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
-```
-
-#### 3. Run the integrated lab locally
-
-After either `./install.sh` or the manual steps:
-
-```bash
-source .venv/bin/activate
-uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
-```
-
-Then open:
-
-- Integrated Lab: `http://localhost:8001/`
-- Energy Testing Lab: `http://localhost:8001/energy`
-- Model Comparison: `http://localhost:8001/comparison`
-
-Optional standalone Energy app (same UI/endpoints on a separate port):
-
-```bash
-uvicorn app_energy:app --host 0.0.0.0 --port 8002 --reload
-```
-
-#### 4. Manual Ollama install (all OS)
-
-If you want to install Ollama yourself (or are on a non‑Linux OS where `install.sh` does not manage it), use the official instructions:
-
-```bash
-# Linux
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# macOS
-brew install ollama
-
-# Windows
-# Download and install from the official website:
-# https://ollama.ai/download
-```
-
-Once Ollama is installed and serving (`ollama serve`), the lab will discover it at `http://localhost:11434` by default, or use the `OLLAMA_HOST` environment variable if you need a custom endpoint.
-
-#### When to prefer local `install.sh` over Docker
-
-Running the lab via Docker is convenient for **reproducible environments**, **CI**, and **pinned environments**, but a direct local install via `./install.sh` is often preferable when you care about **end‑to‑end energy for tool‑using agents**, not just the LLM server:
-
-- **Whole‑workflow energy vs. LLM‑only energy**
-  - In many agentic setups, the LLM response triggers **non‑inference compute**: browser automation, code execution, RAG queries, database calls, etc.
-  - A host‑level Scaphandre install (with a local lab) can see **all of these processes** and lets you attribute energy to both the LLM (Ollama) and the **tools it calls**.
-  - A containerised Scaphandre instance mostly sees processes **inside the container**; host‑side browsers, DBs, and tools remain invisible unless you add more advanced `--pid=host` style configurations.
-- **Measuring “cost of a tool‑augmented answer”**
-  - If you want to ask “how much extra energy did this agentic answer cost once it started browsing, running code, or hitting RAG?”, running the lab and Scaphandre directly on the host is the cleanest path.
-  - You can then use Scaphandre’s Prometheus metrics to disaggregate **LLM vs non‑LLM** energy for the same request window (e.g. Ollama vs browser vs Python workers).
-- **Version 0.1.0 limitation: tool metrics not yet surfaced in the UI**
-  - As of **version 0.1.0**, the lab does **not yet expose dedicated “tool energy” or “agentic overhead” metrics in the UI**.
-  - You can still collect those numbers from your Scaphandre/Prometheus stack by looking at other processes during the run window, but the app currently focuses on LLM‑centric metrics (`E_llm`, `M_eff`, RAPL prefill/decode).
-
-In short: use `./install.sh` when you want the **clearest view of end‑to‑end energy for tool‑using workflows on a single host**; reach for Docker when you primarily need a **portable, reproducible environment** and are happy to focus on LLM‑centric measurements.
-
 ## Stability Features
 
 ### Dynamic Model Limits
@@ -555,220 +408,39 @@ uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
 
 Note: The app uses model-specific limits from Ollama, so manual limit adjustments are rarely needed.
 
-## API Endpoints
-
-### WebSocket `/ws`
-Streaming inference endpoint with cancellation support. Used by Energy UI.
-
-**Request payload (Energy):**
-```json
-{
-  "model_name": "qwen3:0.6b",
-  "system_prompt": "You are a helpful assistant.",
-  "user_prompt": "Explain quantum computing.",
-  "conversation_context": "<prior_msgs>...</prior_msgs>",
-  "injections": [
-    { "description": "Safety guardrails", "content": "..." }
-  ],
-  "temp": 0.7,
-  "max_tokens": 512,
-  "energy_benchmark": "conservative_estimate",
-  "enable_live_power_monitoring": true,
-  "include_thinking": false
-}
-```
-
-Legacy fields `system` and `user` are still accepted if `system_prompt`/`user_prompt` are omitted. The server composes the final system prompt as: Base system + `<conversation_context>` wrapper + free‑form injections.
-
-**Response stream:**
-```json
-{"token": "Okay, the user is…", "thinking": true}
-{"token": "I'm an AI assistant…", "thinking": false}
-{"token": "..."}
-{"token": "[DONE]", "done": true, "basic_metrics": {...}, "live_power_metrics": {...}}
-```
-
-`live_power_metrics` (when RAPL is enabled) includes:
-- `prefill_wh`, `decode_wh`, `total_wh`
-- `prefill_wh_per_1000_input_tokens`
-- `decode_wh_per_1000_output_tokens`
-- `energy_weighted_output_wh_per_1000_tokens`
-
-### GET `/api/models`
-Returns available Ollama models.
-
-**Response:**
-```json
-{
-  "models": ["qwen2.5:7b", "llama3.2:3b", "gemma2:9b"],
-  "current": {
-    "base": "qwen2.5:7b-base",
-    "instruct": "qwen2.5:7b"
-  }
-}
-```
-
-### GET `/api/model-info/{model_name}`
-Returns model-specific information including context length.
-
-**Response:**
-```json
-{
-  "model_name": "qwen3:0.6b",
-  "context_length": 40960,
-  "modelfile_info": {
-    "num_ctx": 40960
-  }
-}
-```
-
-### GET `/api/health`
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "ok",
-  "ollama": true,
-  "websocket": true,
-  "models": {
-    "base": "qwen2.5:7b-base",
-    "instruct": "qwen2.5:7b"
-  }
-}
-```
-
-### POST `/api/rapl-calibrate`
-Run N integrated RAPL measurements and create/update a calibrated benchmark.
-
-Request:
-```json
-{ "runs": 30, "model_name": "qwen3:0.6b", "prompt": "Explain transformers in 3 sentences." }
-```
-
-Response (abridged):
-```json
-{
-  "metric": "wh_per_1000_tokens",
-  "successful_runs": 28,
-  "stats": { "mean": 0.115, "median": 0.112, "std": 0.010, "cv": 0.087 },
-  "benchmark": { "name": "rapl_calibrated_qwen3_0.6b", "watt_hours_per_1000_tokens": 0.112 }
-}
-```
-
-Additional endpoints used by the Energy UI:
-- `GET /api/energy-benchmarks` – list benchmarks
-- `GET /api/system-prompts` – list preset system prompts
-- `GET /api/benchmark-info` – metadata about benchmarks and CO2
-- `POST /api/switch-benchmark` – switch current benchmark
-- `POST /api/add-custom-benchmark` – add a custom benchmark
-- `POST /api/export-session` – export session readings
-
-## Stability Features
-
-### Dynamic Model Limits
-- **Automatic detection**: Context limits are fetched from Ollama's `/api/show` endpoint for each model
-- **Model-aware limits**: Context limits are derived from model metadata instead of arbitrary constants
-- **User visibility**: UI displays actual model context length (e.g., "40,960" for qwen3:0.6b)
-- **Flexible defaults**: Max tokens defaults to 1000 but can be overridden by user
-
-### System Protection
-- **Thread limiting**: Caps CPU usage to 4 threads (configurable via OLLAMA_NUM_THREADS)
-- **Request timeouts**: `REQUEST_TIMEOUT` prevents infinite hangs (default: 180s)
-- **HTTP cleanup**: Properly closes connections on cancellation
-- **Error handling**: Errors properly close WebSockets and exit loading states
-
-### Emergency Recovery
-If you experience freezes:
-```bash
-# Kill processes
-pkill -9 ollama
-pkill -9 python
-
-# Restart with sensible defaults
-ollama serve
-uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
-```
-
-Note: The app uses model-specific limits from Ollama, so manual limit adjustments are rarely needed.
-
-## Performance Tips
-
-1. **Model caching**: Pull frequently used models for faster startup
-2. **Concurrent limits**: Don't run too many large models simultaneously
-3. **GPU acceleration**: Ollama automatically uses GPU if available
-4. **Memory management**: Clear unused models with `ollama stop <model>`
 
 ## Troubleshooting
 
-### "Cannot connect to Ollama"
-```bash
-# Ensure Ollama is running
-ollama serve
+_Refer to this section for quick fixes. For a fuller catalogue of issues and remedies, see the [Troubleshooting documentation](./documentation/troubleshooting.md)._ 
 
-# Check connection
-curl http://localhost:11434/api/tags
+**Connection to Ollama fails**
 
-# Change port if needed
-export OLLAMA_HOST=0.0.0.0:11435
-```
+- Make sure `ollama serve` is running.
+- Verify `curl http://localhost:11434/api/tags` works from the same machine.
+- If using a non‑default host/port, set `OLLAMA_HOST` accordingly.
 
-### "No models found"
-```bash
-# Pull models
-ollama pull qwen2.5:7b
-ollama pull llama3.2:3b
+**No models found**
 
-# List available
-ollama list
-```
+- Pull at least one model via `ollama pull ...` (e.g. `qwen2.5:7b`, `llama3.2:3b`).
+- Check `ollama list` to confirm they are available.
 
-### pip install blocked (externally-managed environment)
-Create and use a virtual environment (recommended):
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-```
-If you must install system-wide, you can use `--break-system-packages` at your own risk. Prefer a venv to avoid conflicts.
+**Install or environment issues**
 
-### System Freezes
-1. **Check model context**:
-   ```bash
-   # Verify model is responding
-   curl http://localhost:11434/api/tags
-   
-   # Check specific model info
-   curl http://localhost:8002/api/model-info/qwen3:0.6b
-   ```
+- Prefer a **virtual environment** when installing Python deps:
+  - `python3 -m venv .venv && source .venv/bin/activate`.
+- Install requirements with `pip install -r requirements.txt` (and `requirements-dev.txt` if needed).
 
-2. **Use smaller models**:
-   ```bash
-   ollama pull llama3.2:1b
-   ```
+**System freezes or resource pressure**
 
-3. **Monitor resources**:
-   ```bash
-   htop                    # CPU/RAM
-   watch -n 1 nvidia-smi   # GPU (if available)
-   ```
+- Try smaller models (e.g. `llama3.2:1b`).
+- Monitor CPU/GPU usage (`htop`, `watch -n 1 nvidia-smi`).
+- Tune Ollama limits via env vars like `OLLAMA_NUM_THREADS`, `OLLAMA_GPU_LAYERS`, `OLLAMA_MAX_LOADED_MODELS`.
 
-4. **Ollama Constraints**
+**WebSocket/UI problems**
 
-To modify constraints directly in Ollama for better stability, set these environment variables before running `ollama serve`:
-
-```bash
-export OLLAMA_NUM_THREADS=4       # Limit CPU threads to 4
-export OLLAMA_GPU_LAYERS=35       # Limit GPU layers (0 disables GPU)
-export OLLAMA_MAX_LOADED_MODELS=3 # Limit concurrent loaded models
-```
-
-These environment variables allow fine-tuning Ollama's resource consumption to match your system's capabilities, preventing freezes and ensuring stable operation.
-
-### WebSocket Errors
-- Check browser console for connection issues
-- Ensure no firewall blocks WebSocket connections
-- Try different browser (Chrome recommended)
+- Check the browser console for errors.
+- Ensure no local firewall or reverse proxy is blocking WebSocket connections.
+- Try a different browser if problems persist.
 
 ## Dependencies
 
@@ -777,13 +449,6 @@ These environment variables allow fine-tuning Ollama's resource consumption to m
 - **httpx**: HTTP client for Ollama API.
 - **Ollama**: Local LLM inference server (separate install; see Quick Start).
 - **Scaphandre** (optional): for per‑process LLM energy (`E_llm`) when you want to distinguish LLM energy from other processes on the same host.
-
-## Performance Tips
-
-1. **Model caching**: Pull frequently used models for faster startup
-2. **Concurrent limits**: Don't run too many large models simultaneously
-3. **GPU acceleration**: Ollama automatically uses GPU if available
-4. **Memory management**: Clear unused models with `ollama stop <model>`
 
 ## Contributing
 This is a **work in progress** project and contributions are welcome. Please follow these steps:

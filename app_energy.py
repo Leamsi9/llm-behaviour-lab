@@ -13,17 +13,20 @@ import time
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
-try:
-    from transformers import AutoTokenizer  # type: ignore
-except Exception:
-    AutoTokenizer = None  # Optional, used only for debug preflight
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 # Import our specialized modules
-from energy_tracker import energy_tracker, estimate_energy_impact, get_available_benchmarks, ENERGY_BENCHMARKS
+from energy_tracker import (
+    energy_tracker,
+    estimate_energy_impact,
+    get_available_benchmarks,
+    ENERGY_BENCHMARKS,
+    get_hf_benchmarks,
+    get_benchmark_sources,
+)
 from prompt_injection import injection_manager, InjectionConfig, InjectionType
 from tool_integration import tool_manager, ToolIntegrationConfig, ToolIntegrationMethod, ToolCall
 from ollama_client import (
@@ -39,7 +42,7 @@ from ollama_client import (
     DEFAULT_MAX_OUTPUT_TOKENS
 )
 
-# Import token tracking (Phase 1 - CRITICAL FIX)
+# Import token tracking utilities (critical fix)
 from token_utils import track_middleware_tokens, create_token_breakdown
 
 # Import real-time power monitoring
@@ -249,7 +252,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         }
         print(f"📊 Backend Composition: Base System={len(base_system)} chars, Final System={len(final_system_prompt)} chars")
 
-        # ===== PHASE 3: APPLY TOOL INTEGRATION (TRACK TOKENS) =====
+        # ===== PHASE 2: APPLY TOOL INTEGRATION (TRACK TOKENS) =====
         tool_integration_result = {"integration_metadata": {}}
         messages_after_tools = messages.copy()
         if payload.tool_integration_method != "none":
@@ -271,7 +274,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     pass
                 return
 
-        # ===== PHASE 4: TRACK MIDDLEWARE TOKEN OVERHEAD =====
+        # ===== PHASE 3: TRACK MIDDLEWARE TOKEN OVERHEAD =====
         middleware_tokens = track_middleware_tokens(
             original_messages=original_messages,
             messages_after_injection=messages_after_injection,
@@ -284,13 +287,11 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
               f"Tools+{middleware_tokens['tools_added']}, "
               f"Total={middleware_tokens['final_total']}")
 
-        # ===== PHASE 5: VALIDATE MAX_TOKENS (FIX FROM CODE REVIEW) =====
+        # ===== PHASE 4: VALIDATE MAX_TOKENS AND CONTEXT WINDOW =====
         # Note: This is a soft limit - UI should allow override based on model capabilities
         safe_max_tokens = min(payload.max_tokens, DEFAULT_MAX_OUTPUT_TOKENS) if payload.max_tokens > DEFAULT_MAX_OUTPUT_TOKENS else payload.max_tokens
         if safe_max_tokens != payload.max_tokens:
             print(f"⚠️ Capping max_tokens from {payload.max_tokens} to {safe_max_tokens}")
-        
-        # ===== PHASE 5.1: ESTIMATE CONTEXT WINDOW SIZE =====
         # Estimate context need to avoid truncation of large injections
         try:
             estimated_prompt_tokens_guess = int(middleware_tokens.get("final_total", 0))
@@ -301,90 +302,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         # Clip to a generous maximum (most modern small models support large ctx; engine will cap safely)
         desired_ctx = max(2048, min(desired_ctx, 40960))
 
-        # ===== PHASE 4: PRE-RAPL TOKENIZATION VALIDATION =====
-        # Tokenize composed prompt before energy measurement to prevent truncation
-        max_context_length = get_model_context_limit(payload.model_name)
-        if max_context_length is None:
-            # Fetch dynamically from Ollama and cache
-            try:
-                await websocket.send_json({"log": f"🔍 Fetching context limit for model '{payload.model_name}' from Ollama..."})
-            except Exception:
-                pass
-            fetched_ctx = await fetch_model_context_limit(payload.model_name)
-            if fetched_ctx is not None and fetched_ctx > 0:
-                MODEL_CONTEXT_CACHE[payload.model_name] = int(fetched_ctx)
-                max_context_length = int(fetched_ctx)
-                try:
-                    await websocket.send_json({"log": f"✅ Model context limit set to {max_context_length:,} tokens (from ollama show)"})
-                except Exception:
-                    pass
-            else:
-                try:
-                    await websocket.send_json({"log": f"⚠️ Could not determine context limit for model '{payload.model_name}', skipping validation"})
-                except Exception:
-                    pass
-                max_context_length = None
 
-        if max_context_length:
-            try:
-                # Build ChatML representation for accurate tokenization
-                def build_chatml(msgs: List[Dict[str, str]]) -> str:
-                    parts = []
-                    for m in msgs:
-                        role = m.get("role", "user")
-                        content = m.get("content", "")
-                        parts.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
-                    parts.append("<|im_start|>assistant\n")
-                    return "".join(parts)
-
-                chatml_text = build_chatml(messages)
-
-                # Use available tokenizer for accurate count
-                if AutoTokenizer is not None:
-                    try:
-                        # Try Qwen instruct variants that understand ChatML locally
-                        model_ids = [
-                            "Qwen/Qwen2.5-0.5B-Instruct",
-                            "Qwen/Qwen2.5-1.8B-Instruct",
-                            "Qwen/Qwen2.5-0.5B",
-                        ]
-                        tokenizer = None
-                        for mid in model_ids:
-                            try:
-                                tokenizer = AutoTokenizer.from_pretrained(mid, trust_remote_code=True, local_files_only=True)
-                                break
-                            except Exception:
-                                continue
-
-                        if tokenizer is not None:
-                            estimated_tokens = len(tokenizer.encode(chatml_text))
-                            safety_margin = 0.9  # 90% of context limit
-                            max_allowed = int(max_context_length * safety_margin)
-
-                            if estimated_tokens > max_allowed:
-                                await websocket.send_json({
-                                    "error": f"Context overflow: {estimated_tokens:,} tokens > {max_allowed:,} (90% of {max_context_length:,})",
-                                    "suggestion": "Reduce injections, shorten prompts, or use model with larger context",
-                                    "done": True
-                                })
-                                return
-
-                            await websocket.send_json({
-                                "log": f"✅ Tokenization check passed: {estimated_tokens:,} tokens ≤ {max_allowed:,} limit"
-                            })
-                        else:
-                            await websocket.send_json({"log": "⚠️ No tokenizer available, skipping tokenization check"})
-                    except Exception as e:
-                        await websocket.send_json({"log": f"⚠️ Tokenization check failed: {str(e)}"})
-                else:
-                    await websocket.send_json({"log": "⚠️ Tokenizer not available, skipping tokenization check"})
-
-            except Exception as e:
-                await websocket.send_json({"log": f"⚠️ Tokenization validation error: {str(e)}"})
-        else:
-            await websocket.send_json({"log": f"⚠️ Unknown context limit for model '{payload.model_name}', skipping validation"})
-
-        # ===== PHASE 5.5: MEASURE BASELINE POWER (IF ENABLED) =====
+        # ===== PHASE 5: INITIALIZE LIVE POWER / BASELINE (IF ENABLED) =====
         power_baseline = None
         power_before = None
         power_after = None
@@ -458,9 +377,6 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         generation_done = False
         had_error = False
 
-        # (Deprecated) Continuous RAPL sampling task kept for backward compatibility (unused for metrics)
-        async def rapl_sampler():
-            return
 
         # Scaphandre per-process energy sampler (LLM-only)
         async def scaphandre_sampler():
@@ -517,9 +433,9 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     scaph_sampler_task = None
             await websocket.send_json({"log": "Running LLM inference with power monitoring..."})
         
-        print(f"📤 Sending to Ollama - Model: {payload.model_name}")  # DEBUG
-        print(f"📤 Messages array: {json.dumps(messages, indent=2)}")  # DEBUG
-        print(f"📤 Options: temp={payload.temp}, num_predict={safe_max_tokens}, seed={payload.seed}")  # DEBUG
+        print(f"📤 Sending to Ollama - Model: {payload.model_name}")
+        print(f"📤 Messages array: {json.dumps(messages, indent=2)}")
+        print(f"📤 Options: temp={payload.temp}, num_predict={safe_max_tokens}, seed={payload.seed}")
         try:
             await websocket.send_json({
                 "log": f"🧠 Thinking setting → include_thinking={payload.include_thinking}; sending think={bool(getattr(payload, 'include_thinking', False))}"
@@ -536,7 +452,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             except Exception as e:
                 await websocket.send_json({"log": f"⚠️ RAPL snapshot start (pre-request) error: {str(e)}"})
 
-        # Log the context window setting (calculation done earlier in Phase 5.1)
+        # Log the context window setting (calculation done earlier in Phase 4)
         try:
             await websocket.send_json({"log": f"🧮 Setting num_ctx={desired_ctx} (estimated prompt≈{estimated_prompt_tokens_guess}, max_out={safe_max_tokens})"})
         except Exception:
@@ -581,6 +497,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 heartbeat_task = None
                 async def _ttft_heartbeat():
                     try:
+                        # Heartbeat while waiting for first token, regardless of RAPL state
                         while rapl_split_snap is None and not cancel_event.is_set():
                             elapsed = asyncio.get_event_loop().time() - start_time
                             try:
@@ -605,7 +522,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
 
                     try:
                         chunk = json.loads(line)
-                        print(f"🔍 Ollama chunk received: {chunk}")  # DEBUG
+                        print(f"🔍 Ollama chunk received: {chunk}")
                     except json.JSONDecodeError:
                         continue
 
@@ -615,19 +532,23 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                         content_text = msg.get("content") or ""
                         thinking_text = msg.get("thinking") or ""
 
-                        # On first token (either thinking or content), take split snapshot
-                        if (content_text or thinking_text) and live_power_enabled and power_monitor and rapl_split_snap is None:
-                            try:
-                                loop = asyncio.get_running_loop()
-                                rapl_split_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
-                                await websocket.send_json({"log": "📍 RAPL snapshot taken: split (first token)"})
-                                # Record first token time for TTFT
-                                split_time = asyncio.get_event_loop().time()
-                                # Stop heartbeat
-                                if 'heartbeat_task' in locals() and heartbeat_task is not None:
-                                    heartbeat_task.cancel()
-                            except Exception as e:
-                                await websocket.send_json({"log": f"⚠️ RAPL snapshot split error: {str(e)}"})
+                        # On first token (either thinking or content), record split time and
+                        # stop the TTFT heartbeat. When live power is enabled, also take a
+                        # RAPL split snapshot for prefill/decode separation.
+                        if (content_text or thinking_text) and rapl_split_snap is None:
+                            # Take RAPL split snapshot only when live power monitoring is active
+                            if live_power_enabled and power_monitor:
+                                try:
+                                    loop = asyncio.get_running_loop()
+                                    rapl_split_snap = await loop.run_in_executor(None, power_monitor.take_energy_snapshot)
+                                    await websocket.send_json({"log": "📍 RAPL snapshot taken: split (first token)"})
+                                except Exception as e:
+                                    await websocket.send_json({"log": f"⚠️ RAPL snapshot split error: {str(e)}"})
+
+                            # Always record first-token time for TTFT and stop heartbeat
+                            split_time = asyncio.get_event_loop().time()
+                            if 'heartbeat_task' in locals() and heartbeat_task is not None:
+                                heartbeat_task.cancel()
 
                         if content_text:
                             print(f"📝 Extracted content: '{content_text}' (length: {len(content_text)})")
@@ -657,7 +578,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                         completion_tokens = chunk.get("eval_count", 0)
                         prompt_eval_duration_ns = chunk.get("prompt_eval_duration")
                         eval_duration_ns = chunk.get("eval_duration")
-                        print(f"✅ Generation complete. Tokens: prompt={prompt_tokens}, completion={completion_tokens}")  # DEBUG
+                        print(f"✅ Generation complete. Tokens: prompt={prompt_tokens}, completion={completion_tokens}")
                         break
                 
                 # Always close the response stream properly
@@ -754,7 +675,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             await websocket.send_json({"log": f"✅ Generated {prompt_tokens + completion_tokens} tokens"})
             await websocket.send_json({"log": f"⏱ Duration: {latency:.2f}s"})
 
-        # ===== PHASE 6.5: FINALIZE RAPL MEASUREMENT USING CUMULATIVE ENERGY (IF ENABLED) =====
+        # ===== PHASE 7: FINALIZE RAPL MEASUREMENT USING CUMULATIVE ENERGY (IF ENABLED) =====
         # NOTE: All Wh/1000 calculations here are defined per 1000 *output* tokens (completion tokens).
         measured_wh_per_1000_tokens = None
         # Per-process LLM energy (Scaphandre) and model compute efficiency
@@ -896,7 +817,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     # Force use of this benchmark
                     payload.energy_benchmark = dynamic_benchmark_name
                     await websocket.send_json({
-                        "log": f"✅ Auto-switched to dynamic benchmark: {measured_wh_per_1000_tokens:.4f} Wh/1K"
+                        "log": f"✅ Created new RAPL benchmark: {measured_wh_per_1000_tokens:.4f} Wh/1K"
                     })
                     await websocket.send_json({"log": "✅ Measurement Complete!"})
 
@@ -905,11 +826,18 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                     "log": f"⚠️ Power measurement error: {str(e)}"
                 })
 
-        # ===== PHASE 7: CREATE COMPREHENSIVE TOKEN BREAKDOWN (CRITICAL FIX) =====
+        # ===== PHASE 8: CREATE COMPREHENSIVE TOKEN BREAKDOWN (CRITICAL FIX) =====
+        # If Ollama did not report prompt_eval_count (prompt_tokens == 0),
+        # fall back to our middleware-based estimate for input token counts.
+        try:
+            prompt_tokens_for_breakdown = int(prompt_tokens or middleware_tokens.get("final_total", 0) or 0)
+        except Exception:
+            prompt_tokens_for_breakdown = prompt_tokens
+
         token_breakdown = create_token_breakdown(
             original_messages=original_messages,
             middleware_tracking=middleware_tokens,
-            ollama_prompt_tokens=prompt_tokens,
+            ollama_prompt_tokens=prompt_tokens_for_breakdown,
             ollama_completion_tokens=completion_tokens
         )
         # Estimate split of completion tokens between thinking vs content by proportional characters
@@ -943,7 +871,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
         except Exception:
             pass
 
-        # ===== PHASE 8: RECORD ENERGY CONSUMPTION =====
+        # ===== PHASE 9: RECORD ENERGY CONSUMPTION =====
         # CRITICAL FIX: Set the benchmark before recording
         print(f"🔄 Setting benchmark to: '{payload.energy_benchmark}'")
         try:
@@ -961,7 +889,7 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             strategy_name=payload.strategy_name
         )
 
-        # ===== PHASE 9: SEND COMPREHENSIVE RESULTS (WITH FIXED TOKEN_METRICS) =====
+        # ===== PHASE 10: SEND COMPREHENSIVE RESULTS (WITH FIXED TOKEN_METRICS) =====
         await websocket.send_json({
             "token": "[DONE]",
             "model": payload.model_name,
@@ -989,7 +917,15 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "benchmark_used": energy_reading.benchmark_used,
                 "watt_hours_consumed": energy_reading.watt_hours_consumed,
                 "carbon_grams_co2": energy_reading.carbon_grams_co2,
+                # Output-normalized efficiency (per 1000 etokens-o, i.e. total run Wh / output tokens).
                 "energy_efficiency_score": energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001),
+                "energy_efficiency_wh_per_1000_etokens_o": energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001),
+                # Input-normalized efficiency (per 1000 etokens-i, i.e. total run Wh / input tokens).
+                "energy_efficiency_wh_per_1000_etokens_i": (
+                    energy_reading.watt_hours_consumed / max(prompt_tokens / 1000, 0.001)
+                    if (prompt_tokens or 0) > 0
+                    else None
+                ),
             },
 
             # Live power monitoring data (if enabled)
@@ -999,10 +935,31 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
                 "before_watts": power_before.total_watts if power_before else None,
                 "after_watts": power_after.total_watts if power_after else None,
                 "active_watts": ((power_before.total_watts + power_after.total_watts) / 2 - power_baseline.total_watts) if (power_before and power_after and power_baseline) else None,
-                # Per-1000 metrics are expressed per 1000 *output* tokens
+                # Per-1000 metrics are expressed per 1000 *effective* tokens.
+                # For backward compatibility these remain defined per 1000 output tokens
+                # (etokens-o) and we add explicit etokens-i / etokens-o aliases.
                 "measured_wh_per_1000_tokens": measured_wh_per_1000_tokens,
                 "benchmark_wh_per_1000_tokens": energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001),
-                "accuracy_percent": ((measured_wh_per_1000_tokens / (energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001))) * 100) if measured_wh_per_1000_tokens else None,
+                "accuracy_percent": (
+                    (
+                        measured_wh_per_1000_tokens
+                        / (energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001))
+                    ) * 100
+                ) if measured_wh_per_1000_tokens else None,
+                # Explicit aliases for clarity in the UI layer
+                "measured_wh_per_1000_etokens_o": measured_wh_per_1000_tokens,
+                "benchmark_wh_per_1000_etokens_o": energy_reading.watt_hours_consumed / max(completion_tokens / 1000, 0.001),
+                # Whole-run energy normalized by input tokens (etokens-i)
+                "measured_wh_per_1000_input_tokens": (
+                    (total_wh / max(prompt_tokens / 1000, 0.001))
+                    if (total_wh is not None and (prompt_tokens or 0) > 0)
+                    else None
+                ),
+                "measured_wh_per_1000_etokens_i": (
+                    (total_wh / max(prompt_tokens / 1000, 0.001))
+                    if (total_wh is not None and (prompt_tokens or 0) > 0)
+                    else None
+                ),
                 # Snapshot-based split
                 "prefill_wh": prefill_wh,
                 "decode_wh": decode_wh,
@@ -1056,7 +1013,8 @@ async def run_energy_test(payload: EnergyPayload, websocket: WebSocket, cancel_e
             "debug_metrics": {
                 "estimated_prompt_tokens": middleware_tokens.get("final_total", 0),
                 "num_ctx_used": desired_ctx,
-                "context_validation_performed": max_context_length is not None
+                # Tokenizer-based context validation is currently disabled.
+                "context_validation_performed": False
             }
         })
 
@@ -1183,9 +1141,10 @@ async def export_session(filepath: str = "energy_session.json"):
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 @app.post("/api/switch-benchmark")
-async def switch_benchmark(benchmark_name: str):
+async def switch_benchmark(request: dict):
     """Switch to a different energy benchmark and recalculate all readings."""
     try:
+        benchmark_name = request.get("benchmark_name") if isinstance(request, dict) else request
         result = energy_tracker.recalculate_with_benchmark(benchmark_name)
         return result
     except ValueError as e:
@@ -1228,7 +1187,12 @@ async def add_custom_benchmark(request: dict):
 async def get_benchmark_info():
     """Get information about benchmarks and CO2 conversion."""
     return {
+        # Legacy benchmarks used for internal estimation and RAPL calibration
         "benchmarks": get_available_benchmarks(),
+        # Hugging Face AI Energy Score benchmarks (H100, text_generation_and_reasoning)
+        # Exposed separately so the UI can use wh_per_1000_input_etokens for
+        # impact metrics and multi-benchmark comparison.
+        "hf_benchmarks": get_hf_benchmarks(),
         "co2_info": {
             "global_average_gco2_per_kwh": 400,
             "description": "Global average carbon intensity for electricity generation",
@@ -1236,28 +1200,11 @@ async def get_benchmark_info():
             "units": "grams of CO2 equivalent per kilowatt-hour",
             "calculation": "Energy consumption (Wh) × Carbon intensity (gCO2/kWh) ÷ 1000"
         },
-        "benchmark_sources": {
-            "conservative_estimate": {
-                "description": "Conservative estimate based on typical LLM inference workloads",
-                "source": "Estimated from various academic papers and industry reports",
-                "assumptions": "Assumes efficient GPU utilization, typical model sizes, and modern hardware"
-            },
-            "nvidia_rtx_4090": {
-                "description": "NVIDIA RTX 4090 GPU benchmark",
-                "source": "Measured power consumption during LLM inference",
-                "specs": "24GB GDDR6X, Ada Lovelace architecture"
-            },
-            "nvidia_a100": {
-                "description": "NVIDIA A100 GPU benchmark (data center)",
-                "source": "Manufacturer specifications and research measurements",
-                "specs": "40GB HBM2e, Ampere architecture, 400W TDP"
-            },
-            "apple_m2": {
-                "description": "Apple M2 chip benchmark",
-                "source": "Measured power consumption during LLM inference",
-                "specs": "8-core CPU, 10-core GPU, 20W TDP"
-            }
-        }
+        # All external benchmark sources discovered under 'benchmark_data/'.
+        # Keys correspond to data_source in each JSON (e.g. "hugging face",
+        # "jegham_et_al") and expose their models and per-1000 etoken
+        # baselines for UI selection.
+        "benchmark_sources": get_benchmark_sources(),
     }
 
 @app.websocket("/ws")

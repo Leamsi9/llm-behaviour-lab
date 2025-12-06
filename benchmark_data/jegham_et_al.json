@@ -1,0 +1,158 @@
+{
+  "data_source": "jegham_et_al",
+  "task": "text_generation_and_reasoning",
+  "wh_per_1000_queries_definition": "Estimated (not measured) end-to-end inference energy (Wh) per 1,000 input tokens and 1,000 output tokens for a single prompt, including preprocess, prefill, and decode, based on the methodology in Jegham et al. (2025).",
+  "energy_unit": "watt_hours",
+  "models": [
+    {
+      "model_id": "GPT-4.1",
+      "wh_per_1000_input_etokens": 3.161,
+      "wh_per_1000_output_etokens": 3.161
+    },
+    {
+      "model_id": "GPT-4.1 mini",
+      "wh_per_1000_input_etokens": 1.545,
+      "wh_per_1000_output_etokens": 1.545
+    },
+    {
+      "model_id": "GPT-4.1 nano",
+      "wh_per_1000_input_etokens": 0.575,
+      "wh_per_1000_output_etokens": 0.575
+    },
+    {
+      "model_id": "o4-mini (high)",
+      "wh_per_1000_input_etokens": 7.380,
+      "wh_per_1000_output_etokens": 7.380
+    },
+    {
+      "model_id": "o3",
+      "wh_per_1000_input_etokens": 5.153,
+      "wh_per_1000_output_etokens": 5.153
+    },
+    {
+      "model_id": "o3-mini (high)",
+      "wh_per_1000_input_etokens": 6.865,
+      "wh_per_1000_output_etokens": 6.865
+    },
+    {
+      "model_id": "o3-mini",
+      "wh_per_1000_input_etokens": 2.423,
+      "wh_per_1000_output_etokens": 2.423
+    },
+    {
+      "model_id": "o1",
+      "wh_per_1000_input_etokens": 4.047,
+      "wh_per_1000_output_etokens": 4.047
+    },
+    {
+      "model_id": "o1-mini",
+      "wh_per_1000_input_etokens": 1.547,
+      "wh_per_1000_output_etokens": 1.547
+    },
+    {
+      "model_id": "GPT-4o (Mar ’25)",
+      "wh_per_1000_input_etokens": 1.215,
+      "wh_per_1000_output_etokens": 1.215
+    },
+    {
+      "model_id": "GPT-4o mini",
+      "wh_per_1000_input_etokens": 1.897,
+      "wh_per_1000_output_etokens": 1.897
+    },
+    {
+      "model_id": "GPT-4 Turbo",
+      "wh_per_1000_input_etokens": 5.940,
+      "wh_per_1000_output_etokens": 5.940
+    },
+    {
+      "model_id": "GPT-4",
+      "wh_per_1000_input_etokens": 6.925,
+      "wh_per_1000_output_etokens": 6.925
+    },
+    {
+      "model_id": "DeepSeek-R1 (DS)",
+      "wh_per_1000_input_etokens": 24.596,
+      "wh_per_1000_output_etokens": 24.596
+    },
+    {
+      "model_id": "DeepSeek-V3 (DS)",
+      "wh_per_1000_input_etokens": 8.864,
+      "wh_per_1000_output_etokens": 8.864
+    },
+    {
+      "model_id": "DeepSeek-R1 (AZ)",
+      "wh_per_1000_input_etokens": 4.331,
+      "wh_per_1000_output_etokens": 4.331
+    },
+    {
+      "model_id": "DeepSeek-V3 (AZ)",
+      "wh_per_1000_input_etokens": 2.165,
+      "wh_per_1000_output_etokens": 2.165
+    },
+    {
+      "model_id": "Claude-3.7 Sonnet",
+      "wh_per_1000_input_etokens": 2.989,
+      "wh_per_1000_output_etokens": 2.989
+    },
+    {
+      "model_id": "Claude-3.5 Sonnet",
+      "wh_per_1000_input_etokens": 3.638,
+      "wh_per_1000_output_etokens": 3.638
+    },
+    {
+      "model_id": "Claude-3.5 Haiku",
+      "wh_per_1000_input_etokens": 4.464,
+      "wh_per_1000_output_etokens": 4.464
+    },
+    {
+      "model_id": "LLaMA-3-8B",
+      "wh_per_1000_input_etokens": 0.370,
+      "wh_per_1000_output_etokens": 0.370
+    },
+    {
+      "model_id": "LLaMA-3-70B",
+      "wh_per_1000_input_etokens": 2.871,
+      "wh_per_1000_output_etokens": 2.871
+    },
+    {
+      "model_id": "LLaMA-3.1-8B",
+      "wh_per_1000_input_etokens": 0.172,
+      "wh_per_1000_output_etokens": 0.172
+    },
+    {
+      "model_id": "LLaMA-3.1-70B",
+      "wh_per_1000_input_etokens": 4.525,
+      "wh_per_1000_output_etokens": 4.525
+    },
+    {
+      "model_id": "LLaMA-3.1-405B",
+      "wh_per_1000_input_etokens": 9.042,
+      "wh_per_1000_output_etokens": 9.042
+    },
+    {
+      "model_id": "LLaMA-3.2 1B",
+      "wh_per_1000_input_etokens": 0.342,
+      "wh_per_1000_output_etokens": 0.342
+    },
+    {
+      "model_id": "LLaMA-3.2 3B",
+      "wh_per_1000_input_etokens": 0.479,
+      "wh_per_1000_output_etokens": 0.479
+    },
+    {
+      "model_id": "LLaMA-3.2-vision 11B",
+      "wh_per_1000_input_etokens": 0.242,
+      "wh_per_1000_output_etokens": 0.242
+    },
+    {
+      "model_id": "LLaMA-3.2-vision 90B",
+      "wh_per_1000_input_etokens": 4.534,
+      "wh_per_1000_output_etokens": 4.534
+    },
+    {
+      "model_id": "LLaMA-3.3 70B",
+      "wh_per_1000_input_etokens": 0.760,
+      "wh_per_1000_output_etokens": 0.760
+    }
+  ]
+}

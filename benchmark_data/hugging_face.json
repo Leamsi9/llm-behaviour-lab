@@ -1,0 +1,444 @@
+{
+  "data_source": "hugging face",
+  "task": "text_generation_and_reasoning",
+  "input_tokens_per_1000_queries": 369139,
+  "wh_per_1000_tokens_factor": 0.0027090066343572476,
+  "wh_per_1000_queries_definition": "Average GPU energy (Wh) to run the full benchmark dataset of 1,000 queries (including preprocess, prefill, and decode) on an NVIDIA H100 80GB, averaged over 10 runs, as defined in the AI Energy Score methodology.",
+  "energy_unit": "watt_hours",
+  "models": [
+    {
+      "model_id": "berkeley-nest/Starling-LM-7 B-alpha",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.019011,
+      "wh_per_1000_queries": 19.011,
+      "wh_per_1000_input_etokens": 0.05150092512576563
+    },
+    {
+      "model_id": "distilbert/distilgpt2",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.001313,
+      "wh_per_1000_queries": 1.313,
+      "wh_per_1000_input_etokens": 0.003556925710911066
+    },
+    {
+      "model_id": "Salesforce/xLAM-7 b-r",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.01917,
+      "wh_per_1000_queries": 19.17,
+      "wh_per_1000_input_etokens": 0.05193165718062844
+    },
+    {
+      "model_id": "openai-community/gpt2",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.002146,
+      "wh_per_1000_queries": 2.146,
+      "wh_per_1000_input_etokens": 0.0058135282373306535
+    },
+    {
+      "model_id": "openai-community/gpt2-xl",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.008921,
+      "wh_per_1000_queries": 8.921,
+      "wh_per_1000_input_etokens": 0.024167048185101004
+    },
+    {
+      "model_id": "openai-community/gpt2-medium",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.003956,
+      "wh_per_1000_queries": 3.956,
+      "wh_per_1000_input_etokens": 0.010716830245517272
+    },
+    {
+      "model_id": "openai-community/gpt2-large",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.006121,
+      "wh_per_1000_queries": 6.121,
+      "wh_per_1000_input_etokens": 0.016581829608900714
+    },
+    {
+      "model_id": "openai-community/openai-gpt",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.002704,
+      "wh_per_1000_queries": 2.704,
+      "wh_per_1000_input_etokens": 0.007325153939301998
+    },
+    {
+      "model_id": "microsoft/phi-1",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.006393,
+      "wh_per_1000_queries": 6.393,
+      "wh_per_1000_input_etokens": 0.017318679413445885
+    },
+    {
+      "model_id": "microsoft/phi-1 _5",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.00629,
+      "wh_per_1000_queries": 6.29,
+      "wh_per_1000_input_etokens": 0.01703965173010709
+    },
+    {
+      "model_id": "microsoft/phi-2",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.009864,
+      "wh_per_1000_queries": 9.864,
+      "wh_per_1000_input_etokens": 0.026721641441299893
+    },
+    {
+      "model_id": "microsoft/phi-4",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.028741,
+      "wh_per_1000_queries": 28.741,
+      "wh_per_1000_input_etokens": 0.07785955967806166
+    },
+    {
+      "model_id": "CohereForAI/aya-23-8 B",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.017817,
+      "wh_per_1000_queries": 17.817,
+      "wh_per_1000_input_etokens": 0.04826637120434308
+    },
+    {
+      "model_id": "allenai/OLMo-1.7-7 B-hf",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.016831,
+      "wh_per_1000_queries": 16.831,
+      "wh_per_1000_input_etokens": 0.045595290662866834
+    },
+    {
+      "model_id": "allenai/OLMo-1 B-hf",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.005594,
+      "wh_per_1000_queries": 5.594,
+      "wh_per_1000_input_etokens": 0.015154183112594444
+    },
+    {
+      "model_id": "facebook/opt-2.7 b",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.00806,
+      "wh_per_1000_queries": 8.06,
+      "wh_per_1000_input_etokens": 0.02183459347291942
+    },
+    {
+      "model_id": "facebook/opt-125 m",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.001944,
+      "wh_per_1000_queries": 1.944,
+      "wh_per_1000_input_etokens": 0.005266308897190489
+    },
+    {
+      "model_id": "mistralai/Mistral-7 B-v0.1",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.01913,
+      "wh_per_1000_queries": 19.13,
+      "wh_per_1000_input_etokens": 0.05182329691525414
+    },
+    {
+      "model_id": "mistralai/Ministral-8 B-Instruct-2410",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.020875,
+      "wh_per_1000_queries": 20.875,
+      "wh_per_1000_input_etokens": 0.05655051349220754
+    },
+    {
+      "model_id": "tiiuae/falcon-7 b",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.015875,
+      "wh_per_1000_queries": 15.875,
+      "wh_per_1000_input_etokens": 0.043005480320421306
+    },
+    {
+      "model_id": "meta-llama/Meta-Llama-3-8 B",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.017333,
+      "wh_per_1000_queries": 17.333,
+      "wh_per_1000_input_etokens": 0.04695521199331417
+    },
+    {
+      "model_id": "meta-llama/Llama-2-7 b-hf",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.016441,
+      "wh_per_1000_queries": 16.441,
+      "wh_per_1000_input_etokens": 0.04453877807546751
+    },
+    {
+      "model_id": "meta-llama/Meta-Llama-3.1-8 B",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.017376,
+      "wh_per_1000_queries": 17.376,
+      "wh_per_1000_input_etokens": 0.04707169927859154
+    },
+    {
+      "model_id": "meta-llama/Llama-2-13 b-hf",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.026102,
+      "wh_per_1000_queries": 26.102,
+      "wh_per_1000_input_etokens": 0.07071049116999288
+    },
+    {
+      "model_id": "HuggingFaceTB/SmolLM2-1.7 B-Instruct",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.007708,
+      "wh_per_1000_queries": 7.708,
+      "wh_per_1000_input_etokens": 0.020881023137625666
+    },
+    {
+      "model_id": "HuggingFaceTB/SmolLM-1.7 B",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.007645,
+      "wh_per_1000_queries": 7.645,
+      "wh_per_1000_input_etokens": 0.020710355719661157
+    },
+    {
+      "model_id": "HuggingFaceTB/SmolLM-135 M",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.00728,
+      "wh_per_1000_queries": 7.28,
+      "wh_per_1000_input_etokens": 0.019721568298120763
+    },
+    {
+      "model_id": "HuggingFaceTB/SmolLM-360 M",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.008095,
+      "wh_per_1000_queries": 8.095,
+      "wh_per_1000_input_etokens": 0.02192940870512192
+    },
+    {
+      "model_id": "google/gemma-2 b",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.00868,
+      "wh_per_1000_queries": 8.68,
+      "wh_per_1000_input_etokens": 0.02351417758622091
+    },
+    {
+      "model_id": "google/gemma-7 b",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.0189,
+      "wh_per_1000_queries": 18.9,
+      "wh_per_1000_input_etokens": 0.051200225389351976
+    },
+    {
+      "model_id": "google/gemma-2-2 b-it",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.018639,
+      "wh_per_1000_queries": 18.639,
+      "wh_per_1000_input_etokens": 0.05049317465778474
+    },
+    {
+      "model_id": "01-ai/Yi-1.5-9 B",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.023001,
+      "wh_per_1000_queries": 23.001,
+      "wh_per_1000_input_etokens": 0.062309861596851056
+    },
+    {
+      "model_id": "mistralai/Mixtral-8 x7B-v0.1",
+      "class": "B",
+      "total_gpu_energy_per_query_wh": 0.61539,
+      "wh_per_1000_queries": 615.39,
+      "wh_per_1000_input_etokens": 1.6670955927171065
+    },
+    {
+      "model_id": "Qwen/QwQ-32 B-Preview",
+      "class": "B",
+      "total_gpu_energy_per_query_wh": 0.054556,
+      "wh_per_1000_queries": 54.556,
+      "wh_per_1000_input_etokens": 0.147792565943994
+    },
+    {
+      "model_id": "01-ai/Yi-1.5-34 B",
+      "class": "B",
+      "total_gpu_energy_per_query_wh": 0.056079,
+      "wh_per_1000_queries": 56.079,
+      "wh_per_1000_input_etokens": 0.15191838304812008
+    },
+    {
+      "model_id": "CohereForAI/c4ai-command-r-plus",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 3.426382,
+      "wh_per_1000_queries": 3426.382,
+      "wh_per_1000_input_etokens": 9.282091569842255
+    },
+    {
+      "model_id": "crm-sf/TextBase-70 B",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 1.721556,
+      "wh_per_1000_queries": 1721.556,
+      "wh_per_1000_input_etokens": 4.663706625417526
+    },
+    {
+      "model_id": "meta-llama/Meta-Llama-3-70 B",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 1.719656,
+      "wh_per_1000_queries": 1719.656,
+      "wh_per_1000_input_etokens": 4.658559512812247
+    },
+    {
+      "model_id": "meta-llama/Llama-2-70 b-hf",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 1.648505,
+      "wh_per_1000_queries": 1648.505,
+      "wh_per_1000_input_etokens": 4.465810981771095
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-72 B-Instruct",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 1.869553,
+      "wh_per_1000_queries": 1869.553,
+      "wh_per_1000_input_etokens": 5.064631480282496
+    },
+    {
+      "model_id": "google/gemma-3-4 b-pt",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.0343867,
+      "wh_per_1000_queries": 34.3867,
+      "wh_per_1000_input_etokens": 0.09315379843365236
+    },
+    {
+      "model_id": "google/gemma-3-270 m",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.00929,
+      "wh_per_1000_queries": 9.29,
+      "wh_per_1000_input_etokens": 0.025166671633178827
+    },
+    {
+      "model_id": "Qwen/Qwen3-0.6 B",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.01183,
+      "wh_per_1000_queries": 11.83,
+      "wh_per_1000_input_etokens": 0.03204754848444624
+    },
+    {
+      "model_id": "tencent/Hunyuan-1.8 B-Instruct",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.0042,
+      "wh_per_1000_queries": 4.2,
+      "wh_per_1000_input_etokens": 0.01137782786430044
+    },
+    {
+      "model_id": "mistralai/Mistral-Nemo-Instruct-2407",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.02319,
+      "wh_per_1000_queries": 23.19,
+      "wh_per_1000_input_etokens": 0.06282186385074458
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-Coder-14 B",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.02712,
+      "wh_per_1000_queries": 27.12,
+      "wh_per_1000_input_etokens": 0.07346825992376856
+    },
+    {
+      "model_id": "microsoft/Phi-4-reasoning-plus",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.01842,
+      "wh_per_1000_queries": 18.42,
+      "wh_per_1000_input_etokens": 0.049899902204860506
+    },
+    {
+      "model_id": "google/gemma-3-1 b-pt",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.01233,
+      "wh_per_1000_queries": 12.33,
+      "wh_per_1000_input_etokens": 0.033402051801624866
+    },
+    {
+      "model_id": "ibm-granite/granite-4.0-micro",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.01663,
+      "wh_per_1000_queries": 16.63,
+      "wh_per_1000_input_etokens": 0.04505078032936102
+    },
+    {
+      "model_id": "HuggingFaceTB/SmolLM3-3 B",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.01835,
+      "wh_per_1000_queries": 18.35,
+      "wh_per_1000_input_etokens": 0.049710271740455496
+    },
+    {
+      "model_id": "ibm-granite/granite-4.0-h-tiny",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.08182,
+      "wh_per_1000_queries": 81.82,
+      "wh_per_1000_input_etokens": 0.22165092282310997
+    },
+    {
+      "model_id": "swiss-ai/Apertus-8 B-Instruct-2509",
+      "class": "A",
+      "total_gpu_energy_per_query_wh": 0.02174,
+      "wh_per_1000_queries": 21.74,
+      "wh_per_1000_input_etokens": 0.05889380423092656
+    },
+    {
+      "model_id": "google/gemma-3-27 b-pt",
+      "class": "B",
+      "total_gpu_energy_per_query_wh": 0.05041,
+      "wh_per_1000_queries": 50.41,
+      "wh_per_1000_input_etokens": 0.13656102443794885
+    },
+    {
+      "model_id": "Qwen/Qwen3-30 B-A3B",
+      "class": "B",
+      "total_gpu_energy_per_query_wh": 0.03738,
+      "wh_per_1000_queries": 37.38,
+      "wh_per_1000_input_etokens": 0.10126266799227393
+    },
+    {
+      "model_id": "LGAI-EXAONE/EXAONE-4.0-32 B",
+      "class": "B",
+      "total_gpu_energy_per_query_wh": 0.05448,
+      "wh_per_1000_queries": 54.48,
+      "wh_per_1000_input_etokens": 0.14758668143978285
+    },
+    {
+      "model_id": "zai-org/GLM-4.5-Air",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 0.22055,
+      "wh_per_1000_queries": 220.55,
+      "wh_per_1000_input_etokens": 0.597471413207491
+    },
+    {
+      "model_id": "Qwen/Qwen3-235 B-A22B",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 0.30581,
+      "wh_per_1000_queries": 305.81,
+      "wh_per_1000_input_etokens": 0.8284413188527899
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-32 B",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 0.03664,
+      "wh_per_1000_queries": 36.64,
+      "wh_per_1000_input_etokens": 0.09925800308284956
+    },
+    {
+      "model_id": "zai-org/GLM-4.5",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 1.22542,
+      "wh_per_1000_queries": 1225.42,
+      "wh_per_1000_input_etokens": 3.3196709098740587
+    },
+    {
+      "model_id": "zai-org/GLM-4.6",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 1.27355,
+      "wh_per_1000_queries": 1273.55,
+      "wh_per_1000_input_etokens": 3.4500553991856724
+    },
+    {
+      "model_id": "swiss-ai/Apertus-70 B-Instruct-2509",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 0.69752,
+      "wh_per_1000_queries": 697.52,
+      "wh_per_1000_input_etokens": 1.8895863075968673
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-R1-Distill-Llama-70 B",
+      "class": "C",
+      "total_gpu_energy_per_query_wh": 0.04953,
+      "wh_per_1000_queries": 49.53,
+      "wh_per_1000_input_etokens": 0.13417709859971447
+    }
+  ]
+}

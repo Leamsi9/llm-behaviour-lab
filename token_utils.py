@@ -142,7 +142,7 @@ def create_token_breakdown(
     # Calculate estimation accuracy
     estimated_prompt = middleware_tracking["final_total"]
     actual_prompt = ollama_prompt_tokens
-    
+
     if actual_prompt > 0:
         accuracy = (min(estimated_prompt, actual_prompt) / max(estimated_prompt, actual_prompt)) * 100
     else:
@@ -163,7 +163,8 @@ def create_token_breakdown(
     
     # Derive user-visible tokens from actual prompt minus middleware overhead
     actual_prompt = max(0, int(ollama_prompt_tokens or 0))
-    user_tokens_est = max(0, actual_prompt - total_injection)
+    template_overhead_tokens = max(0, actual_prompt - estimated_prompt)
+    user_tokens_est = max(0, actual_prompt - total_injection - template_overhead_tokens)
 
     # Build comprehensive breakdown
     return {
@@ -184,7 +185,7 @@ def create_token_breakdown(
             "estimated_prompt_tokens": estimated_prompt,
             "ollama_actual_prompt_tokens": actual_prompt,
             "delta": actual_prompt - estimated_prompt,
-            "template_overhead_tokens": max(0, actual_prompt - estimated_prompt),
+            "template_overhead_tokens": template_overhead_tokens,
             "accuracy_percent": round(accuracy, 1)
         },
         "totals": {

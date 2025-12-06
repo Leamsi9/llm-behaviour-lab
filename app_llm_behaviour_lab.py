@@ -25,7 +25,14 @@ import uvicorn
 from app_model_comparison import Payload as ComparisonPayload, run_generation as run_comparison_generation
 
 # Import our specialized modules
-from energy_tracker import energy_tracker, estimate_energy_impact, get_available_benchmarks, ENERGY_BENCHMARKS
+from energy_tracker import (
+    energy_tracker,
+    estimate_energy_impact,
+    get_available_benchmarks,
+    ENERGY_BENCHMARKS,
+    get_hf_benchmarks,
+    get_benchmark_sources,
+)
 from rapl_benchmark import measure_wh_per_1000_tokens
 from prompt_injection import injection_manager, InjectionConfig, InjectionType
 from tool_integration import tool_manager, ToolIntegrationConfig, ToolIntegrationMethod, ToolCall
@@ -291,35 +298,16 @@ async def get_benchmark_info():
     """Get information about benchmarks and CO2 conversion."""
     return {
         "benchmarks": get_available_benchmarks(),
+        "hf_benchmarks": get_hf_benchmarks(),
         "co2_info": {
             "global_average_gco2_per_kwh": 400,
             "description": "Global average carbon intensity for electricity generation",
             "source": "IEA 2023 Global Energy Review",
             "units": "grams of CO2 equivalent per kilowatt-hour",
-            "calculation": "Energy consumption (Wh) × Carbon intensity (gCO2/kWh) ÷ 1000"
+            "calculation": "Energy consumption (Wh) × Carbon intensity (gCO2/kWh) ÷ 1000",
         },
-        "benchmark_sources": {
-            "conservative_estimate": {
-                "description": "Conservative estimate based on typical LLM inference workloads",
-                "source": "Estimated from various academic papers and industry reports",
-                "assumptions": "Assumes efficient GPU utilization, typical model sizes, and modern hardware"
-            },
-            "nvidia_rtx_4090": {
-                "description": "NVIDIA RTX 4090 GPU benchmark",
-                "source": "Measured power consumption during LLM inference",
-                "specs": "24GB GDDR6X, Ada Lovelace architecture"
-            },
-            "nvidia_a100": {
-                "description": "NVIDIA A100 GPU benchmark (data center)",
-                "source": "Manufacturer specifications and research measurements",
-                "specs": "40GB HBM2e, Ampere architecture, 400W TDP"
-            },
-            "apple_m2": {
-                "description": "Apple M2 chip benchmark",
-                "source": "Measured power consumption during LLM inference",
-                "specs": "8-core CPU, 10-core GPU, 20W TDP"
-            }
-        }
+        # Expose all external benchmark JSON sources (e.g. Hugging Face, Jegham et al.)
+        "benchmark_sources": get_benchmark_sources(),
     }
 
 
@@ -471,7 +459,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # For the integrated lab, treat all tests as energy-style runs
             test_type = raw.get('test_type', 'energy')  # Retained for logging only
             print(f"🧪 [INTEGRATED LAB /ws] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)")
-            print(f"🧪 [INTEGRATED LAB /ws] Creating task for payload: {raw.get('model_name')}")  # DEBUG
+            print(f"🧪 [INTEGRATED LAB /ws] Creating task for payload: {raw.get('model_name')}")
             await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws] Handling {test_type.upper()} test - INTEGRATED APP (delegates to standalone)"})
 
             # Create EnergyPayload and delegate to the standalone energy app (include new composition fields)
