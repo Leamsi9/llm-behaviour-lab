@@ -137,9 +137,29 @@
       margin-bottom: 1rem;
     }
 
-    #docs-article pre code {
-      background: transparent;
-      padding: 0;
+    #docs-article blockquote {
+      border-left: 4px solid #7dd3fc;
+      padding-left: 1rem;
+      margin: 1rem 0;
+      color: #93c5fd;
+      background-color: rgba(125, 211, 252, 0.1);
+      border-radius: 0.25rem;
+    }
+
+    #docs-article ul {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    #docs-article ol {
+      list-style-type: decimal;
+      padding-left: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    #docs-article li {
+      margin-bottom: 0.25rem;
     }
   </style>
 </head>
@@ -177,9 +197,7 @@
       <!-- Sidebar: document buttons -->
       <nav id="docs-tablist" class="dashboard-card p-3 md:p-4 flex flex-col gap-2" role="tablist"
         aria-label="Documentation sections">
-        <p class="text-xs text-slate-400 mb-1">
-          Choose a document to view. All content is rendered in full with readable typography.
-        </p>
+      
         <div id="docs-tabs" class="flex flex-col gap-1" aria-live="polite"></div>
       </nav>
 
@@ -189,13 +207,33 @@
         <div id="docs-status" class="text-sm text-slate-300">
           Loading documentation…
         </div>
-        <article id="docs-article" class="max-w-none text-[15px] md:text-base leading-relaxed"></article>
+        <article id="docs-article" class="max-w-none text-[15px] md:text-base leading-relaxed tex2jax_ignore"></article>
       </main>
     </div>
   </div>
 
   <!-- Lightweight markdown renderer -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" crossorigin="anonymous"></script>
+  <!-- MathJax for rendering LaTeX math -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global'
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'ul', 'ol', 'li', 'blockquote', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'td', 'th'],
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process',
+        processEscapes: true,
+        processEnvironments: false
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
   <script>
     (function () {
       const tabContainer = document.getElementById('docs-tabs');
@@ -365,9 +403,11 @@
         if (window.marked) {
           marked.setOptions({
             gfm: true,
-            breaks: false,
+            breaks: true,
             headerIds: true,
-            mangle: false
+            mangle: false,
+            smartLists: true,
+            smartypants: true
           });
           try {
             articleEl.innerHTML = window.marked.parse(doc.content || '');
@@ -381,6 +421,28 @@
 
         enhanceLinksForDoc(doc);
         scrollToAnchor(anchor);
+
+        // Mark elements containing math for MathJax processing after DOM is stable
+        if (window.MathJax) {
+          setTimeout(() => {
+            // Find all elements that might contain math (paragraphs, list items, etc.)
+            const mathContainers = articleEl.querySelectorAll('p, li, blockquote, td, th, div');
+            mathContainers.forEach(el => {
+              if (el.textContent && (el.textContent.includes('$') || el.textContent.includes('\\(') || el.textContent.includes('\\['))) {
+                el.classList.add('tex2jax_process');
+              }
+            });
+
+            // Also check for direct math in the article
+            if (articleEl.textContent && (articleEl.textContent.includes('$') || articleEl.textContent.includes('\\(') || articleEl.textContent.includes('\\['))) {
+              articleEl.classList.remove('tex2jax_ignore');
+              articleEl.classList.add('tex2jax_process');
+            }
+
+            // Typeset math equations with MathJax
+            window.MathJax.typesetPromise([articleEl]).catch((err) => console.warn('MathJax typesetting failed:', err));
+          }, 100); // Small delay to ensure DOM is stable
+        }
       }
 
       function activateDoc(docId, anchor, focusTab) {

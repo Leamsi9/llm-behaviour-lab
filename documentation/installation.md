@@ -148,8 +148,8 @@ uvicorn app_llm_behaviour_lab:app --host 0.0.0.0 --port 8001 --reload
 Then open:
 
 - Integrated Lab: `http://localhost:8001/`
-- Energy Testing Lab: `http://localhost:8001/energy`
-- Model Comparison: `http://localhost:8001/comparison`
+- LLM Energy Lab: `http://localhost:8001/energy`
+- LLM Behaviour Lab: `http://localhost:8001/behaviour`
 
 Optional standalone Energy app (same UI/endpoints on a separate port):
 

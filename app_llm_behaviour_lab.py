@@ -135,15 +135,15 @@ async def energy_ui():
     except FileNotFoundError:
         return HTMLResponse("<h1>Energy UI not found. Please check static/ui_energy.html</h1>")
 
-@app.get("/comparison")
-async def comparison_ui():
+@app.get("/behaviour")
+async def behaviour_ui():
     """Serve the model comparison UI (basic model testing)"""
     try:
         with open("static/ui_multi.html", "r") as f:
             content = f.read()
         return HTMLResponse(content)
     except FileNotFoundError:
-        return HTMLResponse("<h1>Model Comparison UI not found. Please check static/ui_multi.html</h1>")
+        return HTMLResponse("<h1>Model Behaviour UI not found. Please check static/ui_multi.html</h1>")
 
 
 @app.get("/documentation")
@@ -663,7 +663,7 @@ async def websocket_endpoint(websocket: WebSocket):
         with contextlib.suppress(Exception):
             await websocket.close()
 
-@app.websocket("/ws/comparison")
+@app.websocket("/ws/behaviour")
 async def comparison_websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for basic model comparison"""
     await websocket.accept()
@@ -735,8 +735,8 @@ async def comparison_websocket_endpoint(websocket: WebSocket):
 
             # For the integrated lab, comparison WebSocket delegates to the standalone comparison app
             test_type = raw.get('test_type', 'comparison')  # Logging only
-            print(f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - delegating to comparison app")
-            await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws/comparison] Handling {test_type.upper()} test - delegating to comparison app"})
+            print(f"🧪 [INTEGRATED LAB /ws/behaviour] Handling {test_type.upper()} test - delegating to comparison app")
+            await websocket.send_json({"log": f"🧪 [INTEGRATED LAB /ws/behaviour] Handling {test_type.upper()} test - delegating to comparison app"})
 
             current_task = asyncio.create_task(run_comparison_generation(payload_obj, websocket, cancel_event))
             current_task.add_done_callback(reset_task)
@@ -852,7 +852,7 @@ if __name__ == "__main__":
     print()
     print("This lab integrates multiple specialized testing environments:")
     print("• Energy Testing Lab: http://localhost:8001/energy")
-    print("• Model Comparison Lab: http://localhost:8001/comparison")
+    print("• LLM Behaviour Lab: http://localhost:8001/behaviour")
     print()
     print("Standalone apps also available:")
     print("• python3 app_energy.py (port 8002)")

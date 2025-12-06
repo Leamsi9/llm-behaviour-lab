@@ -25,7 +25,7 @@ class TestComparisonAppRoutes:
     
     def test_comparison_route(self, comparison_client):
         """Test comparison UI route"""
-        # The comparison app serves UI at root, not /comparison
+        # The comparison app serves UI at root, not /behaviour
         response = comparison_client.get("/")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]

@@ -38,7 +38,7 @@ class TestAppRoutes:
     
     def test_comparison_route(self, test_client):
         """Test comparison UI route"""
-        response = test_client.get("/comparison")
+        response = test_client.get("/behaviour")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
 

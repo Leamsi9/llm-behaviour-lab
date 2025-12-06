@@ -41,16 +41,24 @@ The **LLM Energy Lab (primary)**: The Energy Lab is designed to surface the diff
  ## Features
 
 ### Energy Testing Lab (primary)
-- ✅ **Per-input/output-token energy metrics**: All "Wh/1000" metrics are per 1000 energy weighted tokens (e-tokens) normalised by input or by output ("Wh/1000 e-tokens").
-- ✅ **Live Hardware Tests (RAPL)**: Snapshot-based cumulative energy counters with start/split/end snapshots to separate Prefill (input) vs Decode (output) energy, plus measured Wh/1K.
-- ✅ **Estimated Benchmark Tests**: Switch and create benchmarks; recalculate session with new benchmarks.
-- ✅ **Middleware Injections and Configuration**: Custom and Frontier System Prompts, Conversation Context (with "Inject conversation"), free-form injections, thinking and temperature toggles.
-- ✅ **RAPL Batch Runner**: Multiple live runs using current UI query + injections with CLI logs and stop support; results table appears in Test Results.
-- ✅ **Real-time streaming**: Token streaming over WebSocket (supports reasoning "thinking" streams when present).
+ 
+ ✅ **Per-input/output-token energy metrics**: All "Wh/1000" metrics are per 1000 energy weighted tokens (e-tokens) normalised by input or by output ("Wh/1000 e-tokens").
+ 
+ ✅ **Live Hardware Tests (RAPL)**: Snapshot-based cumulative energy counters with start/split/end snapshots to separate Prefill (input) vs Decode (output) energy, plus measured Wh/1K.
+ 
+ ✅ **Estimated Benchmark Tests**: Switch and create benchmarks; recalculate session with new benchmarks.
+ 
+ ✅ **Middleware Injections and Configuration**: Custom and Frontier System Prompts, Conversation Context (with "Inject conversation"), free-form injections, thinking and temperature toggles.
+ 
+ ✅ **RAPL Batch Runner**: Multiple live runs using current UI query + injections with CLI logs and stop support; results table appears in Test Results.
+ 
+ ✅ **Real-time streaming**: Token streaming over WebSocket (supports reasoning "thinking" streams when present).
 
 ### LLM Behaviour Lab (WIP)
-- ✅ Multi-model comparison panes with per-pane controls.
-- ✅ Streaming outputs, token counts (prompt/completion), and TPS.
+ 
+ ✅ Multi-model comparison panes with per-pane controls.
+ 
+ ✅ Streaming outputs, token counts (prompt/completion), and TPS.
  
  ## Conceptual Overview
  
@@ -238,15 +246,15 @@ Then:
 
 #### **E-tokens provide:**
 
-✔ A universal scale for comparing models
+ ✅ A universal scale for comparing models
 
-✔ A universal scale for comparing tasks
+ ✅ A universal scale for comparing tasks
 
-✔ A universal scale for comparing hardware
+ ✅ A universal scale for comparing hardware
 
-✔ A way to express task intensity ("how heavy is this task?")
+ ✅ A way to express task intensity ("how heavy is this task?")
 
-✔ A predictive metric for relative cost at scale
+ ✅ A predictive metric for relative cost at scale
 
 **_Examples:_**
 
@@ -481,10 +489,14 @@ This is a **work in progress** project and contributions are welcome. Please fol
 This project is licensed under the **MIT License** 
 
 **This software is fully Free and Open Source.** You are free to:
-- ✅ Use it for any purpose (personal, commercial, educational)
-- ✅ Modify and distribute your changes
-- ✅ Include it in other projects
-- ✅ Use it in production environments
+ 
+ ✅ Use it for any purpose (personal, commercial, educational)
+ 
+ ✅ Modify and distribute your changes
+ 
+ ✅ Include it in other projects
+ 
+ ✅ Use it in production environments
 
 ### Author
 **Ismael Velasco** - Original developer and maintainer

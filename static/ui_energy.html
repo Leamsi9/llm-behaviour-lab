@@ -304,7 +304,7 @@
 
     <!-- Navigation Dashboard (Sticky) -->
     <div class="sticky top-0 z-40 bg-gradient-to-b from-slate-950 to-transparent pb-4 mb-8">
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <button class="nav-button active" onclick="toggleSection('prompt-model')" data-section="prompt-model">
           <div class="text-2xl mb-2">🎯</div>
           <div class="text-sm">Prompt Model</div>
@@ -313,19 +313,16 @@
           <div class="text-2xl mb-2">🧩</div>
           <div class="text-sm">Middleware</div>
         </button>
-        <button class="nav-button" onclick="toggleSection('live-power')" data-section="live-power">
-          <div class="text-2xl mb-2">⚙️</div>
-          <div class="text-sm">Live Metrics</div>
-        </button>
         <button class="nav-button" onclick="toggleSection('response')" data-section="response">
           <div class="text-2xl mb-2">💬</div>
           <div class="text-sm">Response</div>
         </button>
         <button class="nav-button" onclick="toggleSection('results')" data-section="results">
           <div class="text-2xl mb-2">📈</div>
-          <div class="text-sm">Results</div>
+          <div class="text-sm">Tests</div>
         </button>
-        <a href="/documentation" class="nav-button flex flex-col items-start justify-center"
+        <a href="/documentation" target="_blank" rel="noopener noreferrer"
+          class="nav-button flex flex-col items-start justify-center"
           title="Open the full documentation for concepts, installation, API endpoints, and troubleshooting.">
           <div class="text-2xl mb-2">📚</div>
           <div class="text-sm">Documentation</div>
@@ -494,67 +491,6 @@
       </div>
     </div>
 
-    <!-- Section: Live Power -->
-    <div id="section-live-power" class="section-content">
-      <div class="space-y-6">
-        <div class="dashboard-card p-6 space-y-6">
-          <h2 class="text-2xl font-bold flex items-center gap-2 mb-2">
-          <span>⚡</span> Live Power RAPL Results
-          <span class="text-xs text-slate-400 cursor-help"
-            title="Live hardware measurements using CPU/DRAM RAPL counters. Prefill vs decode energy is split using start/split/end snapshots.">ⓘ</span>
-        </h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="metric-card">
-              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
-                <span>🔄</span> Batch Testing
-                <span class="text-[10px] text-slate-400 cursor-help"
-                  title="Run the same live measurement N times with current settings to study variability and stability of Wh/1000 e-tokens.">ⓘ</span>
-              </h4>
-              <label class="block text-xs text-slate-400 mb-2 cursor-help"
-                title="How many back-to-back live runs to perform. Larger batches give better statistics but take longer.">Number
-                of Runs</label>
-              <input type="number" id="raplBatchRuns" value="1" min="1" max="100" class="w-full">
-            </div>
-
-            <div class="metric-card">
-              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
-                <span>🎲</span> Reproducibility & Calibration
-                <span class="text-[10px] text-slate-400 cursor-help"
-                  title="Control randomness across runs and create calibrated benchmarks from repeated RAPL measurements.">ⓘ</span>
-              </h4>
-              <label class="block text-xs text-slate-400 mb-2 cursor-help"
-                title="Optional random seed for the model. Setting this makes batches more comparable by reducing sampling variance.">Seed
-                (Optional)</label>
-              <input type="number" id="seedInput" placeholder="Random" class="w-full">
-
-              <div class="mt-4 pt-4 border-t border-slate-700">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <label class="block text-xs text-slate-400 mb-1 cursor-help"
-                      title="Summarises whether you have run a RAPL calibration to turn live measurements into a reusable energy benchmark for this hardware.">Calibration</label>
-                    <p class="text-[10px] text-slate-500" id="raplCalibrationStatus">Not run yet.</p>
-                  </div>
-                  <button id="runRaplCalibration" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded">
-                    Run Calibration
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Phase Energy Analysis Chart -->
-          <div style="height: 150px; position: relative; margin-top: 1.5rem; margin-bottom: 1.5rem;">
-            <canvas id="phaseEnergyChart"></canvas>
-          </div>
-
-          <div id="raplResultsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- RAPL results will be populated here as metric cards -->
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Section: Response -->
     <div id="section-response" class="section-content">
       <div class="dashboard-card p-6">
@@ -632,11 +568,11 @@
     <div id="section-results" class="section-content">
       <div class="space-y-6">
 
-        <!-- Results Overview (full width, first) -->
+        <!-- Tests Overview (full width, first) -->
         <div class="dashboard-card p-6">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold flex items-center gap-2">
-              <span>📈</span> Results Overview
+              <span>📈</span> Tests Overview
               <span class="text-xs text-slate-400 cursor-help"
                 title="Session-level KPIs summarising energy (Wh), intensity per 1k tokens, speed, and carbon footprint derived from your selected grid.">ⓘ</span>
             </h2>
@@ -673,7 +609,7 @@
               <div class="absolute top-0 right-0 p-2 opacity-10 text-6xl">🚀</div>
               <div class="text-xs font-semibold text-slate-400 mb-1">Speed</div>
               <div class="metric-value text-3xl" id="kpiSpeedMain">-</div>
-              <div class="text-[11px] text-slate-500 mt-1" id="kpiSpeedDetail">Tokens/sec</div>
+              <div class="text-[11px] text-slate-500 mt-1" id="kpiSpeedDetail">Total time (s)</div>
             </div>
 
             <!-- Carbon -->
@@ -751,63 +687,6 @@
           </div>
         </div>
 
-        <!-- Live Power RAPL Results (moved under Results Overview) -->
-        <div class="dashboard-card p-6 space-y-6">
-          <h2 class="text-2xl font-bold flex items-center gap-2 mb-2">
-            <span>⚡</span> Live Power RAPL Results
-            <span class="text-xs text-slate-400 cursor-help"
-              title="Live hardware measurements using CPU/DRAM RAPL counters. Prefill vs decode energy is split using start/split/end snapshots.">ⓘ</span>
-          </h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="metric-card">
-              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
-                <span>🔄</span> Batch Testing
-                <span class="text-[10px] text-slate-400 cursor-help"
-                  title="Run the same live measurement N times with current settings to study variability and stability of Wh/1000 e-tokens.">ⓘ</span>
-              </h4>
-              <label class="block text-xs text-slate-400 mb-2 cursor-help"
-                title="How many back-to-back live runs to perform. Larger batches give better statistics but take longer.">Number
-                of Runs</label>
-              <input type="number" id="raplBatchRuns" value="1" min="1" max="100" class="w-full">
-            </div>
-
-            <div class="metric-card">
-              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
-                <span>🎲</span> Reproducibility & Calibration
-                <span class="text-[10px] text-slate-400 cursor-help"
-                  title="Control randomness across runs and create calibrated benchmarks from repeated RAPL measurements.">ⓘ</span>
-              </h4>
-              <label class="block text-xs text-slate-400 mb-2 cursor-help"
-                title="Optional random seed for the model. Setting this makes batches more comparable by reducing sampling variance.">Seed
-                (Optional)</label>
-              <input type="number" id="seedInput" placeholder="Random" class="w-full">
-
-              <div class="mt-4 pt-4 border-t border-slate-700">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <label class="block text-xs text-slate-400 mb-1 cursor-help"
-                      title="Summarises whether you have run a RAPL calibration to turn live measurements into a reusable energy benchmark for this hardware.">Calibration</label>
-                    <p class="text-[10px] text-slate-500" id="raplCalibrationStatus">Not run yet.</p>
-                  </div>
-                  <button id="runRaplCalibration" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded">
-                    Run Calibration
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Prefill vs Decode history chart (multi-run line plot) -->
-          <div style="height: 180px; position: relative; margin-top: 1.5rem; margin-bottom: 1.5rem;">
-            <canvas id="prefillDecodeChart"></canvas>
-          </div>
-
-          <div id="raplResultsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- RAPL results will be populated here as metric cards -->
-          </div>
-        </div>
-
         <!-- Benchmark Estimation (moved under Results Overview) -->
         <div class="dashboard-card p-6">
           <h2 class="text-2xl font-bold flex items-center gap-2 mb-6">
@@ -881,6 +760,63 @@
             <div class="text-xs text-slate-400 mt-2">
               Uses the selected benchmark and external baselines to estimate Wh/1000 e-tokens for this run and session.
             </div>
+          </div>
+        </div>
+
+        <!-- Live Power RAPL Results -->
+        <div class="dashboard-card p-6 space-y-6">
+          <h2 class="text-2xl font-bold flex items-center gap-2 mb-2">
+            <span>⚡</span> Live Power RAPL Results
+            <span class="text-xs text-slate-400 cursor-help"
+              title="Live hardware measurements using CPU/DRAM RAPL counters. Prefill vs decode energy is split using start/split/end snapshots.">ⓘ</span>
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="metric-card">
+              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
+                <span>🔄</span> Batch Testing
+                <span class="text-[10px] text-slate-400 cursor-help"
+                  title="Run the same live measurement N times with current settings to study variability and stability of Wh/1000 e-tokens.">ⓘ</span>
+              </h4>
+              <label class="block text-xs text-slate-400 mb-2 cursor-help"
+                title="How many back-to-back live runs to perform. Larger batches give better statistics but take longer.">Number
+                of Runs</label>
+              <input type="number" id="raplBatchRuns" value="1" min="1" max="100" class="w-full">
+            </div>
+
+            <div class="metric-card">
+              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
+                <span>🎲</span> Reproducibility & Calibration
+                <span class="text-[10px] text-slate-400 cursor-help"
+                  title="Control randomness across runs and create calibrated benchmarks from repeated RAPL measurements.">ⓘ</span>
+              </h4>
+              <label class="block text-xs text-slate-400 mb-2 cursor-help"
+                title="Optional random seed for the model. Setting this makes batches more comparable by reducing sampling variance.">Seed
+                (Optional)</label>
+              <input type="number" id="seedInput" placeholder="Random" class="w-full">
+
+              <div class="mt-4 pt-4 border-t border-slate-700">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="block text-xs text-slate-400 mb-1 cursor-help"
+                      title="Summarises whether you have run a RAPL calibration to turn live measurements into a reusable energy benchmark for this hardware.">Calibration</label>
+                    <p class="text-[10px] text-slate-500" id="raplCalibrationStatus">Not run yet.</p>
+                  </div>
+                  <button id="runRaplCalibration" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded">
+                    Run Calibration
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prefill / Decode / Total history chart (multi-run line plot) -->
+          <div style="height: 180px; position: relative; margin-top: 1.5rem; margin-bottom: 1.5rem;">
+            <canvas id="prefillDecodeChart"></canvas>
+          </div>
+
+          <div id="raplResultsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- RAPL results will be populated here as metric cards -->
           </div>
         </div>
 
@@ -1079,6 +1015,22 @@
       sorted.forEach(s => {
         const card = document.createElement('div');
         card.className = 'metric-card';
+
+        const meanIn = (typeof s.meanInputTokens === 'number') ? s.meanInputTokens : null;
+        const meanOut = (typeof s.meanOutputTokens === 'number') ? s.meanOutputTokens : null;
+        let ratioDisplay = 'n/a';
+        if (meanIn != null && meanOut != null && meanOut > 0) {
+          const ratio = meanIn / meanOut;
+          ratioDisplay = `${meanIn.toFixed(0)} in / ${meanOut.toFixed(0)} out (ratio ${ratio.toFixed(2)} : 1)`;
+        } else if (meanIn != null || meanOut != null) {
+          ratioDisplay = `${meanIn != null ? meanIn.toFixed(0) : 'n/a'} in / ${meanOut != null ? meanOut.toFixed(0) : 'n/a'} out`;
+        }
+
+        const prefillWh = (typeof s.meanPrefillWh === 'number') ? s.meanPrefillWh : null;
+        const decodeWh = (typeof s.meanDecodeWh === 'number') ? s.meanDecodeWh : null;
+        const prefillWhText = prefillWh != null ? `${prefillWh.toFixed(6)} Wh` : 'n/a';
+        const decodeWhText = decodeWh != null ? `${decodeWh.toFixed(6)} Wh` : 'n/a';
+
         card.innerHTML = `
           <div class="flex justify-between items-start mb-3">
             <div class="text-xs text-slate-400">${s.time}</div>
@@ -1111,6 +1063,22 @@
               <div>
                 <div class="text-slate-500">Total Wh</div>
                 <div class="font-semibold">${(s.meanTotalWh != null ? s.meanTotalWh.toFixed(6) : 'n/a')}</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 gap-1 text-xs mt-2">
+              <div>
+                <div class="text-slate-500">Input / Output Tokens (μ)</div>
+                <div class="font-semibold">${ratioDisplay}</div>
+              </div>
+              <div class="grid grid-cols-2 gap-2 mt-1">
+                <div>
+                  <div class="text-slate-500">Prefill Energy</div>
+                  <div class="font-semibold">${prefillWhText}</div>
+                </div>
+                <div>
+                  <div class="text-slate-500">Decode Energy</div>
+                  <div class="font-semibold">${decodeWhText}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -1323,29 +1291,22 @@
     function updateCarbonCalculation() {
       currentEmissionFactor = getSelectedEmissionFactor();
 
-      // Recalculate carbon for the current test results if available
+      // Recalculate carbon for the current test results if available, preferring RAPL energy when present
       if (currentTestResults && currentTestResults.energy_metrics) {
-        const energyWh = currentTestResults.energy_metrics.watt_hours_consumed;
+        const em = currentTestResults.energy_metrics || {};
+        const lpm = currentTestResults.live_power_metrics || {};
+        let energyWh = 0;
+        if (lpm && typeof lpm.total_wh === 'number') {
+          energyWh = lpm.total_wh;
+        } else if (typeof em.watt_hours_consumed === 'number') {
+          energyWh = em.watt_hours_consumed;
+        }
         const newCarbon = energyWh * currentEmissionFactor;
 
         if (kpiCarbonMain) {
-          kpiCarbonMain.textContent = `${newCarbon.toFixed(2)} gCO2`;
-        }
-
-        // Update chart if in carbon mode
-        if (currentChartMode === 'carbon') {
-          updateMainChart();
+          kpiCarbonMain.textContent = `${newCarbon.toFixed(4)} gCO2`;
         }
       }
-
-      // Update all history entries' carbon values
-      energyHistory = energyHistory.map(entry => {
-        const energyWh = entry.energyWh || 0;
-        return {
-          ...entry,
-          carbonG: energyWh * currentEmissionFactor
-        };
-      });
 
       // Redraw chart to reflect new carbon values
       if (currentChartMode === 'carbon') {
@@ -2202,9 +2163,29 @@
         if (!batchRunning && data.live_power_metrics && data.live_power_metrics.measured_wh_per_1000_tokens != null) {
           const now = new Date();
           const ts = now.toLocaleTimeString();
-          const raplWhPer1k = data.live_power_metrics.measured_wh_per_1000_tokens;
+          const lpm = data.live_power_metrics || {};
+          const raplWhPer1k = lpm.measured_wh_per_1000_tokens;
           const inTok = data.basic_metrics?.prompt_tokens ?? null;
           const outTok = data.basic_metrics?.completion_tokens ?? null;
+
+          let prefillPer1k = null;
+          if (lpm.calib_prefill_per_1000_input_tokens != null) {
+            prefillPer1k = lpm.calib_prefill_per_1000_input_tokens;
+          } else if (lpm.prefill_active_per_1000_input_tokens != null) {
+            prefillPer1k = lpm.prefill_active_per_1000_input_tokens;
+          } else if (lpm.prefill_wh_per_1000_input_tokens != null) {
+            prefillPer1k = lpm.prefill_wh_per_1000_input_tokens;
+          }
+
+          let decodePer1k = null;
+          if (lpm.calib_baseline_per_1000_output_tokens != null) {
+            decodePer1k = lpm.calib_baseline_per_1000_output_tokens;
+          } else if (lpm.decode_active_per_1000_output_tokens != null) {
+            decodePer1k = lpm.decode_active_per_1000_output_tokens;
+          } else if (lpm.decode_wh_per_1000_output_tokens != null) {
+            decodePer1k = lpm.decode_wh_per_1000_output_tokens;
+          }
+
           raplBatchSummaries.push({
             id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
             time: ts,
@@ -2219,6 +2200,8 @@
             medianInputTokens: inTok,
             meanOutputTokens: outTok,
             medianOutputTokens: outTok,
+            meanPrefillIntensityPer1k: prefillPer1k,
+            meanDecodeIntensityPer1k: decodePer1k,
           });
           renderRaplBatchTable();
         }
@@ -2264,6 +2247,10 @@
       const thinkTokArr = [];
       const inputTokensArr = [];
       const outputTokensArr = [];
+      const prefillIntensityArr = [];
+      const decodeIntensityArr = [];
+      const prefillWhArr = [];
+      const decodeWhArr = [];
       _raplBatchFirstDuration = null;
 
       for (let i = 0; i < totalRuns; i++) {
@@ -2288,12 +2275,14 @@
         }
 
         let payload;
-        try {
-          payload = buildEnergyPayload(true);
-        } catch (e) {
-          appendCliLog(`❌ Skipping run: ${e.message}`);
-          break;
-        }
+        try { payload = buildEnergyPayload(true); } catch (e) { alert(e.message); return; }
+        const base = userPrompt.value.trim();
+        // Create a padding string that tokenizes into many distinct tokens across models
+        // Use space-separated alphanumeric tokens to avoid aggressive BPE merges
+        const padWordCount = Math.max(0, 100);
+        const pad = padWordCount > 0 ? Array.from({ length: padWordCount }, (_, k) => `w${k}`).join(' ') : '';
+        payload.user_prompt = base + (pad ? ('\n' + pad) : '');
+        payload.user = payload.user_prompt;
 
         ws.send(JSON.stringify(payload));
 
@@ -2308,12 +2297,53 @@
           const completionTokens = data.basic_metrics.completion_tokens ?? null;
           const latency = data.basic_metrics.latency;
           const energyWh = data.energy_metrics.watt_hours_consumed;
-          const raplWhPer1k = data.live_power_metrics && data.live_power_metrics.measured_wh_per_1000_tokens;
-          const raplTotalWh = (data.live_power_metrics && data.live_power_metrics.total_wh != null) ? data.live_power_metrics.total_wh : null;
-          const ttft = data.live_power_metrics && data.live_power_metrics.ttft_seconds;
-          const decDur = data.live_power_metrics && data.live_power_metrics.decode_duration_seconds;
-          const runDur = data.live_power_metrics && data.live_power_metrics.run_duration_seconds;
+          const lpm = data.live_power_metrics || {};
+          const raplWhPer1k = lpm && lpm.measured_wh_per_1000_tokens;
+          const raplTotalWh = (lpm && lpm.total_wh != null) ? lpm.total_wh : null;
+          const ttft = lpm && lpm.ttft_seconds;
+          const decDur = lpm && lpm.decode_duration_seconds;
+          const runDur = lpm && lpm.run_duration_seconds;
           const thinkTok = (data.token_metrics && data.token_metrics.breakdown && data.token_metrics.breakdown.generation && (data.token_metrics.breakdown.generation.thinking_tokens != null)) ? data.token_metrics.breakdown.generation.thinking_tokens : null;
+
+          let prefillPer1k = null;
+          if (lpm && lpm.calib_prefill_per_1000_input_tokens != null) {
+            prefillPer1k = lpm.calib_prefill_per_1000_input_tokens;
+          } else if (lpm && lpm.prefill_active_per_1000_input_tokens != null) {
+            prefillPer1k = lpm.prefill_active_per_1000_input_tokens;
+          } else if (lpm && lpm.prefill_wh_per_1000_input_tokens != null) {
+            prefillPer1k = lpm.prefill_wh_per_1000_input_tokens;
+          }
+
+          let decodePer1k = null;
+          if (lpm && lpm.calib_baseline_per_1000_output_tokens != null) {
+            decodePer1k = lpm.calib_baseline_per_1000_output_tokens;
+          } else if (lpm && lpm.decode_active_per_1000_output_tokens != null) {
+            decodePer1k = lpm.decode_active_per_1000_output_tokens;
+          } else if (lpm && lpm.decode_wh_per_1000_output_tokens != null) {
+            decodePer1k = lpm.decode_wh_per_1000_output_tokens;
+          }
+
+          let prefillWhRun = null;
+          if (lpm) {
+            if (lpm.calib_prefill_est_wh != null) {
+              prefillWhRun = lpm.calib_prefill_est_wh;
+            } else if (lpm.prefill_wh_active != null) {
+              prefillWhRun = lpm.prefill_wh_active;
+            } else if (lpm.prefill_wh != null) {
+              prefillWhRun = lpm.prefill_wh;
+            }
+          }
+
+          let decodeWhRun = null;
+          if (lpm) {
+            if (lpm.calib_expected_decode_wh != null) {
+              decodeWhRun = lpm.calib_expected_decode_wh;
+            } else if (lpm.decode_wh_active != null) {
+              decodeWhRun = lpm.decode_wh_active;
+            } else if (lpm.decode_wh != null) {
+              decodeWhRun = lpm.decode_wh;
+            }
+          }
 
           if (raplWhPer1k != null) raplValues.push(raplWhPer1k);
           if (raplTotalWh != null) raplTotalWhValues.push(raplTotalWh);
@@ -2323,6 +2353,10 @@
           if (typeof decDur === 'number') decodeArr.push(decDur);
           if (typeof runDur === 'number') runDurArr.push(runDur);
           if (typeof thinkTok === 'number') thinkTokArr.push(thinkTok);
+          if (prefillPer1k != null) prefillIntensityArr.push(prefillPer1k);
+          if (decodePer1k != null) decodeIntensityArr.push(decodePer1k);
+          if (prefillWhRun != null) prefillWhArr.push(prefillWhRun);
+          if (decodeWhRun != null) decodeWhArr.push(decodeWhRun);
 
           // Record first-run duration for ETA
           if (_raplBatchFirstDuration === null && latency && latency > 0) {
@@ -2399,6 +2433,11 @@
           const t = [...outputTokensArr].sort((a, b) => a - b); const n2 = t.length; return n2 % 2 ? t[(n2 - 1) / 2] : 0.5 * (t[n2 / 2 - 1] + t[n2 / 2]);
         })() : null;
 
+        const meanPrefillInt = prefillIntensityArr.length ? meanOf(prefillIntensityArr) : null;
+        const meanDecodeInt = decodeIntensityArr.length ? meanOf(decodeIntensityArr) : null;
+        const medianPrefillInt = prefillIntensityArr.length ? medianOf(prefillIntensityArr) : null;
+        const medianDecodeInt = decodeIntensityArr.length ? medianOf(decodeIntensityArr) : null;
+
         // Calculate injected tokens from the last result (assuming constant for batch)
         let injectedTokensVal = 0;
         if (_raplLastBatchResult && _raplLastBatchResult.token_metrics && _raplLastBatchResult.token_metrics.breakdown) {
@@ -2464,6 +2503,12 @@
           medianDecode: medianDecode,
           meanRunDur: meanRunDur,
           medianRunDur: medianRunDur,
+          meanPrefillIntensityPer1k: meanPrefillInt,
+          medianPrefillIntensityPer1k: medianPrefillInt,
+          meanDecodeIntensityPer1k: meanDecodeInt,
+          medianDecodeIntensityPer1k: medianDecodeInt,
+          meanPrefillWh: meanPrefillWh,
+          meanDecodeWh: meanDecodeWh,
         });
         renderRaplBatchTable();
       } else {
@@ -2548,13 +2593,28 @@
       appendCliLog('✅ Crossover Finder finished.');
     }
     function updateEnergyDisplay(energyMetrics) {
-      const energy = energyMetrics.watt_hours_consumed;
-      // Recalculate carbon using the user-selected emission factor
+      let energy = (energyMetrics && typeof energyMetrics.watt_hours_consumed === 'number')
+        ? energyMetrics.watt_hours_consumed
+        : 0;
+      // Prefer live RAPL total Wh when available for per-run carbon and energy display
+      const lpm = currentTestResults && currentTestResults.live_power_metrics
+        ? currentTestResults.live_power_metrics
+        : null;
+      if (lpm && typeof lpm.total_wh === 'number') {
+        energy = lpm.total_wh;
+      }
+      // Determine carbon: prefer backend carbon_grams_co2 if present, otherwise derive from grid factor
       const carbon = energy * currentEmissionFactor;
 
       // Update Main KPIs
-      if (kpiEnergyWh) kpiEnergyWh.textContent = `${energy.toFixed(4)} Wh`;
-      if (kpiCarbonMain) kpiCarbonMain.textContent = `${carbon.toFixed(2)} gCO2`;
+      if (kpiEnergyWh) kpiEnergyWh.textContent = energy > 0 ? `${energy.toFixed(4)} Wh` : '-';
+      if (kpiCarbonMain) {
+        if (energy > 0 && Number.isFinite(carbon)) {
+          kpiCarbonMain.textContent = `${carbon.toFixed(4)} gCO2`;
+        } else {
+          kpiCarbonMain.textContent = '-';
+        }
+      }
 
       // Calculate and display efficiency and speed from current results if available
       if (currentTestResults && currentTestResults.basic_metrics) {
@@ -2572,7 +2632,10 @@
         }
 
         if (kpiSpeedMain) {
-          kpiSpeedMain.textContent = bm.tokens_per_second ? bm.tokens_per_second.toFixed(1) : '-';
+          kpiSpeedMain.textContent = bm.latency ? bm.latency.toFixed(2) : '-';
+        }
+        if (kpiSpeedDetail) {
+          kpiSpeedDetail.textContent = 'Total time (s)';
         }
       }
 
@@ -2614,19 +2677,23 @@
           }
         }
 
-        // Update Prefill vs Decode chart (only when both values available)
+        // Update Prefill / Decode / Total chart (only when values available)
         const prefillChartVal = (lpm.calib_prefill_est_wh != null) ? lpm.calib_prefill_est_wh : ((lpm.prefill_wh_active != null) ? lpm.prefill_wh_active : lpm.prefill_wh);
         const decodeChartVal = (lpm.calib_expected_decode_wh != null) ? lpm.calib_expected_decode_wh : ((lpm.decode_wh_active != null) ? lpm.decode_wh_active : lpm.decode_wh);
-        if (prefillDecodeChart && prefillChartVal != null && decodeChartVal != null) {
+        const totalChartVal = (lpm.total_wh_active != null) ? lpm.total_wh_active : (lpm.total_wh != null ? lpm.total_wh : ((prefillChartVal != null && decodeChartVal != null) ? prefillChartVal + decodeChartVal : null));
+        if (prefillDecodeChart && prefillChartVal != null && decodeChartVal != null && totalChartVal != null) {
           const labels = prefillDecodeChart.data.labels;
           labels.push(`Test ${labels.length + 1}`);
           if (labels.length > 20) labels.shift();
-          const ds0 = prefillDecodeChart.data.datasets[0].data;
-          const ds1 = prefillDecodeChart.data.datasets[1].data;
+          const ds0 = prefillDecodeChart.data.datasets[0].data; // Prefill
+          const ds1 = prefillDecodeChart.data.datasets[1].data; // Decode
+          const ds2 = prefillDecodeChart.data.datasets[2].data; // Total
           ds0.push(prefillChartVal);
           ds1.push(decodeChartVal);
+          ds2.push(totalChartVal);
           if (ds0.length > 20) ds0.shift();
           if (ds1.length > 20) ds1.shift();
+          if (ds2.length > 20) ds2.shift();
           prefillDecodeChart.update();
         }
       } else {
@@ -2901,15 +2968,18 @@
       const em = data.energy_metrics || {};
       const lpm = data.live_power_metrics || {};
 
+      const baseEnergyWh = (lpm && typeof lpm.total_wh === 'number') ? lpm.total_wh : (em.watt_hours_consumed || 0);
+
       const newItem = {
         energyWh: em.watt_hours_consumed || 0,
-        carbon: em.carbon_grams_co2 || 0,
+        carbonBaseWh: baseEnergyWh,
         inputTokens: bm.prompt_tokens || 0,
         outputTokens: bm.completion_tokens || 0,
         totalTokens: bm.total_tokens || 0,
         latency: bm.latency || 0,
         tokensPerSec: bm.tokens_per_second || 0,
         ttft: lpm.ttft_seconds || 0,
+        decodeDuration: lpm.decode_duration_seconds || 0,
         raplEnergyWh: lpm.total_wh || 0,
         // Store raw RAPL Wh if available, otherwise 0
         timestamp: new Date().toLocaleTimeString()
@@ -3009,23 +3079,46 @@
         // Let's stick to efficiency for the "Energy" view as it normalizes properly.
       }
       else if (currentChartMode === 'speed') {
-        // Single-metric view: Tokens/sec only, to avoid confusing dual Y-axes
+        // Show total, prefill (TTFT), and decode times in seconds
         datasets.push({
-          label: 'Tokens / Sec',
-          data: energyHistory.map(h => h.tokensPerSec),
+          label: 'Total time (s)',
+          data: energyHistory.map(h => h.latency),
           borderColor: '#10b981', // Green
           backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          tension: 0.3,
+          yAxisID: 'y'
+        });
+        datasets.push({
+          label: 'Prefill (TTFT, s)',
+          data: energyHistory.map(h => h.ttft || 0),
+          borderColor: '#3b82f6', // Blue
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.3,
+          borderDash: [4, 4],
+          yAxisID: 'y'
+        });
+        datasets.push({
+          label: 'Decode time (s)',
+          data: energyHistory.map(h => {
+            const ttft = h.ttft || 0;
+            const dec = h.decodeDuration || 0;
+            if (dec > 0) return dec;
+            if (h.latency && ttft) return Math.max(h.latency - ttft, 0);
+            return 0;
+          }),
+          borderColor: '#f97316', // Orange
+          backgroundColor: 'rgba(249, 115, 22, 0.1)',
           tension: 0.3,
           yAxisID: 'y'
         });
       }
       else if (currentChartMode === 'carbon') {
         const dataCarbon = energyHistory.map(item => {
-          const div = getDivisor(item);
-          return div > 0 ? (item.carbon / div) : 0;
+          const baseWh = (typeof item.carbonBaseWh === 'number') ? item.carbonBaseWh : (item.energyWh || 0);
+          return baseWh * currentEmissionFactor;
         });
         datasets.push({
-          label: `Carbon (gCO2 / 1k ${normMode})`,
+          label: `Total Carbon (gCO2)`,
           data: dataCarbon,
           borderColor: '#22c55e', // Green
           backgroundColor: 'rgba(34, 197, 94, 0.1)',
@@ -3040,10 +3133,10 @@
 
       // Update scales
       if (currentChartMode === 'speed') {
-        mainResultsChart.options.scales.y.title.text = 'Tokens / Sec';
+        mainResultsChart.options.scales.y.title.text = 'Seconds';
         mainResultsChart.options.scales.y1.display = false;
       } else {
-        mainResultsChart.options.scales.y.title.text = currentChartMode === 'carbon' ? 'gCO2 / 1k tokens' : 'Wh / 1k tokens';
+        mainResultsChart.options.scales.y.title.text = currentChartMode === 'carbon' ? 'Total gCO2' : 'Wh / 1k tokens';
         mainResultsChart.options.scales.y1.display = false;
       }
 
@@ -3318,6 +3411,14 @@
               data: [],
               borderColor: 'rgba(248, 113, 113, 1)',
               backgroundColor: 'rgba(248, 113, 113, 0.15)',
+              tension: 0.25,
+              fill: false,
+            },
+            {
+              label: 'Total (Wh)',
+              data: [],
+              borderColor: 'rgba(52, 211, 153, 1)',
+              backgroundColor: 'rgba(52, 211, 153, 0.15)',
               tension: 0.25,
               fill: false,
             },
